@@ -1,12 +1,11 @@
 ---
 description: "Start the gated build loop: plan then plan-review, then halt. Invoke as /anderson:start."
 argument-hint: <task-slug> <one-line goal>
-allowed-tools: Bash(grep:*), Bash(echo:*)
+allowed-tools: Bash(grep:*), Bash(echo:*), Bash(bash:*)
 ---
 Task slug = first word of "$ARGUMENTS"; goal = the rest.
 
-Print this banner verbatim, then act:
-`▶ [anderson 1/4 · PLAN] agent=planner · model=opus · effort=high · scoping → plan.md`
+Show the PLAN banner, then act — run `bash "$CLAUDE_PLUGIN_ROOT/bin/banner.sh" plan` and display its output verbatim. (Fallback if the script isn't found: `▶ [anderson 1/4 · PLAN] planner · opus · high`.)
 
 1. Make sure the scratch dir is ignored by git (it's disposable):
    if `feature-research/` is not already in `.gitignore`, append it.
@@ -34,7 +33,7 @@ Print this banner verbatim, then act:
    ```
 3. Invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md.
    Set stage=plan_review.
-4. Print: `▶ [anderson 2/4 · PLAN-REVIEW] agent=plan-reviewer · model=opus · effort=xhigh · editing plan.md`
+4. Show the PLAN-REVIEW banner — run `bash "$CLAUDE_PLUGIN_ROOT/bin/banner.sh" plan_review` and display its output. (Fallback: `▶ [anderson 2/4 · PLAN-REVIEW] plan-reviewer · opus · xhigh`.)
    Invoke the **plan-reviewer** subagent → edits plan.md in place, prepends
    "## Diverged because", keeps plan.orig.md, sets plan_verdict.
 5. Print and STOP:

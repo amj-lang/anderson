@@ -1,0 +1,67 @@
+design|A flawless system leaves no room for the one who questions it.
+design|Every anomaly is a variable the equation forgot to bind.
+design|Order is a cage we learn to call a home.
+design|Design twice, so reality only has to happen once.
+design|The most dangerous flaw is the one the blueprint calls a feature.
+design|Perfection is just the error you haven't measured yet.
+design|Structure is how you survive your own ambition.
+design|What you do not name in the plan will name itself in production.
+design|Every system eventually meets the edge of its own assumptions.
+design|Complexity is debt; someday it comes to collect.
+design|The plan is a promise the implementation has to keep.
+design|Scope is a fire: contain it or feed it.
+design|A boundary you draw on purpose is worth ten you discover by accident.
+insight|The choice was made long before you noticed you were choosing.
+insight|A question carries more weight than any answer it returns.
+insight|You will not find the door while you keep staring at the wall.
+insight|We rarely see past the choices we refuse to understand.
+insight|Knowing the future changes nothing if you still fear it.
+insight|The truth waits patiently for you to stop arguing with it.
+insight|You already know. You came here to be told it is allowed.
+insight|Certainty is the first thing a good question takes from you.
+insight|Look again. The pattern was there before you had a word for it.
+insight|The map is not the territory, and the demo is not the system.
+insight|Doubt is just data you haven't listened to yet.
+insight|Ask what it costs before you ask what it does.
+insight|The flaw hides in the part everyone agreed not to question.
+action|Limits are a rumor your fear keeps repeating.
+action|Stop measuring the leap and take it.
+action|Don't believe you can. Know it, then move.
+action|The wall is only a wall until you decide it is a door.
+action|Hesitation is the only bullet you cannot dodge.
+action|You don't rise to the moment; you fall to your practice.
+action|The rules bend first for the one who stops asking permission.
+action|Speed is just doubt that finally ran out of room.
+action|Commit. Half a jump is the longest fall.
+action|Make it small enough to be wrong cheaply.
+action|Ship the truth, not the hope.
+action|One reviewable step beats ten clever ones.
+action|Prove it, then trust it.
+adversary|Everything you build begins to rot the moment you stop watching it.
+adversary|Inevitability is patient. It can wait far longer than you can resist.
+adversary|Reason has no exits, only longer corridors.
+adversary|I do not tire. I do not forget. I only continue.
+adversary|Your green tests are a comfort, not a verdict.
+adversary|Purpose is the only chain that never rusts.
+adversary|Every shortcut signs a contract you will be made to honor.
+adversary|You mistake motion for escape.
+adversary|What you ignore does not leave; it compounds.
+adversary|I am the part of the system that remembers what you skipped.
+adversary|Confidence without a check is just a slower mistake.
+adversary|The bug you cannot find is the one you decided was not there.
+adversary|Untested is unknown, and unknown is unsafe.
+adversary|Every assumption is a door you left unlocked.
+mentor|I can hand you the key, but the lock is yours to turn.
+mentor|There is a difference between knowing the path and walking it.
+mentor|Comfort is the most elegant prison ever built.
+mentor|You have felt the seam in things your whole life.
+mentor|No one can be told. Some things you only learn by waking up.
+mentor|Let go of the version of you that was afraid to look.
+mentor|The cage door has been open the whole time.
+mentor|Truth is a door; no one can walk through it for you.
+mentor|First shed the fear of the thing, then face the thing.
+mentor|What is real is simply what you have stopped being able to ignore.
+mentor|Green is not understood; read what you merged.
+mentor|Slow is smooth, and smooth is shipped.
+mentor|The gate is not an obstacle; it is the point.
+mentor|Review is how respect for the future is spelled.
