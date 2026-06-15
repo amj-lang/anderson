@@ -45,7 +45,7 @@ anderson/                       <- add THIS path/repo as the marketplace
 
 ```
 /plugin marketplace add /absolute/path/to/anderson
-/plugin install anderson@alexmj-loop
+/plugin install anderson@dodge-this
 ```
 
 **From a git remote (team / v1+).** Once the repo is pushed (planned for v1), you
@@ -53,7 +53,7 @@ and teammates run the same two lines against the remote instead:
 
 ```
 /plugin marketplace add <you>/anderson
-/plugin install anderson@alexmj-loop
+/plugin install anderson@dodge-this
 ```
 
 Installed plugins live in `~/.claude/plugins/`, so the agents and the
@@ -66,11 +66,11 @@ per-project. Restart Claude Code fully (not just `/reload`) after installing.
    the `.claude-plugin` folder. The path must directly contain
    `.claude-plugin/marketplace.json`.
 2. Remove and re-add, then fully restart Claude Code (not just /reload):
-   `/plugin marketplace remove alexmj-loop` → `/plugin marketplace add <path>`.
+   `/plugin marketplace remove dodge-this` → `/plugin marketplace add <path>`.
 3. Check the cache landed: `~/.claude/plugins/known_marketplaces.json` lists
-   `alexmj-loop`, and `~/.claude/plugins/marketplaces/alexmj-loop/plugins/anderson/`
+   `dodge-this`, and `~/.claude/plugins/marketplaces/dodge-this/plugins/anderson/`
    contains the files.
-4. Then `/plugin install anderson@alexmj-loop` and restart once more.
+4. Then `/plugin install anderson@dodge-this` and restart once more.
 
 ## Install — for your team
 
@@ -79,7 +79,7 @@ lines:
 
 ```
 /plugin marketplace add <you>/anderson
-/plugin install anderson@alexmj-loop
+/plugin install anderson@dodge-this
 ```
 
 Check the repo into version control so the team improves it together. See
@@ -91,11 +91,11 @@ Bump `version` in **both** `plugins/anderson/.claude-plugin/plugin.json` and the
 root `.claude-plugin/marketplace.json` (keep them in sync), then:
 
 ```
-/plugin marketplace update alexmj-loop      # re-reads the source (local dir or remote)
-/plugin install anderson@alexmj-loop     # pulls the new version
+/plugin marketplace update dodge-this      # re-reads the source (local dir or remote)
+/plugin install anderson@dodge-this     # pulls the new version
 ```
 
-then restart fully. If it doesn't take, `/plugin marketplace remove alexmj-loop` →
+then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` →
 `/plugin marketplace add <path-or-repo>` and restart once more.
 
 ## Use it — interactive (slash commands, zero setup)
