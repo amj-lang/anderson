@@ -10,10 +10,28 @@ Print this banner verbatim, then act:
 
 1. Make sure the scratch dir is ignored by git (it's disposable):
    if `feature-research/` is not already in `.gitignore`, append it.
-2. If `feature-research/<task>/state.md` is absent, create it: task, stage=plan,
-   gate=none, iteration=0, max_iterations=2,
-   exit_rule="all tests pass and lint clean, only major issues fixed",
-   plan_verdict=pending, diff_verdict=pending, empty "Done so far"/"Still open".
+2. If `feature-research/<task>/state.md` is absent, create it with this EXACT block
+   (substitute `<task>` with the task slug). This block is machine-read by
+   `hooks/scheduler.py`, `commands/status.md`, and `bin/feature.sh`; the format
+   must be byte-faithful — column-0 `key:`, the two STATE comments, no markdown
+   bullets or bold:
+   ```
+   # Pipeline state
+   <!-- STATE:START -->
+   task:            <task>
+   stage:           plan
+   gate:            none
+   iteration:       0
+   max_iterations:  2
+   exit_rule:       all tests pass and lint clean, only major issues fixed
+   plan_verdict:    pending
+   diff_verdict:    pending
+   <!-- STATE:END -->
+
+   ## Done so far
+
+   ## Still open
+   ```
 3. Invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md.
    Set stage=plan_review.
 4. Print: `▶ [claude-loop 2/4 · PLAN-REVIEW] agent=plan-reviewer · model=opus · effort=xhigh · editing plan.md`

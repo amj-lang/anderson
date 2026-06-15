@@ -164,7 +164,18 @@ transcript if your build logs it.)
 the state and chains plan→plan_review and implement→diff_review without you
 issuing each command, still halting at the two human gates. It's on by default in
 the plugin; remove the `hooks/` directory if you'd rather drive every step
-explicitly. (Confirm the hook stdout contract against current Claude Code docs.)
+explicitly.
+
+The scheduler emits hook JSON on stdout to drive the next turn:
+
+- **Chain forward** (gate=none transitions): `{"decision": "block", "reason": "<directive>"}` —
+  this prevents the Stop and feeds `reason` back to the model as its next instruction,
+  making chaining real rather than advisory. Valid for both `Stop` and `SubagentStop`.
+- **Human-gate / max_iterations notice**: `{"hookSpecificOutput": {"hookEventName": "<Stop|SubagentStop>", "additionalContext": "<notice>"}}` —
+  surfaces the notice without forcing another turn, allowing the Stop.
+- Stage is advanced on disk **before** emitting, so re-firing the hook never re-blocks
+  the same step. A re-entrancy guard (`stop_hook_active`) ensures silent exit if
+  Claude Code signals the hook is being called during a hook-induced stop.
 
 ## Exit conditions
 
@@ -183,7 +194,6 @@ The durable record is your **git history**, not the scratch files. So on
 `feature-research/<task>/`**. It does not commit for you — you commit. The
 scratch dir is also gitignored on start, so the plan/audit/review files never
 pollute the repo. Nothing stale is left behind.
-and escalates rather than burning tokens.
 
 ## Token notes
 

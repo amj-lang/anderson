@@ -11,3 +11,7 @@ State for "$ARGUMENTS":
 
 Summarize for me: current stage, which agent runs next and at what model/effort,
 both verdicts, and iteration vs max_iterations. One short block, no padding.
+When reading field values, parse leniently: strip any leading `- ` bullet or
+leading/trailing `**` bold markers, and ignore any trailing `# comment`. The
+machine-canonical format is `key:  value` at column 0, but markdown-styled
+state files (with bullets or bold) must render the same field values.
