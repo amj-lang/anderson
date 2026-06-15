@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "SubagentStop": [
+      { "hooks": [ { "type": "command", "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scheduler.py" } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scheduler.py" } ] }
+    ]
+  }
+}

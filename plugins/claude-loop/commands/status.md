@@ -1,0 +1,13 @@
+---
+description: "Show the loop dashboard for a task and check the model-override gotcha."
+argument-hint: <task-slug>
+allowed-tools: Bash(echo:*), Bash(cat:*)
+---
+Subagent model override (must be empty, else it overrides agent frontmatter):
+!`echo "CLAUDE_CODE_SUBAGENT_MODEL=${CLAUDE_CODE_SUBAGENT_MODEL:-<unset, good>}"`
+
+State for "$ARGUMENTS":
+!`cat "feature-research/$ARGUMENTS/state.md" 2>/dev/null | sed -n '/STATE:START/,/STATE:END/p'`
+
+Summarize for me: current stage, which agent runs next and at what model/effort,
+both verdicts, and iteration vs max_iterations. One short block, no padding.
