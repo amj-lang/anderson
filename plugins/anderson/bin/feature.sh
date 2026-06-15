@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# feature.sh — headless driver for the claude-loop pipeline (CI / walk-away runs).
+# feature.sh — headless driver for the anderson pipeline (CI / walk-away runs).
 # Deterministic gating: runs each chain with the right model and EXITS at a human
 # gate; resume by re-running with the matching flag. Interactive users can use the
-# /claude-loop:* slash commands instead. Requires the claude-loop plugin installed and the
+# /anderson:* slash commands instead. Requires the anderson plugin installed and the
 # `claude` CLI on PATH. Run from your repo root.
 #
 #   ./feature.sh start <task> "<goal>"      # plan -> plan_review, halt

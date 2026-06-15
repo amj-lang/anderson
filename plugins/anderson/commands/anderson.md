@@ -1,12 +1,12 @@
 ---
-description: "Start the gated build loop: plan then plan-review, then halt. Invoke as /claude-loop."
+description: "Start the gated build loop: plan then plan-review, then halt. Invoke as /anderson."
 argument-hint: <task-slug> <one-line goal>
 allowed-tools: Bash(grep:*), Bash(echo:*)
 ---
 Task slug = first word of "$ARGUMENTS"; goal = the rest.
 
 Print this banner verbatim, then act:
-`▶ [claude-loop 1/4 · PLAN] agent=planner · model=opus · effort=high · scoping → plan.md`
+`▶ [anderson 1/4 · PLAN] agent=planner · model=opus · effort=high · scoping → plan.md`
 
 1. Make sure the scratch dir is ignored by git (it's disposable):
    if `feature-research/` is not already in `.gitignore`, append it.
@@ -34,9 +34,9 @@ Print this banner verbatim, then act:
    ```
 3. Invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md.
    Set stage=plan_review.
-4. Print: `▶ [claude-loop 2/4 · PLAN-REVIEW] agent=plan-reviewer · model=opus · effort=xhigh · editing plan.md`
+4. Print: `▶ [anderson 2/4 · PLAN-REVIEW] agent=plan-reviewer · model=opus · effort=xhigh · editing plan.md`
    Invoke the **plan-reviewer** subagent → edits plan.md in place, prepends
    "## Diverged because", keeps plan.orig.md, sets plan_verdict.
 5. Print and STOP:
-   `■ GATE 1 · your turn. Read feature-research/<task>/plan.md (## Diverged because, verdict=<plan_verdict>). Then /claude-loop:approve-plan <task> — or just say "approved, go". Don't implement yet.`
+   `■ GATE 1 · your turn. Read feature-research/<task>/plan.md (## Diverged because, verdict=<plan_verdict>). Then /anderson:approve-plan <task> — or just say "approved, go". Don't implement yet.`
    Halt is unconditional even on a ship verdict.

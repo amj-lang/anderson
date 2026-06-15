@@ -1,4 +1,4 @@
-# claude-loop
+# anderson
 
 A gated maker/checker pipeline for Claude Code, packaged as a plugin so it works
 in **every repo** and installs for your **whole team** from one source.
@@ -28,11 +28,11 @@ This repo is a **marketplace root** with the plugin in a subdirectory — the on
 layout the CLI's marketplace loader handles reliably. Do NOT collapse these:
 
 ```
-claude-loop/                       <- add THIS path/repo as the marketplace
+anderson/                       <- add THIS path/repo as the marketplace
 ├── .claude-plugin/
-│   └── marketplace.json           <- source: ./plugins/claude-loop
+│   └── marketplace.json           <- source: ./plugins/anderson
 └── plugins/
-    └── claude-loop/               <- the plugin itself
+    └── anderson/               <- the plugin itself
         ├── .claude-plugin/plugin.json
         ├── agents/  commands/  hooks/  bin/  README.md
 ```
@@ -44,33 +44,33 @@ claude-loop/                       <- add THIS path/repo as the marketplace
 (this repo's top level), substituting your real absolute path:
 
 ```
-/plugin marketplace add /absolute/path/to/claude-loop
-/plugin install claude-loop@alexmj-loop
+/plugin marketplace add /absolute/path/to/anderson
+/plugin install anderson@alexmj-loop
 ```
 
 **From a git remote (team / v1+).** Once the repo is pushed (planned for v1), you
 and teammates run the same two lines against the remote instead:
 
 ```
-/plugin marketplace add <you>/claude-loop
-/plugin install claude-loop@alexmj-loop
+/plugin marketplace add <you>/anderson
+/plugin install anderson@alexmj-loop
 ```
 
 Installed plugins live in `~/.claude/plugins/`, so the agents and the
-`/claude-loop:*` commands are available in **every** repo you open — nothing
+`/anderson:*` commands are available in **every** repo you open — nothing
 per-project. Restart Claude Code fully (not just `/reload`) after installing.
 
 ### If it doesn't appear in the list
 
-1. Confirm you added the **marketplace root**, not `plugins/claude-loop` and not
+1. Confirm you added the **marketplace root**, not `plugins/anderson` and not
    the `.claude-plugin` folder. The path must directly contain
    `.claude-plugin/marketplace.json`.
 2. Remove and re-add, then fully restart Claude Code (not just /reload):
    `/plugin marketplace remove alexmj-loop` → `/plugin marketplace add <path>`.
 3. Check the cache landed: `~/.claude/plugins/known_marketplaces.json` lists
-   `alexmj-loop`, and `~/.claude/plugins/marketplaces/alexmj-loop/plugins/claude-loop/`
+   `alexmj-loop`, and `~/.claude/plugins/marketplaces/alexmj-loop/plugins/anderson/`
    contains the files.
-4. Then `/plugin install claude-loop@alexmj-loop` and restart once more.
+4. Then `/plugin install anderson@alexmj-loop` and restart once more.
 
 ## Install — for your team
 
@@ -78,8 +78,8 @@ Push the repo somewhere they can read it, then each teammate runs the same two
 lines:
 
 ```
-/plugin marketplace add <you>/claude-loop
-/plugin install claude-loop@alexmj-loop
+/plugin marketplace add <you>/anderson
+/plugin install anderson@alexmj-loop
 ```
 
 Check the repo into version control so the team improves it together. See
@@ -87,12 +87,12 @@ Check the repo into version control so the team improves it together. See
 
 ### Updating to a new version
 
-Bump `version` in **both** `plugins/claude-loop/.claude-plugin/plugin.json` and the
+Bump `version` in **both** `plugins/anderson/.claude-plugin/plugin.json` and the
 root `.claude-plugin/marketplace.json` (keep them in sync), then:
 
 ```
 /plugin marketplace update alexmj-loop      # re-reads the source (local dir or remote)
-/plugin install claude-loop@alexmj-loop     # pulls the new version
+/plugin install anderson@alexmj-loop     # pulls the new version
 ```
 
 then restart fully. If it doesn't take, `/plugin marketplace remove alexmj-loop` →
@@ -101,25 +101,25 @@ then restart fully. If it doesn't take, `/plugin marketplace remove alexmj-loop`
 ## Use it — interactive (slash commands, zero setup)
 
 ```
-/claude-loop               brief-views  normalize briefs_table.views[] into brief_views_table
+/anderson               brief-views  normalize briefs_table.views[] into brief_views_table
             # START. plan + plan-review, then halts. Read plan.md → "## Diverged because".
-/claude-loop:approve-plan  brief-views
+/anderson:approve-plan  brief-views
             # implement + diff-review, then halts. Read diff-review.md AND the diff.
-/claude-loop:approve-diff  brief-views     # ship (summarizes to commit, removes scratch)
-/claude-loop:rework        brief-views     # loop implement on the checker's blocking findings
-/claude-loop:status        brief-views     # dashboard + model-override check
+/anderson:approve-diff  brief-views     # ship (summarizes to commit, removes scratch)
+/anderson:rework        brief-views     # loop implement on the checker's blocking findings
+/anderson:status        brief-views     # dashboard + model-override check
 ```
 
-The reliable, unambiguous form is the **fully-qualified** `/claude-loop:<command>` —
-that's how they register: `/claude-loop:approve-plan`, `:approve-diff`, `:rework`,
-`:status` (start is `/claude-loop`, which may also resolve bare since the file
+The reliable, unambiguous form is the **fully-qualified** `/anderson:<command>` —
+that's how they register: `/anderson:approve-plan`, `:approve-diff`, `:rework`,
+`:status` (start is `/anderson`, which may also resolve bare since the file
 matches the plugin name). If a bare `/approve-plan` isn't found, add the
-`/claude-loop:` prefix. None of these are mandatory anyway: once a flow is running
+`/anderson:` prefix. None of these are mandatory anyway: once a flow is running
 you can drive every gate in plain text — "approved, go" / "ship it" / "rework the
 blockers" — since the agents read the same `state.md`.
 
 **What you see while it runs.** Each command prints a one-line banner before it
-dispatches, e.g. `▶ [claude-loop 3/4 · IMPLEMENT] agent=implementer ·
+dispatches, e.g. `▶ [anderson 3/4 · IMPLEMENT] agent=implementer ·
 model=sonnet · effort=medium · executing plan.md`, and the four agents are
 colour-coded in the subagent panel — planner=blue, plan-reviewer=purple,
 implementer=green, reviewer=orange — so you can tell at a glance which one is
@@ -137,7 +137,7 @@ env var → per-invocation override → **agent frontmatter** → main session.
 
 **The gotcha:** if `CLAUDE_CODE_SUBAGENT_MODEL` is set, it overrides every agent's
 frontmatter — your implementer would silently run on whatever that env says, not
-Sonnet. `/claude-loop:status` prints this for you; or check directly:
+Sonnet. `/anderson:status` prints this for you; or check directly:
 
 ```
 echo "${CLAUDE_CODE_SUBAGENT_MODEL:-<unset, good>}"
@@ -204,7 +204,7 @@ if you ever run this metered.)
 ## What happens after ship
 
 The durable record is your **git history**, not the scratch files. So on
-`/claude-loop:approve-diff` the loop hands you a ready commit/PR message
+`/anderson:approve-diff` the loop hands you a ready commit/PR message
 (`<goal> (review: ship · N blocking resolved)`) and **removes
 `feature-research/<task>/`**. It does not commit for you — you commit. The
 scratch dir is also gitignored on start, so the plan/audit/review files never
@@ -224,6 +224,6 @@ what the on-disk state is for.
   emits real `Stop`/`SubagentStop` hook JSON (`decision:block`+`reason` to chain,
   allow-stop `additionalContext` at gates) instead of discarded stdout, with a
   `stop_hook_active` re-entrancy guard. State parsing is lenient (tolerates `- `
-  bullets / `**` bold), and the interactive `/claude-loop` command seeds the exact
-  machine-readable STATE block so `/claude-loop:status` and the scheduler stay in sync.
+  bullets / `**` bold), and the interactive `/anderson` command seeds the exact
+  machine-readable STATE block so `/anderson:status` and the scheduler stay in sync.
 - **0.3.1** — Gated 4-stage pipeline with per-stage model/effort and two human gates.

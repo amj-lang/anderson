@@ -12,4 +12,4 @@ Task slug = "$ARGUMENTS". In state.md set diff_verdict=ship, stage=done.
 2. Remove the disposable scratch: `rm -rf "feature-research/$ARGUMENTS"`.
    (The git history + commit message are the durable record; the plan/audit/
    review files were only scaffolding the agents passed between each other.)
-3. Print: `✓ [claude-loop · DONE] $ARGUMENTS shipped · scratch cleaned. Reminder: green != understood — read what merged.`
+3. Print: `✓ [anderson · DONE] $ARGUMENTS shipped · scratch cleaned. Reminder: green != understood — read what merged.`
