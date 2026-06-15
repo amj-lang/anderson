@@ -1,5 +1,5 @@
 ---
-description: "Start the gated build loop: plan then plan-review, then halt. Invoke as /anderson."
+description: "Start the gated build loop: plan then plan-review, then halt. Invoke as /anderson:start."
 argument-hint: <task-slug> <one-line goal>
 allowed-tools: Bash(grep:*), Bash(echo:*)
 ---

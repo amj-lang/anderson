@@ -101,7 +101,7 @@ then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` 
 ## Use it — interactive (slash commands, zero setup)
 
 ```
-/anderson               brief-views  normalize briefs_table.views[] into brief_views_table
+/anderson:start          brief-views  normalize briefs_table.views[] into brief_views_table
             # START. plan + plan-review, then halts. Read plan.md → "## Diverged because".
 /anderson:approve-plan  brief-views
             # implement + diff-review, then halts. Read diff-review.md AND the diff.
@@ -110,13 +110,13 @@ then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` 
 /anderson:status        brief-views     # dashboard + model-override check
 ```
 
-The reliable, unambiguous form is the **fully-qualified** `/anderson:<command>` —
-that's how they register: `/anderson:approve-plan`, `:approve-diff`, `:rework`,
-`:status` (start is `/anderson`, which may also resolve bare since the file
-matches the plugin name). If a bare `/approve-plan` isn't found, add the
-`/anderson:` prefix. None of these are mandatory anyway: once a flow is running
-you can drive every gate in plain text — "approved, go" / "ship it" / "rework the
-blockers" — since the agents read the same `state.md`.
+All commands are **namespaced** `/anderson:<command>` — `/anderson:start`,
+`/anderson:approve-plan`, `:approve-diff`, `:rework`, `:status`. Bare plugin-name
+invocation (`/anderson` alone) does **not** resolve — Claude Code namespaces plugin
+commands — so the start command is `/anderson:start`. None of these are mandatory
+anyway: once a flow is running you can drive every gate in plain text —
+"approved, go" / "ship it" / "rework the blockers" — since the agents read the
+same `state.md`.
 
 **What you see while it runs.** Each command prints a one-line banner before it
 dispatches, e.g. `▶ [anderson 3/4 · IMPLEMENT] agent=implementer ·
