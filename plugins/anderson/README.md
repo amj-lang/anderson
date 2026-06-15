@@ -218,8 +218,20 @@ stays flat. Keep agent prompts byte-stable so Claude Code caches the prefix (cac
 reads ≈ 0.1× input); don't inject the date/iteration into a prompt prefix — that's
 what the on-disk state is for.
 
+## Extras (terminal)
+
+Two optional flourishes in `bin/` — run them in a real terminal (the in-loop banners are plain text and don't animate):
+
+- **`bash bin/matrix.sh`** — green digital-rain intro that resolves into the `⌐■-■ A N D E R S O N` logo. Honors `NO_COLOR` / non-TTY (prints a clean static frame). Tunables: `MATRIX_DELAY`, `MATRIX_FRAMES`. Great for a demo GIF.
+- **`bin/statusline.sh`** — a one-line status bar with the live loop stage + a calm shimmer (glasses + rain cycle ~1/sec). Opt-in; add to `settings.json` with an absolute path (this replaces any existing statusline):
+  ```
+  "statusLine": { "type": "command", "command": "bash /ABS/PATH/plugins/anderson/bin/statusline.sh" }
+  ```
+
 ## Changelog
 
+- **0.6.0** — Terminal `bin/matrix.sh` intro (digital rain → glasses/title) and an opt-in
+  one-line `bin/statusline.sh` shimmer showing the live stage. Extras only; the loop is unchanged.
 - **0.5.1** — Banners render as inline command text (no plugin-script execution), so
   they work for any user without a bash-permission grant; `bin/banner.sh` / `bin/demo.sh` stay for terminal use.
 - **0.5.0** — Matrix-flavored stage banners (sunglasses sigil + rotating original,
