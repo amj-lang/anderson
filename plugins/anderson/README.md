@@ -224,6 +224,6 @@ what the on-disk state is for.
   emits real `Stop`/`SubagentStop` hook JSON (`decision:block`+`reason` to chain,
   allow-stop `additionalContext` at gates) instead of discarded stdout, with a
   `stop_hook_active` re-entrancy guard. State parsing is lenient (tolerates `- `
-  bullets / `**` bold), and the interactive `/anderson` command seeds the exact
+  bullets / `**` bold), and the interactive `/anderson:start` command seeds the exact
   machine-readable STATE block so `/anderson:status` and the scheduler stay in sync.
 - **0.3.1** — Gated 4-stage pipeline with per-stage model/effort and two human gates.
