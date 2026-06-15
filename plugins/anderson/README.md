@@ -48,11 +48,11 @@ anderson/                       <- add THIS path/repo as the marketplace
 /plugin install anderson@dodge-this
 ```
 
-**From a git remote (team / v1+).** Once the repo is pushed (planned for v1), you
-and teammates run the same two lines against the remote instead:
+**From a git remote (recommended).** The repo lives at `amj-lang/anderson` (private), so you
+and teammates (with repo access) run the same two lines against the remote instead:
 
 ```
-/plugin marketplace add <you>/anderson
+/plugin marketplace add amj-lang/anderson
 /plugin install anderson@dodge-this
 ```
 
@@ -78,7 +78,7 @@ Push the repo somewhere they can read it, then each teammate runs the same two
 lines:
 
 ```
-/plugin marketplace add <you>/anderson
+/plugin marketplace add amj-lang/anderson
 /plugin install anderson@dodge-this
 ```
 
