@@ -5,7 +5,8 @@ allowed-tools: Bash(grep:*), Bash(echo:*), Bash(bash:*)
 ---
 Task slug = first word of "$ARGUMENTS"; goal = the rest.
 
-Show the PLAN banner, then act — run `bash "$CLAUDE_PLUGIN_ROOT/bin/banner.sh" plan` and display its output verbatim. (Fallback if the script isn't found: `▶ [anderson 1/4 · PLAN] planner · opus · high`.)
+Show the PLAN banner (it prints when this command runs), then act:
+!`bash "${CLAUDE_PLUGIN_ROOT}/bin/banner.sh" plan`
 
 1. Make sure the scratch dir is ignored by git (it's disposable):
    if `feature-research/` is not already in `.gitignore`, append it.
@@ -33,7 +34,8 @@ Show the PLAN banner, then act — run `bash "$CLAUDE_PLUGIN_ROOT/bin/banner.sh"
    ```
 3. Invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md.
    Set stage=plan_review.
-4. Show the PLAN-REVIEW banner — run `bash "$CLAUDE_PLUGIN_ROOT/bin/banner.sh" plan_review` and display its output. (Fallback: `▶ [anderson 2/4 · PLAN-REVIEW] plan-reviewer · opus · xhigh`.)
+4. Show the PLAN-REVIEW banner:
+   !`bash "${CLAUDE_PLUGIN_ROOT}/bin/banner.sh" plan_review`
    Invoke the **plan-reviewer** subagent → edits plan.md in place, prepends
    "## Diverged because", keeps plan.orig.md, sets plan_verdict.
 5. Print and STOP:
