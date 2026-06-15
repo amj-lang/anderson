@@ -1,11 +1,11 @@
 {
   "name": "dodge-this",
-  "owner": { "name": "Alex MJ" },
+  "owner": { "name": "Alexander McLean-Janet" },
   "plugins": [
     {
       "name": "anderson",
       "source": "./plugins/anderson",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "description": "Gated 4-stage build loop (plan/plan-review/implement/diff-review) with per-stage model/effort, two human gates, and real hook-JSON autonomous chaining between gates."
     }
   ]
