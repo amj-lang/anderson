@@ -2,7 +2,7 @@
 # feature.sh — headless driver for the claude-loop pipeline (CI / walk-away runs).
 # Deterministic gating: runs each chain with the right model and EXITS at a human
 # gate; resume by re-running with the matching flag. Interactive users can use the
-# /loop-* slash commands instead. Requires the claude-loop plugin installed and the
+# /claude-loop:* slash commands instead. Requires the claude-loop plugin installed and the
 # `claude` CLI on PATH. Run from your repo root.
 #
 #   ./feature.sh start <task> "<goal>"      # plan -> plan_review, halt
@@ -14,7 +14,7 @@ ROOT="feature-research"; task="${2:-}"; dir="$ROOT/$task"; state="$dir/state.md"
 
 seed_state() {
   mkdir -p "$dir"
-  grep -qxF "feature-research/" .gitignore 2>/dev/null || echo "feature-research/" >> .gitignore
+  grep -qE '^[[:space:]]*/?feature-research/?[[:space:]]*$' .gitignore 2>/dev/null || echo "feature-research/" >> .gitignore
   cat > "$state" << TPL
 # Pipeline state
 <!-- STATE:START -->
@@ -33,7 +33,7 @@ diff_verdict:    pending
 ## Still open
 TPL
 }
-get() { grep -E "^$1:" "$state" | head -1 | sed -E "s/^$1:[[:space:]]*//; s/[[:space:]]*#.*//"; }
+get() { grep -E "^$1:" "$state" | head -1 | sed -E "s/^$1:[[:space:]]*//; s/[[:space:]]*#.*//" || true; }
 set_field() { sed -i.bak -E "s|^($1:[[:space:]]*).*|\1$2|" "$state" && rm -f "$state.bak"; }
 run() { claude -p "$3" --model "$1" --permission-mode "$2" --output-format json | tee -a "$dir/run.log"; }
 

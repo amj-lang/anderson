@@ -3,7 +3,7 @@
 Optional autonomous scheduler. With this hook enabled, after each agent finishes
 the loop advances state.md and emits hook JSON to chain the next agent (or a HALT
 notice at a human gate) — so you can run hands-off between gates instead of
-issuing each /loop-* command. Leave it out to drive purely via slash commands
+issuing each /claude-loop:* command. Leave it out to drive purely via slash commands
 or the headless feature.sh.
 """
 import glob, json, os, re, sys

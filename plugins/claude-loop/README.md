@@ -39,24 +39,26 @@ claude-loop/                       <- add THIS path/repo as the marketplace
 
 ## Install — for yourself (covers all your repos)
 
-Push the `claude-loop/` repo to git (e.g. `github.com/<you>/claude-loop`), then in
-any Claude Code session:
-
-```
-/plugin marketplace add <you>/claude-loop
-/plugin install claude-loop@alexmj-loop
-```
-
-To try before pushing, point at the local **marketplace root** (the dir that
-contains `.claude-plugin/marketplace.json`):
+**Local marketplace (current — no git remote needed).** Point Claude Code at the
+**marketplace root** — the dir that contains `.claude-plugin/marketplace.json`
+(this repo's top level), substituting your real absolute path:
 
 ```
 /plugin marketplace add /absolute/path/to/claude-loop
 /plugin install claude-loop@alexmj-loop
 ```
 
-Installed plugins live in `~/.claude/plugins/`, so the agents and `/loop-*`
-commands are available in **every** repo you open — nothing per-project.
+**From a git remote (team / v1+).** Once the repo is pushed (planned for v1), you
+and teammates run the same two lines against the remote instead:
+
+```
+/plugin marketplace add <you>/claude-loop
+/plugin install claude-loop@alexmj-loop
+```
+
+Installed plugins live in `~/.claude/plugins/`, so the agents and the
+`/claude-loop:*` commands are available in **every** repo you open — nothing
+per-project. Restart Claude Code fully (not just `/reload`) after installing.
 
 ### If it doesn't appear in the list
 
@@ -80,8 +82,21 @@ lines:
 /plugin install claude-loop@alexmj-loop
 ```
 
-Bump `version` in `.claude-plugin/plugin.json` on changes; they re-install to
-update. Check the repo into version control so the team improves it together.
+Check the repo into version control so the team improves it together. See
+**Updating to a new version** below for the bump + reinstall flow.
+
+### Updating to a new version
+
+Bump `version` in **both** `plugins/claude-loop/.claude-plugin/plugin.json` and the
+root `.claude-plugin/marketplace.json` (keep them in sync), then:
+
+```
+/plugin marketplace update alexmj-loop      # re-reads the source (local dir or remote)
+/plugin install claude-loop@alexmj-loop     # pulls the new version
+```
+
+then restart fully. If it doesn't take, `/plugin marketplace remove alexmj-loop` →
+`/plugin marketplace add <path-or-repo>` and restart once more.
 
 ## Use it — interactive (slash commands, zero setup)
 
@@ -95,13 +110,13 @@ update. Check the repo into version control so the team improves it together.
 /claude-loop:status        brief-views     # dashboard + model-override check
 ```
 
-The start command is just `/claude-loop` — its file is named `claude-loop.md`,
-so the bare plugin name triggers it. The `claude-loop:` prefix on the others is
-**optional** unless another plugin defines the same command name, so you can
-usually just type `/approve-plan`, `/approve-diff`, `/rework`, `/status`. And
-none of these are mandatory: once a flow is running you can drive every gate in
-plain text — "approved, go" / "ship it" / "rework the blockers" — since the
-agents read the same `state.md`.
+The reliable, unambiguous form is the **fully-qualified** `/claude-loop:<command>` —
+that's how they register: `/claude-loop:approve-plan`, `:approve-diff`, `:rework`,
+`:status` (start is `/claude-loop`, which may also resolve bare since the file
+matches the plugin name). If a bare `/approve-plan` isn't found, add the
+`/claude-loop:` prefix. None of these are mandatory anyway: once a flow is running
+you can drive every gate in plain text — "approved, go" / "ship it" / "rework the
+blockers" — since the agents read the same `state.md`.
 
 **What you see while it runs.** Each command prints a one-line banner before it
 dispatches, e.g. `▶ [claude-loop 3/4 · IMPLEMENT] agent=implementer ·
@@ -202,3 +217,13 @@ work stays out of your main context. State lives on disk, so per-iteration conte
 stays flat. Keep agent prompts byte-stable so Claude Code caches the prefix (cache
 reads ≈ 0.1× input); don't inject the date/iteration into a prompt prefix — that's
 what the on-disk state is for.
+
+## Changelog
+
+- **0.4.0** — Autonomous chaining now actually drives the next turn: the scheduler
+  emits real `Stop`/`SubagentStop` hook JSON (`decision:block`+`reason` to chain,
+  allow-stop `additionalContext` at gates) instead of discarded stdout, with a
+  `stop_hook_active` re-entrancy guard. State parsing is lenient (tolerates `- `
+  bullets / `**` bold), and the interactive `/claude-loop` command seeds the exact
+  machine-readable STATE block so `/claude-loop:status` and the scheduler stay in sync.
+- **0.3.1** — Gated 4-stage pipeline with per-stage model/effort and two human gates.

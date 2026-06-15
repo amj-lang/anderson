@@ -5,8 +5,8 @@
     {
       "name": "claude-loop",
       "source": "./plugins/claude-loop",
-      "version": "0.3.1",
-      "description": "Gated 4-stage build loop with per-stage model/effort and two human gates."
+      "version": "0.4.0",
+      "description": "Gated 4-stage build loop (plan/plan-review/implement/diff-review) with per-stage model/effort, two human gates, and real hook-JSON autonomous chaining between gates."
     }
   ]
 }
