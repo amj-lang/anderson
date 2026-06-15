@@ -220,6 +220,8 @@ what the on-disk state is for.
 
 ## Changelog
 
+- **0.5.0** — Matrix-flavored stage banners (sunglasses sigil + rotating original,
+  mood-matched aphorisms) and a zero-token `/anderson:demo` dry-run of the full pipeline.
 - **0.4.0** — Autonomous chaining now actually drives the next turn: the scheduler
   emits real `Stop`/`SubagentStop` hook JSON (`decision:block`+`reason` to chain,
   allow-stop `additionalContext` at gates) instead of discarded stdout, with a
