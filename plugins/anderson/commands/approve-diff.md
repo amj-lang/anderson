@@ -1,7 +1,7 @@
 ---
 description: "Ship the task after your diff review: summarize to the commit, then remove the scratch dir."
 argument-hint: <task-slug>
-allowed-tools: Bash(rm:*), Bash(echo:*), Bash(cat:*), Bash(bash:*)
+allowed-tools: Bash(rm:*), Bash(echo:*), Bash(cat:*)
 ---
 Task slug = "$ARGUMENTS". In state.md set diff_verdict=ship, stage=done.
 
@@ -12,6 +12,11 @@ Task slug = "$ARGUMENTS". In state.md set diff_verdict=ship, stage=done.
 2. Remove the disposable scratch: `rm -rf "feature-research/$ARGUMENTS"`.
    (The git history + commit message are the durable record; the plan/audit/
    review files were only scaffolding the agents passed between each other.)
-3. Show the SHIP banner, then print the done line:
-   !`bash "${CLAUDE_PLUGIN_ROOT}/bin/banner.sh" ship`
-   `✓ [anderson · DONE] $ARGUMENTS shipped · scratch cleaned. Reminder: green != understood — read what merged.`
+3. Print this SHIP banner (pick one quote), then the done line:
+   ```
+     ⌐■-■  A N D E R S O N   ·   ✓ · SHIP
+           THE ONE · welcome to the real world
+           "[one quote from the pool]"
+   ```
+   Pool: "Green is not understood; read what you merged." / "The gate is not an obstacle; it is the point." / "Review is how respect for the future is spelled." / "I can hand you the key, but the lock is yours to turn."
+   Then: `✓ [anderson · DONE] $ARGUMENTS shipped · scratch cleaned. Reminder: green != understood — read what merged.`

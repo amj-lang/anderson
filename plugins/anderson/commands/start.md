@@ -1,12 +1,17 @@
 ---
 description: "Start the gated build loop: plan then plan-review, then halt. Invoke as /anderson:start."
 argument-hint: <task-slug> <one-line goal>
-allowed-tools: Bash(grep:*), Bash(echo:*), Bash(bash:*)
+allowed-tools: Bash(grep:*), Bash(echo:*)
 ---
 Task slug = first word of "$ARGUMENTS"; goal = the rest.
 
-Show the PLAN banner (it prints when this command runs), then act:
-!`bash "${CLAUDE_PLUGIN_ROOT}/bin/banner.sh" plan`
+Print this PLAN banner (pick one quote from the pool, vary it run to run), then act:
+```
+  ⌐■-■  A N D E R S O N   ·   1/4 · PLAN
+        THE ARCHITECT · planner · opus · high · scoping → plan.md
+        "[one quote from the pool]"
+```
+Pool: "Design twice, so reality only has to happen once." / "The most dangerous flaw is the one the blueprint calls a feature." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it."
 
 1. Make sure the scratch dir is ignored by git (it's disposable):
    if `feature-research/` is not already in `.gitignore`, append it.
@@ -34,8 +39,13 @@ Show the PLAN banner (it prints when this command runs), then act:
    ```
 3. Invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md.
    Set stage=plan_review.
-4. Show the PLAN-REVIEW banner:
-   !`bash "${CLAUDE_PLUGIN_ROOT}/bin/banner.sh" plan_review`
+4. Print this PLAN-REVIEW banner (pick one quote):
+   ```
+     ⌐■-■  A N D E R S O N   ·   2/4 · PLAN_REVIEW
+           THE ORACLE · plan-reviewer · opus · xhigh · editing plan.md
+           "[one quote from the pool]"
+   ```
+   Pool: "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does."
    Invoke the **plan-reviewer** subagent → edits plan.md in place, prepends
    "## Diverged because", keeps plan.orig.md, sets plan_verdict.
 5. Print and STOP:

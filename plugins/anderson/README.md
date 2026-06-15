@@ -220,6 +220,8 @@ what the on-disk state is for.
 
 ## Changelog
 
+- **0.5.1** — Banners render as inline command text (no plugin-script execution), so
+  they work for any user without a bash-permission grant; `bin/banner.sh` / `bin/demo.sh` stay for terminal use.
 - **0.5.0** — Matrix-flavored stage banners (sunglasses sigil + rotating original,
   mood-matched aphorisms) and a zero-token `/anderson:demo` dry-run of the full pipeline.
 - **0.4.0** — Autonomous chaining now actually drives the next turn: the scheduler
