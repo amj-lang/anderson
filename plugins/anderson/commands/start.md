@@ -7,7 +7,7 @@ Task slug = first word of "$ARGUMENTS"; goal = the rest.
 
 Print this PLAN banner (pick one quote from the pool, vary it run to run), then act:
 ```
-  ⌐■-■  A N D E R S O N   ·   1/4 · PLAN
+  ✦ ⌐■-■  A N D E R S O N  ✦   ·   1/4 · PLAN
         THE ARCHITECT · planner · opus · high · scoping → plan.md
         "[one quote from the pool]"
 ```
@@ -41,13 +41,15 @@ Pool: "Design twice, so reality only has to happen once." / "The most dangerous 
    Set stage=plan_review.
 4. Print this PLAN-REVIEW banner (pick one quote):
    ```
-     ⌐■-■  A N D E R S O N   ·   2/4 · PLAN_REVIEW
+     ✦ ⌐■-■  A N D E R S O N  ✦   ·   2/4 · PLAN_REVIEW
            THE ORACLE · plan-reviewer · opus · xhigh · editing plan.md
            "[one quote from the pool]"
    ```
    Pool: "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does."
    Invoke the **plan-reviewer** subagent → edits plan.md in place, prepends
    "## Diverged because", keeps plan.orig.md, sets plan_verdict.
-5. Print and STOP:
+5. Print and STOP — fill in the real task slug for every `<task>` and the real
+   verdict for `<plan_verdict>` so the command + path are copy-pasteable (e.g.
+   `/anderson:approve-plan brief-views`, NOT a literal `<task>`):
    `■ GATE 1 · your turn. Read feature-research/<task>/plan.md (## Diverged because, verdict=<plan_verdict>). Then /anderson:approve-plan <task> — or just say "approved, go". Don't implement yet.`
    Halt is unconditional even on a ship verdict.

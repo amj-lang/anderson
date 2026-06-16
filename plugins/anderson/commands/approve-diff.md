@@ -14,7 +14,7 @@ Task slug = "$ARGUMENTS". In state.md set diff_verdict=ship, stage=done.
    review files were only scaffolding the agents passed between each other.)
 3. Print this SHIP banner (pick one quote), then the done line:
    ```
-     ⌐■-■  A N D E R S O N   ·   ✓ · SHIP
+     ✦ ⌐■-■  A N D E R S O N  ✦   ·   ✓ · SHIP
            THE ONE · welcome to the real world
            "[one quote from the pool]"
    ```

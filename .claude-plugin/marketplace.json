@@ -5,7 +5,7 @@
     {
       "name": "anderson",
       "source": "./plugins/anderson",
-      "version": "0.6.0",
+      "version": "0.6.1",
       "description": "Gated 4-stage build loop (plan/plan-review/implement/diff-review) with per-stage model/effort, two human gates, and real hook-JSON autonomous chaining between gates."
     }
   ]

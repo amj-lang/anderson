@@ -230,6 +230,11 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.6.1** — Stage banners get a glitter accent (`✦` framing the glasses), and the
+  GATE prompts now print the resolved command with the real feature slug filled in
+  (`/anderson:approve-plan brief-views`, copy-pasteable) instead of a literal `<task>`.
+  Cosmetic + UX only; loop logic unchanged. (In-chat banners stay static — true motion
+  lives in `bin/statusline.sh` / `bin/matrix.sh`.)
 - **0.6.0** — Terminal `bin/matrix.sh` intro (digital rain → glasses/title) and an opt-in
   one-line `bin/statusline.sh` shimmer showing the live stage. Extras only; the loop is unchanged.
 - **0.5.1** — Banners render as inline command text (no plugin-script execution), so
