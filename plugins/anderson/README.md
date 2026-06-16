@@ -230,6 +230,10 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.6.3** — Quote pools grew 4 → 10 per stage, with a stronger "pick at random,
+  don't reuse one shown this session" instruction so banners stop repeating. The SHIP
+  banner gets a dedicated 10-quote ending pool, and the DONE line now states the loop
+  has fully stopped (nothing runs in the background). Cosmetic + UX; loop logic unchanged.
 - **0.6.2** — Statusline glasses now cycle **colour** each refresh (green → bright
   green → bright cyan → cyan) — closest a plugin can get to a live, "tinkering…"-style
   colour shimmer (refresh-paced, not smooth). Statusline only; honors `NO_COLOR`; loop unchanged.
