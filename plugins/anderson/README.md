@@ -166,12 +166,16 @@ transcript if your build logs it.)
 ## Use it — headless (CI / walk-away)
 
 `bin/feature.sh` is the deterministic version: it `exit`s at each gate (codes 10
-/ 20) so it composes with CI or a Makefile. Add it to PATH or call directly:
+/ 20) so it composes with CI or a Makefile, and on `--approve-diff` it **ships for
+real** — branch + commit + push + open PR, guarded exactly like the interactive
+command (it builds the message deterministically from the scratch instead of asking a
+model; needs `git` + `gh` auth in CI, and degrades gracefully without them). Add it to
+PATH or call directly:
 
 ```
 ./bin/feature.sh start brief-views "normalize views[] into brief_views_table"
 ./bin/feature.sh --approve-plan brief-views
-./bin/feature.sh --approve-diff brief-views   # or --rework
+./bin/feature.sh --approve-diff brief-views   # ship: branch + commit + push + PR (guarded);  or --rework
 ```
 
 ## Optional — autonomous between-gate chaining
@@ -244,6 +248,11 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.8.1** — Headless parity for ship: `bin/feature.sh --approve-diff` now branches
+  (off the default branch, `anderson/<slug>`), commits, pushes, and opens the PR — the
+  same guarded flow as the interactive command, but with the commit subject + PR body
+  built deterministically from the scratch (no model). Sets a CI fallback git identity
+  only if none exists; handles detached HEAD; degrades gracefully without a remote / `gh`.
 - **0.8.0** — New **grill** step between plan and plan-review. After the planner drafts
   `plan.md`, anderson interviews you relentlessly about it — one question at a time, down
   each branch of the decision tree, recommending an answer to each, exploring the codebase
