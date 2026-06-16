@@ -1,6 +1,6 @@
 {
   "name": "anderson",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Gated maker/checker pipeline: plan (high) -> plan-review (xhigh, edits) -> [human] -> implement (medium) -> diff-review (xhigh, read-only) -> [human]. Self-contained agents; no external skills required.",
   "author": { "name": "Alexander McLean-Janet" }
 }

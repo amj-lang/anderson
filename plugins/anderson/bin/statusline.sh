@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # anderson statusline — one compact line: live loop stage + a calm shimmer
-# (glasses lens + rain tail cycle ~once/second). Wire it in settings.json:
+# (glasses lens + colour + rain tail cycle ~once/second). Wire it in settings.json:
 #   "statusLine": { "type": "command", "command": "bash /ABS/PATH/bin/statusline.sh" }
 # Reads the most-recent feature-research/*/state.md in the current repo (if any).
 set -euo pipefail
@@ -8,8 +8,13 @@ _in="$(cat 2>/dev/null || true)"      # drain the session JSON on stdin (unused)
 
 fr=$(( $(date +%s) % 4 ))             # shimmer frame, advances ~1/second
 
-G=""; B=""; R=""
-if [ -z "${NO_COLOR:-}" ]; then G=$'\033[32m'; B=$'\033[1;32m'; R=$'\033[0m'; fi
+G=""; R=""; eyecols=("" "" "" "")
+if [ -z "${NO_COLOR:-}" ]; then
+  G=$'\033[32m'; R=$'\033[0m'
+  # glasses colour rotates each refresh: green, bright green, bright cyan, cyan
+  eyecols=($'\033[32m' $'\033[1;32m' $'\033[1;36m' $'\033[36m')
+fi
+ec="${eyecols[$fr]}"
 
 case "$fr" in
   0) eyes="⌐■-■" ;;
@@ -39,4 +44,4 @@ else
   mid="idle · /anderson:start to begin"
 fi
 
-printf '%s%s%s %sanderson%s · %s · %s%s%s\n' "$B" "$eyes" "$R" "$G" "$R" "$mid" "$G" "$rain" "$R"
+printf '%s%s%s %sanderson%s · %s · %s%s%s\n' "$ec" "$eyes" "$R" "$G" "$R" "$mid" "$G" "$rain" "$R"

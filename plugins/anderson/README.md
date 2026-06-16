@@ -230,6 +230,9 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.6.2** — Statusline glasses now cycle **colour** each refresh (green → bright
+  green → bright cyan → cyan) — closest a plugin can get to a live, "tinkering…"-style
+  colour shimmer (refresh-paced, not smooth). Statusline only; honors `NO_COLOR`; loop unchanged.
 - **0.6.1** — Stage banners get a glitter accent (`✦` framing the glasses), and the
   GATE prompts now print the resolved command with the real feature slug filled in
   (`/anderson:approve-plan brief-views`, copy-pasteable) instead of a literal `<task>`.
