@@ -105,7 +105,7 @@ then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` 
             # START. plan + plan-review, then halts. Read plan.md → "## Diverged because".
 /anderson:approve-plan  brief-views
             # implement + diff-review, then halts. Read diff-review.md AND the diff.
-/anderson:approve-diff  brief-views     # ship (summarizes to commit, removes scratch)
+/anderson:approve-diff  brief-views     # SHIP for real: commit on a branch + push + open PR (guarded), then clean scratch
 /anderson:rework        brief-views     # loop implement on the checker's blocking findings
 /anderson:status        brief-views     # dashboard + model-override check
 ```
@@ -203,12 +203,24 @@ if you ever run this metered.)
 
 ## What happens after ship
 
-The durable record is your **git history**, not the scratch files. So on
-`/anderson:approve-diff` the loop hands you a ready commit/PR message
-(`<goal> (review: ship · N blocking resolved)`) and **removes
-`feature-research/<task>/`**. It does not commit for you — you commit. The
-scratch dir is also gitignored on start, so the plan/audit/review files never
-pollute the repo. Nothing stale is left behind.
+The durable record is your **git history + the PR**, not the scratch files. On
+`/anderson:approve-diff` the loop now **ships for real**, in this order:
+
+1. Builds the commit subject (`<goal> (review: ship · N blocking resolved)`) and a
+   PR body (what changed + why, the review verdict, files touched, test status) from
+   the scratch — *before* it deletes anything.
+2. **Branches if needed:** if you're on the default branch (`main`/`master`) it
+   creates and switches to `anderson/<slug>`; if you're already on a feature branch it
+   commits there. It never commits straight to the default branch and never force-pushes.
+3. **Commits** the work under your own git identity (no Claude trailer), staging only
+   real code — the scratch dir is gitignored, so it's never committed.
+4. **Pushes + opens the PR** via `gh`, *guarded*: if there's no remote, no `gh`, or
+   you're not authed, it degrades gracefully — commits locally and prints the PR body
+   for you to open by hand. The ship never fails on a missing tool.
+5. **Removes `feature-research/<task>/`** last. Nothing stale is left behind.
+
+So in a fully-wired repo, one gate approval = clean branch + commit + PR. In a bare
+repo it still does as much as it safely can and hands you the rest.
 
 ## Token notes
 
@@ -230,6 +242,12 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.7.0** — `/anderson:approve-diff` now **ships for real**: it commits the work
+  cleanly on a branch (auto-creates `anderson/<slug>` when you're on the default branch,
+  else commits on the current branch), pushes, and opens a PR with a generated
+  description. Fully guarded — degrades to commit-only + printed PR body when there's no
+  remote / no `gh` / not authed; never force-pushes; runs in any repo. Previously it only
+  handed you the message. Loop logic + agent model/effort settings unchanged.
 - **0.6.3** — Quote pools grew 4 → 10 per stage, with a stronger "pick at random,
   don't reuse one shown this session" instruction so banners stop repeating. The SHIP
   banner gets a dedicated 10-quote ending pool, and the DONE line now states the loop
