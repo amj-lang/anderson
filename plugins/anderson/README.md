@@ -4,8 +4,8 @@ A gated maker/checker pipeline for Claude Code, packaged as a plugin so it works
 in **every repo** and installs for your **whole team** from one source.
 
 ```
-plan ──▶ plan_review ──[ YOU ]──▶ implement ──▶ diff_review ──[ YOU ]──▶ done
-high      xhigh (edits)            medium        xhigh (read-only)
+plan ─▶ grill ─▶ plan_review ──[ YOU ]──▶ implement ──▶ diff_review ──[ YOU ]──▶ done
+high   [ YOU ]   xhigh (edits)            medium        xhigh (read-only)
                                      ▲              │ fix_first
                                      └──────────────┘
 ```
@@ -13,6 +13,7 @@ high      xhigh (edits)            medium        xhigh (read-only)
 | Stage        | Agent          | Model  | Effort | Gate  | Does                                  |
 |--------------|----------------|--------|--------|-------|---------------------------------------|
 | plan         | `planner`      | opus   | high   | —     | writes `plan.md`                      |
+| grill        | *(you)*        | —      | —      | human | relentless one-at-a-time Q&A on the plan, folds decisions into `plan.md` — no subagent |
 | plan_review  | `plan-reviewer`| opus   | xhigh  | human | **edits** `plan.md` + `## Diverged because`, keeps `plan.orig.md` |
 | implement    | `implementer`  | sonnet | medium | —     | writes `audit.md`                     |
 | diff_review  | `reviewer`     | opus   | xhigh  | human | **read-only** diff review → `diff-review.md` |
@@ -102,7 +103,7 @@ then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` 
 
 ```
 /anderson:start          brief-views  normalize briefs_table.views[] into brief_views_table
-            # START. plan + plan-review, then halts. Read plan.md → "## Diverged because".
+            # START. plan → grill (you harden it) → plan-review, then halts. Read plan.md → "## Decisions" + "## Diverged because".
 /anderson:approve-plan  brief-views
             # implement + diff-review, then halts. Read diff-review.md AND the diff.
 /anderson:approve-diff  brief-views     # SHIP for real: commit on a branch + push + open PR (guarded), then clean scratch
@@ -176,8 +177,9 @@ transcript if your build logs it.)
 ## Optional — autonomous between-gate chaining
 
 `hooks/hooks.json` registers a `SubagentStop`/`Stop` scheduler that auto-advances
-the state and chains plan→plan_review and implement→diff_review without you
-issuing each command, still halting at the two human gates. It's on by default in
+the state and chains plan→grill→plan_review and implement→diff_review without you
+issuing each command, still halting at the **grill** checkpoint (an interactive,
+human step — no subagent) and the two approval gates. It's on by default in
 the plugin; remove the `hooks/` directory if you'd rather drive every step
 explicitly.
 
@@ -242,6 +244,13 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.8.0** — New **grill** step between plan and plan-review. After the planner drafts
+  `plan.md`, anderson interviews you relentlessly about it — one question at a time, down
+  each branch of the decision tree, recommending an answer to each, exploring the codebase
+  instead of asking when it can — and folds every resolved decision into `plan.md` (under
+  `## Decisions`), so the reviewer critiques a hardened plan. Self-contained (no external
+  skill); inlined into `/anderson:start`. The scheduler halts at grill as a human checkpoint
+  and never auto-skips it. Agent model/effort settings unchanged.
 - **0.7.0** — `/anderson:approve-diff` now **ships for real**: it commits the work
   cleanly on a branch (auto-creates `anderson/<slug>` when you're on the default branch,
   else commits on the current branch), pushes, and opens a PR with a generated

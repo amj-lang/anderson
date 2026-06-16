@@ -10,7 +10,9 @@ State for "$ARGUMENTS":
 !`cat "feature-research/$ARGUMENTS/state.md" 2>/dev/null | sed -n '/STATE:START/,/STATE:END/p'`
 
 Summarize for me: current stage, which agent runs next and at what model/effort,
-both verdicts, and iteration vs max_iterations. One short block, no padding.
+both verdicts, and iteration vs max_iterations. One short block, no padding. If stage is
+`grill`, the next step is the interactive grilling of the plan (no subagent, no model)
+before plan-review.
 When reading field values, parse leniently: strip any leading `- ` bullet or
 leading/trailing `**` bold markers, and ignore any trailing `# comment`. The
 machine-canonical format is `key:  value` at column 0, but markdown-styled

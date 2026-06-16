@@ -9,11 +9,14 @@ or the headless feature.sh.
 import glob, json, os, re, sys
 
 NEXT = {
-    "plan":        ("plan_review", False, "Use the plan-reviewer subagent. stage=plan_review."),
-    "plan_review": ("plan_review", True,  None),
-    "implement":   ("diff_review", False, "Use the reviewer subagent. stage=diff_review."),
-    "diff_review": ("diff_review", True,  None),
+    "plan":        ("grill",       "grill", None),
+    "plan_review": ("plan_review", True,    None),
+    "implement":   ("diff_review", False,   "Use the reviewer subagent. stage=diff_review."),
+    "diff_review": ("diff_review", True,    None),
 }
+# 'grill' is deliberately NOT a key: once stage=grill the hook exits silently and
+# never auto-advances past it, so the human interview can't be skipped. The
+# grill -> plan_review transition is driven by /anderson:start once you're satisfied.
 
 def field(t, k):
     m = re.search(
@@ -49,7 +52,15 @@ if stage == "implement" and int(field(t, "iteration") or 0) > int(field(t, "max_
     emit({"hookSpecificOutput": {"hookEventName": hook_event, "additionalContext": notice}})
     sys.exit(0)
 nxt, gate, directive = NEXT[stage]; t = setf(t, "stage", nxt)
-if gate:
+if gate == "grill":
+    open(path, "w").write(setf(t, "gate", "human"))
+    notice = (f"GRILL ('{task}'): plan drafted. Grill it now — relentless, one question at "
+              "a time, down each branch of the decision tree, recommending an answer to each; "
+              "explore the codebase instead of asking when you can; fold every resolved "
+              "decision into plan.md. When you're satisfied it advances to plan-review. "
+              "No subagent runs here — this step is you.")
+    emit({"hookSpecificOutput": {"hookEventName": hook_event, "additionalContext": notice}})
+elif gate:
     v = field(t, "diff_verdict" if nxt == "diff_review" else "plan_verdict")
     open(path, "w").write(setf(t, "gate", "human"))
     notice = f"HUMAN GATE ({nxt}) for '{task}', verdict={v}. Review feature-research/{task}/, then approve."
