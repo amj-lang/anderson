@@ -1,17 +1,13 @@
-# anderson
+# ⌐■-■ anderson ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
 [![version](https://img.shields.io/badge/version-0.9.1-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
-**Four Claude subagents that plan, grill, implement, and review each other — with two human gates, because green ≠ understood.**
+![anderson — digital-rain intro: the agents review the agents](assets/anderson-demo.gif)
 
-```
-        ⌐ ■ - ■   A N D E R S O N
-   01  the agents review the agents  10
-   plan · grill · plan-review · implement · diff-review · ship
-```
+**Four Claude subagents that plan, grill, implement, and review each other — with two human gates, because green ≠ understood.**
 
 anderson is a [Claude Code](https://claude.com/claude-code) plugin: a gated maker/checker pipeline that turns one task into a reviewed, shipped pull request. Each stage runs as its own subagent at its own model + effort, state lives on disk, and **two unconditional human gates** mean nothing merges without your eyes on it.
 
