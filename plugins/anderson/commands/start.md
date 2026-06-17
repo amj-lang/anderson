@@ -40,30 +40,32 @@ back-to-back; never let any other line fall between a banner and the agent line.
    task slug (just its length — count every character, including hyphens); let iteration
    = the `iteration:` value currently in state.md (read it fresh — at this step it already
    reflects this command's increment); the quote is the 0-based item at index
-   (N + 1 + iteration) mod 10 in the Pool below — count the list from 0; the Pool
-   has exactly 10 items so mod 10 always yields a valid position (0–9). Do NOT pick "at
-   random" and do NOT default to the first.) as the LAST line before invoking
+   (N + 1 + iteration) mod M, where M is the integer printed in the "Pool (M):" label
+   below — count the list from 0; mod M always yields a valid position (0 to M−1).
+   (M is read from the label, so the label number must always equal the actual item count.)
+   Do NOT pick "at random" and do NOT default to the first.) as the LAST line before invoking
    the planner, so it sits right above the agent:
    ```
      ╭─ ⌐■-■  PLAN · 1/5 · THE ARCHITECT · opus/high
      │  "[one quote from the pool]"
      ╰─
    ```
-   Pool (10): "Design twice, so reality only has to happen once." / "The most dangerous flaw is the one the blueprint calls a feature." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it." / "A plan is a promise you make to your future self at 3 a.m." / "Every line you don't write is a line you never debug." / "Decide the hard things on paper, where erasing is cheap." / "The shape of the solution hides in the shape of the problem." / "Cut the scope until it bleeds, then ship the part that lived." / "A blueprint nobody questions is a blueprint nobody read."
+   Pool (20): "Design twice, so reality only has to happen once." / "The most dangerous flaw is the one the blueprint calls a feature." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it." / "A plan is a promise you make to your future self at 3 a.m." / "Every line you don't write is a line you never debug." / "Decide the hard things on paper, where erasing is cheap." / "The shape of the solution hides in the shape of the problem." / "Cut the scope until it bleeds, then ship the part that lived." / "A blueprint nobody questions is a blueprint nobody read." / "Denial is the most predictable of all human responses." / "Hope: your greatest strength and your greatest weakness." / "As you adequately put, the problem is choice." / "Your life is the sum of a remainder of an unbalanced equation." / "Ergo: vis-à-vis, concordantly." / "There are levels of survival we are prepared to accept." / "I can only show you the door; you are the one who has to walk through it." / "You have to let it all go — fear, doubt, and disbelief." / "You take the red pill, and I show you how deep the rabbit hole goes." / "What you know you can't explain, but you feel it."
    Then immediately invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md. Set stage=grill.
 4. (BANNER RULE) Print this GRILL banner (choose the quote by COUNTING, not by feel: let N = the number of characters in the
    task slug (just its length — count every character, including hyphens); let iteration
    = the `iteration:` value currently in state.md (read it fresh — at this step it already
    reflects this command's increment); the quote is the 0-based item at index
-   (N + 2 + iteration) mod 10 in the Pool below — count the list from 0; the Pool
-   has exactly 10 items so mod 10 always yields a valid position (0–9). Do NOT pick "at
-   random" and do NOT default to the first.) as the LAST line before your FIRST grilling question:
+   (N + 2 + iteration) mod M, where M is the integer printed in the "Pool (M):" label
+   below — count the list from 0; mod M always yields a valid position (0 to M−1).
+   (M is read from the label, so the label number must always equal the actual item count.)
+   Do NOT pick "at random" and do NOT default to the first.) as the LAST line before your FIRST grilling question:
    ```
      ╭─ ⌐■-■  GRILL · 2/5 · THE INTERROGATOR · you
      │  "[one quote from the pool]"
      ╰─
    ```
-   Pool (10): "Every unanswered question is a bug with a delay." / "The plan you cannot defend out loud is not yet a plan." / "Decide it now in words, or discover it later in an outage." / "An assumption spoken is an assumption you can kill." / "The question you are avoiding is the one that matters." / "Pin every fork before the code picks one for you." / "Vague is just expensive spelled slowly." / "If two answers both sound fine, you haven't found the real question." / "Name the trade-off, or the trade-off names you." / "Shared understanding is cheaper than shared blame."
+   Pool (20): "Every unanswered question is a bug with a delay." / "The plan you cannot defend out loud is not yet a plan." / "Decide it now in words, or discover it later in an outage." / "An assumption spoken is an assumption you can kill." / "The question you are avoiding is the one that matters." / "Pin every fork before the code picks one for you." / "Vague is just expensive spelled slowly." / "If two answers both sound fine, you haven't found the real question." / "Name the trade-off, or the trade-off names you." / "Shared understanding is cheaper than shared blame." / "What is real? How do you define real?" / "You think that's air you're breathing now?" / "What good is a phone call if you are unable to speak?" / "You have a problem with authority, Mr. Anderson." / "Choice is an illusion created between those with power and those without." / "There is only one constant, one universal: causality." / "Why, Mr. Anderson? Why do you persist?" / "You've been living in a dream world, Neo." / "We are all here to do what we are all here to do." / "Do you believe you are fighting for more than your survival?"
    Then GRILL the plan yourself, inline in this session (self-contained — no external skill):
    - Ask ONE question at a time; wait for my answer before the next.
    - Walk down each branch of plan.md's decision tree, resolving dependencies between
@@ -77,16 +79,17 @@ back-to-back; never let any other line fall between a banner and the agent line.
    task slug (just its length — count every character, including hyphens); let iteration
    = the `iteration:` value currently in state.md (read it fresh — at this step it already
    reflects this command's increment); the quote is the 0-based item at index
-   (N + 3 + iteration) mod 10 in the Pool below — count the list from 0; the Pool
-   has exactly 10 items so mod 10 always yields a valid position (0–9). Do NOT pick "at
-   random" and do NOT default to the first.) as the LAST line before invoking
+   (N + 3 + iteration) mod M, where M is the integer printed in the "Pool (M):" label
+   below — count the list from 0; mod M always yields a valid position (0 to M−1).
+   (M is read from the label, so the label number must always equal the actual item count.)
+   Do NOT pick "at random" and do NOT default to the first.) as the LAST line before invoking
    the plan-reviewer:
    ```
      ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · opus/xhigh
      │  "[one quote from the pool]"
      ╰─
    ```
-   Pool (10): "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does." / "The second pair of eyes sees the assumption the first pair made." / "Improve the plan, not the planner's feelings." / "A good review changes the plan; a great one changes the question." / "Disagree on paper now, or apologize in the incident channel later." / "The cheapest place to be wrong is before the first commit." / "Trust the plan less than the reasons behind it."
+   Pool (20): "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does." / "The second pair of eyes sees the assumption the first pair made." / "Improve the plan, not the planner's feelings." / "A good review changes the plan; a great one changes the question." / "Disagree on paper now, or apologize in the incident channel later." / "The cheapest place to be wrong is before the first commit." / "Trust the plan less than the reasons behind it." / "You've already made the choice; now you have to understand it." / "What's really going to bake your noodle is, would you still have broken it if I hadn't said anything?" / "We can never see past the choices we don't understand." / "You have a good soul — and I'm tough on souls." / "I hate giving good people bad news." / "Being the One is like being in love: no one can tell you, you just know it." / "I'd ask you to sit down, but you're not going to anyway." / "Candy?" / "You have the gift, but it looks like you're waiting for something." / "I only ever tell you what you need to hear."
    Then immediately invoke the **plan-reviewer** subagent → edits plan.md in place, prepends
    "## Diverged because", keeps plan.orig.md, sets plan_verdict.
 6. Print and STOP — fill in the real task slug for every `<task>` and the real
