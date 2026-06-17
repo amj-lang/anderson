@@ -290,6 +290,12 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.9.4** — Finished the banner-reliability fix: added a named per-stage **BANNER RULE**
+  invariant (setup first, banner last before the agent, nothing between, never skipped)
+  restated at every stage so later banners stop getting dropped; `rework.md` now inlines
+  the IMPLEMENT 4/5 + DIFF_REVIEW 5/5 banner blocks (was a stale `/4` reference);
+  `/anderson:demo` re-synced to the framed `/5` format and now shows the GRILL 2/5 stage.
+  Live-loop only; `bin/*` terminal scripts unchanged.
 - **0.9.3** — Stage banners now count **/5** (grill is a step — was a stale /4), and each
   banner prints as the last line *before* its agent deploys, so it sits directly above the
   agent's task line instead of scrolling out of view behind setup output.

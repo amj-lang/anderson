@@ -5,9 +5,13 @@ allowed-tools: Bash(grep:*), Bash(echo:*)
 ---
 Task slug = first word of "$ARGUMENTS"; goal = the rest.
 
-Do the setup FIRST, then print each stage banner as the LAST thing before you invoke
-that stage's agent — so the banner sits directly above the agent's task line and is
-not scrolled out of view by setup output.
+BANNER RULE (applies to every stage below): finish ALL of a stage's setup
+and state.md edits FIRST, then print that stage's banner as the LAST line you
+emit before the stage's work begins — i.e. immediately above the agent
+invocation (or, for GRILL, immediately above your first question). Per stage,
+in order: (1) do the setup, (2) print the banner, (3) start the work — NOTHING
+between (2) and (3). Never skip a stage's banner; never print two banners
+back-to-back; never let any other line fall between a banner and the agent line.
 
 1. Make sure the scratch dir is ignored by git (it's disposable):
    if `feature-research/` is not already in `.gitignore`, append it.
@@ -32,7 +36,7 @@ not scrolled out of view by setup output.
 
    ## Still open
    ```
-3. Print this PLAN banner (pick ONE quote at random — never default to the first, and
+3. (BANNER RULE) Print this PLAN banner (pick ONE quote at random — never default to the first, and
    don't reuse one you showed earlier this session) as the LAST line before invoking
    the planner, so it sits right above the agent:
    ```
@@ -42,8 +46,8 @@ not scrolled out of view by setup output.
    ```
    Pool (10): "Design twice, so reality only has to happen once." / "The most dangerous flaw is the one the blueprint calls a feature." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it." / "A plan is a promise you make to your future self at 3 a.m." / "Every line you don't write is a line you never debug." / "Decide the hard things on paper, where erasing is cheap." / "The shape of the solution hides in the shape of the problem." / "Cut the scope until it bleeds, then ship the part that lived." / "A blueprint nobody questions is a blueprint nobody read."
    Then immediately invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md. Set stage=grill.
-4. Print this GRILL banner (pick ONE quote at random — never default to the first, and
-   don't reuse one you showed earlier this session) right before you start grilling:
+4. (BANNER RULE) Print this GRILL banner (pick ONE quote at random — never default to the first, and
+   don't reuse one you showed earlier this session) as the LAST line before your FIRST grilling question:
    ```
      ╭─ ⌐■-■  GRILL · 2/5 · THE INTERROGATOR · you
      │  "[one quote from the pool]"
@@ -59,7 +63,7 @@ not scrolled out of view by setup output.
      non-obvious choices under a `## Decisions` heading).
    - Continue until I signal shared understanding ("done", "good", "go to review") or no open
      branches remain. Then set stage=plan_review and continue to the reviewer.
-5. Print this PLAN-REVIEW banner (pick ONE quote at random — never default to the first,
+5. (BANNER RULE) Print this PLAN-REVIEW banner (pick ONE quote at random — never default to the first,
    and don't reuse one you showed earlier this session) as the LAST line before invoking
    the plan-reviewer:
    ```
