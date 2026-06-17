@@ -20,4 +20,4 @@ Hide
 Type "MATRIX_FRAMES=30 MATRIX_DELAY=0.06 bash plugins/anderson/bin/matrix.sh"
 Enter
 Show
-Sleep 4s
+Sleep 12s

@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.9.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.9.2-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -290,6 +290,11 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.9.2** — Richer terminal intro: `bin/matrix.sh` now holds on the ANDERSON logo,
+  shows a line, then runs an accelerated montage of a full run (PLAN → … → SHIP with
+  the gates). README landing reworked — pipeline + cast + run-walkthrough collapsed into
+  one explicit table, a generic quickstart example, the demo GIF up top, **anderson**
+  bolded. (Re-record the GIF with `vhs assets/anderson.tape` to capture the new intro.)
 - **0.9.1** — Restyled the stage banners into a tight, framed, persona-led format
   (`╭─ ⌐■-■ STAGE · N/4 · PERSONA · model/effort` + a one-line quote) — dropped the
   repeated wordmark + sparkles that made the old 3-line banner feel busy. Statusline

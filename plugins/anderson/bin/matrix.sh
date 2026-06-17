@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# anderson — terminal "digital rain" intro that resolves into the glasses + title.
-# Pure flair. Run it in a REAL terminal:   bash bin/matrix.sh
-# Safe everywhere: if stdout is not a TTY, or TERM=dumb, or NO_COLOR is set, it
-# prints one static frame (no escape codes, no animation) and exits.
-# Tunables: MATRIX_DELAY (default 0.07s/frame), MATRIX_FRAMES (default 24).
+# anderson — terminal intro: digital rain → glasses/title (held) → a line →
+# an accelerated montage of one full run. Pure flair. Run in a REAL terminal:
+#   bash bin/matrix.sh
+# Safe everywhere: non-TTY / TERM=dumb / NO_COLOR / --still → one static frame.
+# Tunables: MATRIX_DELAY (0.06), MATRIX_FRAMES (30), MATRIX_HOLD (1.4s on logo),
+#           MATRIX_MONTAGE_DELAY (0.5s per stage).
 set -euo pipefail
 
 still=0
@@ -20,17 +21,42 @@ grn(){  if [ "$color" -eq 1 ]; then printf '\033[32m';   fi; }
 grnb(){ if [ "$color" -eq 1 ]; then printf '\033[1;32m'; fi; }
 rst(){  if [ "$color" -eq 1 ]; then printf '\033[0m';    fi; }
 
+quotes=(
+  "the agents review the agents"
+  "green is not understood — read what you merged"
+  "two gates, because nothing merges unseen"
+  "plan twice, so reality only happens once"
+  "the loop ends where your judgement begins"
+)
+QUOTE="${quotes[$(( RANDOM % ${#quotes[@]} ))]}"
+
 logo(){
   printf '\n\n'
   grnb; printf '            ⌐■-■   A N D E R S O N\n'; rst
   printf '\n'
-  grn;  printf '            gated maker/checker loop — the agents review the agents\n'; rst
+  grn;  printf '            gated maker/checker loop\n'; rst
   printf '\n'
 }
 
-# Static fallback (non-TTY / dumb term / NO_COLOR / --still): no animation.
+# Accelerated montage of one run: each stage flashes in with its persona + gate.
+montage(){
+  local d="${MATRIX_MONTAGE_DELAY:-0.5}"
+  printf '\033[2J\033[H\n'
+  grnb; printf '   ⌐■-■  A N D E R S O N    ·    one task → a reviewed, shipped PR\n\n'; rst
+  step(){ grnb; printf '   ▸ %-12s' "$1"; rst; grn; printf ' %s\n' "$2"; rst; sleep "$d"; }
+  step "PLAN"        "THE ARCHITECT · opus/high"
+  step "GRILL"       "THE INTERROGATOR · you"
+  step "PLAN_REVIEW" "THE ORACLE · opus/xhigh        ■ GATE 1"
+  step "IMPLEMENT"   "NEO · sonnet/medium"
+  step "DIFF_REVIEW" "AGENT SMITH · opus/xhigh       ■ GATE 2"
+  step "SHIP ✓"      "THE ONE · commit + PR"
+  printf '\n'; sleep 1.2
+}
+
+# Static fallback (non-TTY / dumb / NO_COLOR / --still): logo + line, no animation.
 if [ "$tty" -eq 0 ] || [ "$still" -eq 1 ]; then
   logo
+  grn; printf '            "%s"\n\n' "$QUOTE"; rst
   exit 0
 fi
 
@@ -43,8 +69,9 @@ cleanup(){ rst; printf '\033[?25h\033[2J\033[H'; }
 trap cleanup EXIT INT TERM
 printf '\033[?25l\033[2J'
 
-delay="${MATRIX_DELAY:-0.07}"
-frames="${MATRIX_FRAMES:-24}"
+delay="${MATRIX_DELAY:-0.06}"
+frames="${MATRIX_FRAMES:-30}"
+hold="${MATRIX_HOLD:-1.4}"
 
 f=0
 while [ "$f" -lt "$frames" ]; do
@@ -60,9 +87,14 @@ while [ "$f" -lt "$frames" ]; do
   f=$(( f + 1 ))
 done
 
-# Resolve the rain into the logo.
+# Resolve the rain into the logo, hold on it, then show a line.
 printf '\033[2J\033[H'
-pad=$(( lines / 2 - 2 )); i=0
+pad=$(( lines / 2 - 3 )); i=0
 while [ "$i" -lt "$pad" ]; do printf '\n'; i=$(( i + 1 )); done
 logo
-sleep 0.5
+sleep "$hold"
+grn; printf '            "%s"\n' "$QUOTE"; rst
+sleep 1.6
+
+# Then the accelerated run.
+montage

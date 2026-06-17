@@ -1,7 +1,7 @@
-# ⌐■-■ anderson ⌐■-■
+# ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.9.1-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.9.2-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -9,7 +9,7 @@
 
 **Four Claude subagents that plan, grill, implement, and review each other — with two human gates, because green ≠ understood.**
 
-anderson is a [Claude Code](https://claude.com/claude-code) plugin: a gated maker/checker pipeline that turns one task into a reviewed, shipped pull request. Each stage runs as its own subagent at its own model + effort, state lives on disk, and **two unconditional human gates** mean nothing merges without your eyes on it.
+**anderson** is a [Claude Code](https://claude.com/claude-code) plugin: a gated maker/checker pipeline that turns one task into a reviewed, shipped pull request. Each stage runs as its own subagent at its own model + effort, state lives on disk, and **two unconditional human gates** mean nothing merges without your eyes on it.
 
 ## Why
 
@@ -18,36 +18,22 @@ anderson is a [Claude Code](https://claude.com/claude-code) plugin: a gated make
 - **Self-contained.** The agent logic is inlined — no external skills to install. Per-stage `model` + `effort` switch automatically.
 - **Ships for real.** Approving the diff branches, commits, pushes, and opens the PR — guarded, so it degrades gracefully without a remote / `gh`. Runs headless in CI too.
 
-## Pipeline
+## The pipeline
 
 ```
 plan ─▶ grill ─▶ plan_review ──[ YOU ]──▶ implement ─▶ diff_review ──[ YOU ]──▶ ship
-high    [ YOU ]  xhigh                    medium       xhigh            commit + PR
-                                    ▲            │ fix_first / rework
-                                    └────────────┘
 ```
 
-| Stage         | Who             | Model / effort  | Gate  | Does                                             |
-|---------------|-----------------|-----------------|-------|--------------------------------------------------|
-| plan          | `planner`       | opus / high     | —     | writes `plan.md`                                 |
-| grill         | **you**         | — (human)       | human | relentless one-at-a-time Q&A; folds decisions in |
-| plan_review   | `plan-reviewer` | opus / xhigh    | human | edits the plan; verdict `ship`/`fix_first`/`regrill` |
-| implement     | `implementer`   | sonnet / medium | —     | writes the code + `audit.md`                     |
-| diff_review   | `reviewer`      | opus / xhigh    | human | independent read-only diff review                |
-| ship          | —               | —               | —     | branch + commit + push + PR                      |
+|     | Stage         | Persona                    | Model · effort  | Gate           | What happens |
+|-----|---------------|----------------------------|-----------------|----------------|--------------|
+| 🏛  | `plan`        | THE ARCHITECT              | opus · high     | —              | drafts `plan.md` |
+| 🕶  | `grill`       | THE INTERROGATOR · *you*   | — (human)       | 🛑 human       | interrogates the plan one question at a time; your answers harden it |
+| 🔮  | `plan_review` | THE ORACLE                 | opus · xhigh    | 🛑 **GATE 1**  | edits the plan + `## Diverged because`; verdict `ship` / `fix_first` / `regrill` |
+| 🟢  | `implement`   | NEO                        | sonnet · medium | —              | writes the code + `audit.md` |
+| 🕴  | `diff_review` | AGENT SMITH                | opus · xhigh    | 🛑 **GATE 2**  | independent, read-only diff review |
+| 🔑  | `ship`        | THE ONE                    | —               | —              | branch `anderson/<slug>` + commit + push + PR, scratch cleaned |
 
-`regrill` loops plan-review back to grill; `fix_first` loops the implementer (capped by `max_iterations`).
-
-## The cast
-
-| Persona          | Stage         | Role                          |
-|------------------|---------------|-------------------------------|
-| THE ARCHITECT    | `plan`        | drafts the plan               |
-| THE INTERROGATOR | `grill`       | you — grills the plan         |
-| THE ORACLE       | `plan_review` | sharpens the plan             |
-| NEO              | `implement`   | writes the code               |
-| AGENT SMITH      | `diff_review` | hunts for what's wrong        |
-| THE ONE          | `ship`        | commits + opens the PR        |
+`regrill` loops plan-review back to **grill**; `fix_first` loops the implementer (capped by `max_iterations`). Both gates halt unconditionally, even on a `ship` verdict.
 
 ## Quickstart
 
@@ -55,18 +41,10 @@ high    [ YOU ]  xhigh                    medium       xhigh            commit +
 /plugin marketplace add amj-lang/anderson
 /plugin install anderson@dodge-this
 # restart Claude Code fully (not just /reload), then:
-/anderson:start brief-views "normalize briefs_table.views[] into brief_views_table"
+/anderson:start demo "build a live dashboard widget that pulls status from the top 5 AI companies' status pages"
 ```
 
 Drive the gates in plain text — "approved, go" / "ship it" / "rework the blockers" — or with `/anderson:approve-plan`, `:approve-diff`, `:rework`, `:status`.
-
-## What a run looks like
-
-1. 🏛 **THE ARCHITECT** (`plan`) — `/anderson:start <slug> "<goal>"` drafts `plan.md`.
-2. 🕶 **THE INTERROGATOR** (`grill`) — *you* — interrogates the plan one question at a time; your answers harden it.
-3. 🔮 **THE ORACLE** (`plan_review`) — reviews + edits the plan → **GATE 1** (you approve).
-4. 🟢 **NEO** (`implement`) writes the code → 🕴 **AGENT SMITH** (`diff_review`) hunts the diff for what's wrong → **GATE 2** (you approve).
-5. 🔑 **THE ONE** (`ship`) — branch `anderson/<slug>` + commit + push + PR. Scratch cleaned. Done.
 
 ## Requirements
 
