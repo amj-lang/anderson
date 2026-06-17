@@ -46,8 +46,8 @@ each network step. NEVER force-push; never touch an existing branch destructivel
 5. Remove the disposable scratch: `rm -rf "feature-research/$ARGUMENTS"`.
    (Git history + the PR are the durable record; plan/audit/review were only scaffolding.)
 
-6. Print this SHIP banner (pick ONE ending at random from the 10 — never default to the
-   first, and don't reuse one you showed earlier this session), then the done line:
+6. (BANNER RULE) Print this SHIP banner (pick ONE ending at random from the 10 — never default to the
+   first, and don't reuse one you showed earlier this session) as the LAST framed line before the done line:
    ```
      ╭─ ⌐■-■  SHIP ✓ · THE ONE · welcome to the real world
      │  "[one ending from the pool]"
