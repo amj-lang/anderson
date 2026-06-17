@@ -20,7 +20,7 @@ A gated maker/checker loop: one task at a time, per-stage model+effort, state on
 
 ## What a real run looks like
 
-<!-- TODO(maintainer): record `bin/demo.sh` (or a real task) with asciinema and paste the cast link here. -->
+<!-- TODO(maintainer): `vhs assets/anderson.tape` (from the repo root) writes assets/anderson-demo.gif; commit it, then replace the badge below with: ![anderson demo](../../assets/anderson-demo.gif) -->
 [![asciicast](https://img.shields.io/badge/demo-asciinema_TODO-lightgrey)](#)
 
 ## Personas
