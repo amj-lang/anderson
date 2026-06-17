@@ -49,9 +49,9 @@ each network step. NEVER force-push; never touch an existing branch destructivel
 6. Print this SHIP banner (pick ONE ending at random from the 10 — never default to the
    first, and don't reuse one you showed earlier this session), then the done line:
    ```
-     ✦ ⌐■-■  A N D E R S O N  ✦   ·   ✓ · SHIP
-           THE ONE · welcome to the real world
-           "[one ending from the pool]"
+     ╭─ ⌐■-■  SHIP ✓ · THE ONE · welcome to the real world
+     │  "[one ending from the pool]"
+     ╰─
    ```
    Pool (10 endings): "Green is not understood; read what you merged." / "The gate is not an obstacle; it is the point." / "Review is how respect for the future is spelled." / "You can hand someone the key, but the lock is theirs to turn." / "Ship it, then watch it — shipping is the start of knowing." / "The work is done when the next person needs no story to follow it." / "Every merge is a promise the next outage will test." / "Walk away clean: no scratch, no secrets, no surprises." / "What you shipped is now the truth; make sure it tells no lies." / "The loop ends where your judgement begins."
    Then the done line, filled in with what actually happened (branch + PR URL, or the

@@ -34,11 +34,11 @@ if [ -n "$st" ] && [ -f "$st" ]; then
   stage="$(field stage "$st")"
   task="$(field task "$st")"
   case "$stage" in
-    plan)        who="THE ARCHITECT opus/high" ;;
+    plan)        who="THE ARCHITECT · opus/high" ;;
     grill)       who="THE INTERROGATOR · you" ;;
-    plan_review) who="THE ORACLE opus/xhigh" ;;
-    implement)   who="NEO sonnet/medium" ;;
-    diff_review) who="AGENT SMITH opus/xhigh" ;;
+    plan_review) who="THE ORACLE · opus/xhigh" ;;
+    implement)   who="NEO · sonnet/medium" ;;
+    diff_review) who="AGENT SMITH · opus/xhigh" ;;
     done)        who="shipped" ;;
     *)           who="${stage:-?}" ;;
   esac

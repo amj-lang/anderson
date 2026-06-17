@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.9.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.9.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -154,12 +154,18 @@ anyway: once a flow is running you can drive every gate in plain text —
 "approved, go" / "ship it" / "rework the blockers" — since the agents read the
 same `state.md`.
 
-**What you see while it runs.** Each command prints a one-line banner before it
-dispatches, e.g. `▶ [anderson 3/4 · IMPLEMENT] agent=implementer ·
-model=sonnet · effort=medium · executing plan.md`, and the four agents are
-colour-coded in the subagent panel — planner=blue, plan-reviewer=purple,
-implementer=green, reviewer=orange — so you can tell at a glance which one is
-working.
+**What you see while it runs.** Each stage prints a compact framed banner — stage,
+persona, and model on one line; a rotating aphorism on the next:
+
+```
+╭─ ⌐■-■  IMPLEMENT · 3/4 · NEO · sonnet/medium
+│  "touch only what the plan told you to touch"
+╰─
+```
+
+The agents are also colour-coded in the subagent panel (planner=blue,
+plan-reviewer=purple, implementer=green, reviewer=orange), so you can tell at a glance
+which one is working.
 
 State persists in `feature-research/<task>/state.md` in the current repo, so you
 can stop at a gate and resume later.
@@ -285,6 +291,10 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.9.1** — Restyled the stage banners into a tight, framed, persona-led format
+  (`╭─ ⌐■-■ STAGE · N/4 · PERSONA · model/effort` + a one-line quote) — dropped the
+  repeated wordmark + sparkles that made the old 3-line banner feel busy. Statusline
+  persona format matched (`PERSONA · model/effort`). Cosmetic only.
 - **0.9.0** — Concise, explicit agent output templates (planner `🎯 What / 🤔 Why / 🛠 How /
   ✅ Decisions`; plan- and diff-review `📊 Evaluation / 💬 Feedback / ⚖️ Verdict`) for scannable,
   minimum-words docs with light emoji headers. New `regrill` plan-review verdict that
