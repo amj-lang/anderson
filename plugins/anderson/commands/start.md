@@ -5,21 +5,16 @@ allowed-tools: Bash(grep:*), Bash(echo:*)
 ---
 Task slug = first word of "$ARGUMENTS"; goal = the rest.
 
-Print this PLAN banner (pick ONE quote at random from the pool — never default to the first, and don't reuse one you showed earlier this session), then act:
-```
-  ╭─ ⌐■-■  PLAN · 1/4 · THE ARCHITECT · opus/high
-  │  "[one quote from the pool]"
-  ╰─
-```
-Pool (10): "Design twice, so reality only has to happen once." / "The most dangerous flaw is the one the blueprint calls a feature." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it." / "A plan is a promise you make to your future self at 3 a.m." / "Every line you don't write is a line you never debug." / "Decide the hard things on paper, where erasing is cheap." / "The shape of the solution hides in the shape of the problem." / "Cut the scope until it bleeds, then ship the part that lived." / "A blueprint nobody questions is a blueprint nobody read."
+Do the setup FIRST, then print each stage banner as the LAST thing before you invoke
+that stage's agent — so the banner sits directly above the agent's task line and is
+not scrolled out of view by setup output.
 
 1. Make sure the scratch dir is ignored by git (it's disposable):
    if `feature-research/` is not already in `.gitignore`, append it.
 2. If `feature-research/<task>/state.md` is absent, create it with this EXACT block
    (substitute `<task>` with the task slug). This block is machine-read by
-   `hooks/scheduler.py`, `commands/status.md`, and `bin/feature.sh`; the format
-   must be byte-faithful — column-0 `key:`, the two STATE comments, no markdown
-   bullets or bold:
+   `hooks/scheduler.py`, `commands/status.md`, and `bin/feature.sh` — byte-faithful:
+   column-0 `key:`, the two STATE comments, no markdown bullets or bold:
    ```
    # Pipeline state
    <!-- STATE:START -->
@@ -37,11 +32,20 @@ Pool (10): "Design twice, so reality only has to happen once." / "The most dange
 
    ## Still open
    ```
-3. Invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md.
-   Set stage=grill.
-4. Print this GRILL banner (pick ONE quote at random — never default to the first, and don't reuse one you showed earlier this session):
+3. Print this PLAN banner (pick ONE quote at random — never default to the first, and
+   don't reuse one you showed earlier this session) as the LAST line before invoking
+   the planner, so it sits right above the agent:
    ```
-     ╭─ ⌐■-■  GRILL · harden the plan · THE INTERROGATOR · you
+     ╭─ ⌐■-■  PLAN · 1/5 · THE ARCHITECT · opus/high
+     │  "[one quote from the pool]"
+     ╰─
+   ```
+   Pool (10): "Design twice, so reality only has to happen once." / "The most dangerous flaw is the one the blueprint calls a feature." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it." / "A plan is a promise you make to your future self at 3 a.m." / "Every line you don't write is a line you never debug." / "Decide the hard things on paper, where erasing is cheap." / "The shape of the solution hides in the shape of the problem." / "Cut the scope until it bleeds, then ship the part that lived." / "A blueprint nobody questions is a blueprint nobody read."
+   Then immediately invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md. Set stage=grill.
+4. Print this GRILL banner (pick ONE quote at random — never default to the first, and
+   don't reuse one you showed earlier this session) right before you start grilling:
+   ```
+     ╭─ ⌐■-■  GRILL · 2/5 · THE INTERROGATOR · you
      │  "[one quote from the pool]"
      ╰─
    ```
@@ -55,14 +59,16 @@ Pool (10): "Design twice, so reality only has to happen once." / "The most dange
      non-obvious choices under a `## Decisions` heading).
    - Continue until I signal shared understanding ("done", "good", "go to review") or no open
      branches remain. Then set stage=plan_review and continue to the reviewer.
-5. Print this PLAN-REVIEW banner (pick ONE quote at random — never default to the first, and don't reuse one you showed earlier this session):
+5. Print this PLAN-REVIEW banner (pick ONE quote at random — never default to the first,
+   and don't reuse one you showed earlier this session) as the LAST line before invoking
+   the plan-reviewer:
    ```
-     ╭─ ⌐■-■  PLAN_REVIEW · 2/4 · THE ORACLE · opus/xhigh
+     ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · opus/xhigh
      │  "[one quote from the pool]"
      ╰─
    ```
    Pool (10): "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does." / "The second pair of eyes sees the assumption the first pair made." / "Improve the plan, not the planner's feelings." / "A good review changes the plan; a great one changes the question." / "Disagree on paper now, or apologize in the incident channel later." / "The cheapest place to be wrong is before the first commit." / "Trust the plan less than the reasons behind it."
-   Invoke the **plan-reviewer** subagent → edits plan.md in place, prepends
+   Then immediately invoke the **plan-reviewer** subagent → edits plan.md in place, prepends
    "## Diverged because", keeps plan.orig.md, sets plan_verdict.
 6. Print and STOP — fill in the real task slug for every `<task>` and the real
    verdict for `<plan_verdict>` so the command + path are copy-pasteable (e.g.
