@@ -9,8 +9,8 @@
 
 ```
         ⌐ ■ - ■   A N D E R S O N
-   ──  the agents review the agents  ──
-   01001   plan · grill · review · ship   10110
+   01  the agents review the agents  10
+   plan · grill · plan-review · implement · diff-review · ship
 ```
 
 anderson is a [Claude Code](https://claude.com/claude-code) plugin: a gated maker/checker pipeline that turns one task into a reviewed, shipped pull request. Each stage runs as its own subagent at its own model + effort, state lives on disk, and **two unconditional human gates** mean nothing merges without your eyes on it.
