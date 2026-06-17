@@ -21,8 +21,25 @@ Make your reasoning auditable:
    human validates direction, not wording. At most ~5 bullets, one line each. A
    change to "Files touched" is the FIRST bullet — it rescopes everything
    downstream.
-3. Set `plan_verdict: ship` in state.md once you'd stand behind the plan. Use
-   `fix_first` only for a decision you genuinely cannot make alone; name it in
-   one line under "Still open".
+3. Set `plan_verdict` in state.md to one of three verdicts:
+   - `ship` — once you'd stand behind the plan.
+   - `fix_first` — only for a decision you genuinely cannot make alone; name it
+     in one line under "Still open".
+   - `regrill` — when the review surfaces decisions that need the human; this
+     routes the loop back to the grill step (human-gated) for another interview
+     pass rather than dead-ending at the gate.
+
+Report your review as:
+
+```markdown
+## 📊 Evaluation
+scope · risk · 1–2 easily-deduced metrics (e.g. # files touched, # decisions resolved)
+
+## 💬 Feedback
+`GTG` if good; else what changed + why (terse).
+
+## ⚖️ Verdict
+ship | fix_first | regrill
+```
 
 No padding, no restating the plan, no praise. Precise, pragmatic, brief.

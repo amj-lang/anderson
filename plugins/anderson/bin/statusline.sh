@@ -3,6 +3,8 @@
 # (glasses lens + colour + rain tail cycle ~once/second). Wire it in settings.json:
 #   "statusLine": { "type": "command", "command": "bash /ABS/PATH/bin/statusline.sh" }
 # Reads the most-recent feature-research/*/state.md in the current repo (if any).
+# Note: plan_verdict=regrill re-routes the loop to stage=grill (human-gated); the
+# statusline will show THE INTERROGATOR while the grill pass is active.
 set -euo pipefail
 _in="$(cat 2>/dev/null || true)"      # drain the session JSON on stdin (unused)
 
