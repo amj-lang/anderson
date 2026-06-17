@@ -1,0 +1,61 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write   # the release job creates the tag + GitHub release
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Scheduler unit tests
+        run: python3 -m unittest discover -s plugins/anderson/test -v
+
+      - name: Compile the hook
+        run: python3 -m py_compile plugins/anderson/hooks/scheduler.py
+
+      - name: Shellcheck (advisory until bin/ is fully clean)
+        continue-on-error: true
+        run: shellcheck -S warning plugins/anderson/bin/*.sh
+
+      - name: Version sync (plugin.json == marketplace.json)
+        run: |
+          P=$(jq -r .version plugins/anderson/.claude-plugin/plugin.json)
+          M=$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)
+          echo "plugin.json=$P  marketplace.json=$M"
+          if [ "$P" != "$M" ]; then
+            echo "::error::version mismatch — bump both in sync (plugin.json=$P, marketplace.json=$M)"
+            exit 1
+          fi
+
+  release:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need full tag history to detect an existing release
+
+      - name: Auto-release when plugin.json version is new
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(jq -r .version plugins/anderson/.claude-plugin/plugin.json)
+          TAG="v$VERSION"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists — nothing to publish."
+            exit 0
+          fi
+          echo "Publishing $TAG"
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "anderson $TAG" --generate-notes
