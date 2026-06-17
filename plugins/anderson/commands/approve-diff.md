@@ -46,8 +46,7 @@ each network step. NEVER force-push; never touch an existing branch destructivel
 5. Remove the disposable scratch: `rm -rf "feature-research/$ARGUMENTS"`.
    (Git history + the PR are the durable record; plan/audit/review were only scaffolding.)
 
-6. (BANNER RULE) Print this SHIP banner (pick ONE ending at random from the 10 — never default to the
-   first, and don't reuse one you showed earlier this session) as the LAST framed line before the done line:
+6. (BANNER RULE) Print this SHIP banner (choose the ending by COUNTING, not by feel: let N = the number of characters in the task slug (just its length — count every character, including hyphens); let iteration = the `iteration:` value currently in state.md (read it fresh); the ending is the 0-based item at index (N + 6 + iteration) mod 10 in the Pool (10 endings) below — count the list from 0; the Pool has exactly 10 endings so mod 10 always yields a valid position (0–9). Do NOT pick "at random" and do NOT default to the first.) as the LAST framed line before the done line:
    ```
      ╭─ ⌐■-■  SHIP ✓ · THE ONE · welcome to the real world
      │  "[one ending from the pool]"
