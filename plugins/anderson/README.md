@@ -1,6 +1,6 @@
 # anderson
 
-[![version](https://img.shields.io/badge/version-0.8.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.9.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -284,6 +284,13 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.9.0** — Concise, explicit agent output templates (planner `🎯 What / 🤔 Why / 🛠 How /
+  ✅ Decisions`; plan- and diff-review `📊 Evaluation / 💬 Feedback / ⚖️ Verdict`) for scannable,
+  minimum-words docs with light emoji headers. New `regrill` plan-review verdict that
+  auto-routes `plan_review → grill` (human-gated, resets the verdict to avoid re-bounce).
+  `scheduler.py` refactored to an importable `main()` with a 27-test stdlib `unittest` suite.
+  Added `LICENSE` (MIT) + README badges/hook/quickstart/persona table. Dogfooded through
+  anderson's own pipeline. Agent model/effort unchanged.
 - **0.8.1** — Headless parity for ship: `bin/feature.sh --approve-diff` now branches
   (off the default branch, `anderson/<slug>`), commits, pushes, and opens the PR — the
   same guarded flow as the interactive command, but with the commit subject + PR body
