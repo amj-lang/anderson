@@ -12,7 +12,9 @@ State for "$ARGUMENTS":
 Summarize for me: current stage, which agent runs next and at what model/effort,
 both verdicts, and iteration vs max_iterations. One short block, no padding. If stage is
 `grill`, the next step is the interactive grilling of the plan (no subagent, no model)
-before plan-review.
+before plan-review. If `plan_verdict` is `regrill`, the loop has been routed back to the
+grill step (human-gated) for another interview pass; report that the next step is grilling,
+not plan-review.
 When reading field values, parse leniently: strip any leading `- ` bullet or
 leading/trailing `**` bold markers, and ignore any trailing `# comment`. The
 machine-canonical format is `key:  value` at column 0, but markdown-styled

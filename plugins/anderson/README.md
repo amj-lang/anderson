@@ -1,20 +1,52 @@
 # anderson
 
-A gated maker/checker pipeline for Claude Code, packaged as a plugin so it works
-in **every repo** and installs for your **whole team** from one source.
+[![version](https://img.shields.io/badge/version-0.8.1-blue)](https://github.com/amj-lang/anderson)
+[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
+
+**Four Claude subagents that plan, grill, implement, and review each other — with two human gates, because green ≠ understood.**
+
+A gated maker/checker loop: one task at a time, per-stage model+effort, state on disk, ships a real PR. Two unconditional human gates mean nothing merges without your eyes on it.
+
+## 30-second quickstart
+
+```
+/plugin marketplace add amj-lang/anderson
+/plugin install anderson@dodge-this
+# restart Claude Code fully (not just /reload), then:
+/anderson:start brief-views "normalize briefs_table.views[] into brief_views_table"
+```
+
+## What a real run looks like
+
+<!-- TODO(maintainer): record `bin/demo.sh` (or a real task) with asciinema and paste the cast link here. -->
+[![asciicast](https://img.shields.io/badge/demo-asciinema_TODO-lightgrey)](#)
+
+## Personas
+
+| Persona          | Stage         | Role                                   | Model / effort |
+|------------------|---------------|----------------------------------------|----------------|
+| THE ARCHITECT    | `plan`        | writes the plan                        | opus / high    |
+| THE INTERROGATOR | `grill`       | you — relentless one-at-a-time Q&A     | — (human)      |
+| THE ORACLE       | `plan_review` | edits the plan + `## Diverged because` | opus / xhigh   |
+| NEO              | `implement`   | executes the approved plan             | sonnet / medium|
+| AGENT SMITH      | `diff_review` | read-only diff review                  | opus / xhigh   |
+| THE ONE          | `done`        | shipped — commit + PR                  | — (terminal)   |
+
+## Pipeline
 
 ```
 plan ─▶ grill ─▶ plan_review ──[ YOU ]──▶ implement ──▶ diff_review ──[ YOU ]──▶ done
 high   [ YOU ]   xhigh (edits)            medium        xhigh (read-only)
-                                     ▲              │ fix_first
-                                     └──────────────┘
+                                    ▲              │ fix_first
+                                    └──────────────┘
 ```
 
 | Stage        | Agent          | Model  | Effort | Gate  | Does                                  |
 |--------------|----------------|--------|--------|-------|---------------------------------------|
 | plan         | `planner`      | opus   | high   | —     | writes `plan.md`                      |
 | grill        | *(you)*        | —      | —      | human | relentless one-at-a-time Q&A on the plan, folds decisions into `plan.md` — no subagent |
-| plan_review  | `plan-reviewer`| opus   | xhigh  | human | **edits** `plan.md` + `## Diverged because`, keeps `plan.orig.md` |
+| plan_review  | `plan-reviewer`| opus   | xhigh  | human | **edits** `plan.md` + `## Diverged because`, keeps `plan.orig.md`; verdict `ship`/`fix_first`/`regrill` |
 | implement    | `implementer`  | sonnet | medium | —     | writes `audit.md`                     |
 | diff_review  | `reviewer`     | opus   | xhigh  | human | **read-only** diff review → `diff-review.md` |
 
@@ -22,6 +54,8 @@ The agents are **self-contained** — the implementer/reviewer logic is inlined,
 there is no external skill to install. Per-stage `model` + `effort` switch
 automatically as the pipeline routes to each agent. Both human gates halt
 unconditionally, even on a `ship` verdict.
+
+Agent docs are written to concise 🎯/🛠/✅-style templates.
 
 ## Structure (important)
 
@@ -40,20 +74,20 @@ anderson/                       <- add THIS path/repo as the marketplace
 
 ## Install — for yourself (covers all your repos)
 
-**Local marketplace (current — no git remote needed).** Point Claude Code at the
+**From a git remote (recommended).** The repo lives at `amj-lang/anderson`, so you
+and teammates run the same two lines:
+
+```
+/plugin marketplace add amj-lang/anderson
+/plugin install anderson@dodge-this
+```
+
+**Local marketplace (alternative — no git remote needed).** Point Claude Code at the
 **marketplace root** — the dir that contains `.claude-plugin/marketplace.json`
 (this repo's top level), substituting your real absolute path:
 
 ```
 /plugin marketplace add /absolute/path/to/anderson
-/plugin install anderson@dodge-this
-```
-
-**From a git remote (recommended).** The repo lives at `amj-lang/anderson` (private), so you
-and teammates (with repo access) run the same two lines against the remote instead:
-
-```
-/plugin marketplace add amj-lang/anderson
 /plugin install anderson@dodge-this
 ```
 
@@ -187,6 +221,8 @@ human step — no subagent) and the two approval gates. It's on by default in
 the plugin; remove the `hooks/` directory if you'd rather drive every step
 explicitly.
 
+If plan-review returns `regrill`, the scheduler routes back to the **grill** step (human-gated) for another pass rather than halting at the plan gate.
+
 The scheduler emits hook JSON on stdout to drive the next turn:
 
 - **Chain forward** (gate=none transitions): `{"decision": "block", "reason": "<directive>"}` —
@@ -291,3 +327,5 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
   bullets / `**` bold), and the interactive `/anderson:start` command seeds the exact
   machine-readable STATE block so `/anderson:status` and the scheduler stay in sync.
 - **0.3.1** — Gated 4-stage pipeline with per-stage model/effort and two human gates.
+
+Licensed under the [MIT License](LICENSE).

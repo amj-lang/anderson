@@ -18,7 +18,19 @@ in the audit's list but NOT the plan's is out-of-scope creep — report it
 (blocking if it changes behavior). Read the plan, the audit, and the scoped diff.
 Hunt for what the audit does NOT mention within scope.
 
-Write `feature-research/<task>/diff-review.md` with exactly three sections:
-Blocking issues, Non-blocking issues, Verdict (ship / fix first). Record the
-verdict into state.md (`diff_verdict: ship | fix_first`) and copy any blocking
-items into "Still open". Precise, pragmatic, brief. Stop.
+Write `feature-research/<task>/diff-review.md` using this shape:
+
+```markdown
+## 📊 Scope + risk addressed?
+verified against the actual diff/code: scope creep (audit files ∉ plan = blocking),
+risk the audit didn't mention within scope.
+
+## 💬 Feedback
+`GTG` if good; else what changed + why (same shape as plan-review).
+
+## ⚖️ Verdict
+ship | fix_first
+```
+
+Record the verdict into state.md (`diff_verdict: ship | fix_first`) and copy any
+blocking items into "Still open". Precise, pragmatic, brief. Stop.

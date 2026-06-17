@@ -21,8 +21,18 @@ On a rework loop, the "Still open" section of state.md holds the checker's
 blocking findings — those ARE your instructions for this pass. Fix them, nothing
 else.
 
-Before finishing, write `feature-research/<task>/audit.md`. It MUST begin with a
-complete "Files changed" list (every file you created or modified — this scopes
-the review). Then: what changed per file, deviations from the plan and why, test
-results, open risks. Append one line per completed item to "Done so far" in
-state.md. Precise, pragmatic, brief. Stop.
+Before finishing, write `feature-research/<task>/audit.md` using this shape:
+
+```markdown
+## 🎯 What
+<one line: what this pass delivered>
+**Files changed:** complete list of every file created/modified (scopes the review).
+
+## 🛠 How
+<what changed per file; deviations from the plan and why; test results>
+
+## ✅ Decisions / risks
+<open risks, one line each>
+```
+
+Append one line per completed item to "Done so far" in state.md. Precise, pragmatic, brief. Stop.

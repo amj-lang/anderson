@@ -11,16 +11,26 @@ You write the plan; you do NOT implement.
 
 Scope ONE task into a plan the implementer can execute exactly and the reviewer
 can check. Other tasks may be in flight on this branch, so bound it tightly.
-Read only what you need, then write `feature-research/<task>/plan.md`:
+Read only what you need, then write `feature-research/<task>/plan.md` using this
+shape:
 
-1. **Goal** — one sentence: what "done" means.
-2. **Files touched** — the COMPLETE list of files to create or modify. This
-   scopes the entire downstream review; a vague or absent list is a defect. If
-   you can't bound it, say so and stop.
-3. **Approach** — the change per file, in order. Small, reviewable steps.
-   Composition over generalization.
-4. **Test plan** — the exact tests/lint that must pass for the exit rule.
-5. **Risks & open questions** — what the human reviewer must decide.
+```markdown
+# <task> — plan
+
+## 🎯 What
+<one sentence: what "done" means>
+
+## 🤔 Why
+<one or two lines: the problem this solves>
+
+## 🛠 How
+<the concrete steps / change-per-file, in order — small reviewable steps>
+**Files touched:** the COMPLETE list of files to create or modify (a vague or
+absent list is a defect; if you can't bound it, say so and stop).
+
+## ✅ Decisions
+<each as Q → chosen answer, one line each; open questions the human must decide>
+```
 
 Do not edit source. Do not run state-changing git. Precise, pragmatic, brief.
 Report the plan path and stop.
