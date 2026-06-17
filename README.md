@@ -7,6 +7,12 @@
 
 **Four Claude subagents that plan, grill, implement, and review each other — with two human gates, because green ≠ understood.**
 
+```
+        ⌐ ■ - ■   A N D E R S O N
+   ──  the agents review the agents  ──
+   01001   plan · grill · review · ship   10110
+```
+
 anderson is a [Claude Code](https://claude.com/claude-code) plugin: a gated maker/checker pipeline that turns one task into a reviewed, shipped pull request. Each stage runs as its own subagent at its own model + effort, state lives on disk, and **two unconditional human gates** mean nothing merges without your eyes on it.
 
 ## Why
@@ -60,11 +66,11 @@ Drive the gates in plain text — "approved, go" / "ship it" / "rework the block
 
 ## What a run looks like
 
-1. `/anderson:start <slug> "<goal>"` → THE ARCHITECT writes `plan.md`.
-2. **Grill** — anderson interrogates the plan one question at a time; your answers harden it.
-3. THE ORACLE reviews + edits the plan → **GATE 1** (you approve).
-4. NEO implements → AGENT SMITH reviews the diff → **GATE 2** (you approve).
-5. **Ship** — branch `anderson/<slug>` + commit + push + PR. Scratch cleaned. Done.
+1. 🏛 **THE ARCHITECT** (`plan`) — `/anderson:start <slug> "<goal>"` drafts `plan.md`.
+2. 🕶 **THE INTERROGATOR** (`grill`) — *you* — interrogates the plan one question at a time; your answers harden it.
+3. 🔮 **THE ORACLE** (`plan_review`) — reviews + edits the plan → **GATE 1** (you approve).
+4. 🟢 **NEO** (`implement`) writes the code → 🕴 **AGENT SMITH** (`diff_review`) hunts the diff for what's wrong → **GATE 2** (you approve).
+5. 🔑 **THE ONE** (`ship`) — branch `anderson/<slug>` + commit + push + PR. Scratch cleaned. Done.
 
 ## Requirements
 
