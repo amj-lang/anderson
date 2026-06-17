@@ -36,8 +36,13 @@ back-to-back; never let any other line fall between a banner and the agent line.
 
    ## Still open
    ```
-3. (BANNER RULE) Print this PLAN banner (pick ONE quote at random — never default to the first, and
-   don't reuse one you showed earlier this session) as the LAST line before invoking
+3. (BANNER RULE) Print this PLAN banner (choose the quote by COUNTING, not by feel: let N = the number of characters in the
+   task slug (just its length — count every character, including hyphens); let iteration
+   = the `iteration:` value currently in state.md (read it fresh — at this step it already
+   reflects this command's increment); the quote is the 0-based item at index
+   (N + 1 + iteration) mod 10 in the Pool below — count the list from 0; the Pool
+   has exactly 10 items so mod 10 always yields a valid position (0–9). Do NOT pick "at
+   random" and do NOT default to the first.) as the LAST line before invoking
    the planner, so it sits right above the agent:
    ```
      ╭─ ⌐■-■  PLAN · 1/5 · THE ARCHITECT · opus/high
@@ -46,8 +51,13 @@ back-to-back; never let any other line fall between a banner and the agent line.
    ```
    Pool (10): "Design twice, so reality only has to happen once." / "The most dangerous flaw is the one the blueprint calls a feature." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it." / "A plan is a promise you make to your future self at 3 a.m." / "Every line you don't write is a line you never debug." / "Decide the hard things on paper, where erasing is cheap." / "The shape of the solution hides in the shape of the problem." / "Cut the scope until it bleeds, then ship the part that lived." / "A blueprint nobody questions is a blueprint nobody read."
    Then immediately invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md. Set stage=grill.
-4. (BANNER RULE) Print this GRILL banner (pick ONE quote at random — never default to the first, and
-   don't reuse one you showed earlier this session) as the LAST line before your FIRST grilling question:
+4. (BANNER RULE) Print this GRILL banner (choose the quote by COUNTING, not by feel: let N = the number of characters in the
+   task slug (just its length — count every character, including hyphens); let iteration
+   = the `iteration:` value currently in state.md (read it fresh — at this step it already
+   reflects this command's increment); the quote is the 0-based item at index
+   (N + 2 + iteration) mod 10 in the Pool below — count the list from 0; the Pool
+   has exactly 10 items so mod 10 always yields a valid position (0–9). Do NOT pick "at
+   random" and do NOT default to the first.) as the LAST line before your FIRST grilling question:
    ```
      ╭─ ⌐■-■  GRILL · 2/5 · THE INTERROGATOR · you
      │  "[one quote from the pool]"
@@ -63,8 +73,13 @@ back-to-back; never let any other line fall between a banner and the agent line.
      non-obvious choices under a `## Decisions` heading).
    - Continue until I signal shared understanding ("done", "good", "go to review") or no open
      branches remain. Then set stage=plan_review and continue to the reviewer.
-5. (BANNER RULE) Print this PLAN-REVIEW banner (pick ONE quote at random — never default to the first,
-   and don't reuse one you showed earlier this session) as the LAST line before invoking
+5. (BANNER RULE) Print this PLAN-REVIEW banner (choose the quote by COUNTING, not by feel: let N = the number of characters in the
+   task slug (just its length — count every character, including hyphens); let iteration
+   = the `iteration:` value currently in state.md (read it fresh — at this step it already
+   reflects this command's increment); the quote is the 0-based item at index
+   (N + 3 + iteration) mod 10 in the Pool below — count the list from 0; the Pool
+   has exactly 10 items so mod 10 always yields a valid position (0–9). Do NOT pick "at
+   random" and do NOT default to the first.) as the LAST line before invoking
    the plan-reviewer:
    ```
      ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · opus/xhigh
