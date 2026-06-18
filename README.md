@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.9.3-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.9.6-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -44,7 +44,7 @@ plan ─▶ grill ─▶ plan_review ──[ YOU ]──▶ implement ─▶ dif
 /anderson:start demo "build a live dashboard widget that pulls status from the top 5 AI companies' status pages"
 ```
 
-Drive the gates in plain text — "approved, go" / "ship it" / "rework the blockers" — or with `/anderson:approve-plan`, `:approve-diff`, `:rework`, `:status`.
+Drive the gates in plain text — "approved, go" / "ship it" / "rework the blockers" — or with `/anderson:approve-plan`, `:approve-diff`, `:rework`, `:status`. Run `/anderson:demo` for a zero-token dry-run of the full pipeline.
 
 ## Requirements
 
@@ -58,4 +58,5 @@ Drive the gates in plain text — "approved, go" / "ship it" / "rework the block
 ## More
 
 - **Full operator docs** — models/effort verification, autonomous chaining, terminal flair, troubleshooting: **[plugins/anderson/README.md](plugins/anderson/README.md)**.
+- **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs scheduler unit tests, `py_compile`, shellcheck (advisory), and version-sync enforcement; on push to `main` it auto-creates a `vX.Y.Z` tag + GitHub release when `plugin.json` carries a new version.
 - Licensed under the [MIT License](LICENSE).
