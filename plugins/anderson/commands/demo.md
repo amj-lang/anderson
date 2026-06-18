@@ -20,14 +20,18 @@ Print in exactly this order (sub-bullet = quote pool to pick from):
 
 ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · opus/xhigh
   Pool: "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system."
-  Then the gate line: ■ GATE 1 · your turn. Read plan.md (## Diverged because). Approve: /anderson:approve-plan demo-task — or say "approved, go".
+  Then the gate marker:
+  ﾊﾐﾐ 0ｺ1  🔴 G A T E  1 · YOUR TURN  1ｺ0 ﾐﾐﾊ
+  ⌐■-■  Read plan.md (## Diverged because). Approve: /anderson:approve-plan demo-task — or say "approved, go".
 
 ╭─ ⌐■-■  IMPLEMENT · 4/5 · NEO · sonnet/medium
   Pool: "Make it small enough to be wrong cheaply." / "Ship the truth, not the hope." / "One reviewable step beats ten clever ones."
 
 ╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · opus/xhigh
   Pool: "Your green tests are a comfort, not a verdict." / "Untested is unknown, and unknown is unsafe." / "Every assumption is a door you left unlocked."
-  Then the gate line: ■ GATE 2 · awaiting you. Read diff-review.md AND the diff. Ship: /anderson:approve-diff demo-task · Rework: /anderson:rework demo-task
+  Then the gate marker:
+  ﾊﾐﾐ 0ｺ1  🔴 G A T E  2 · AWAITING YOU  1ｺ0 ﾐﾐﾊ
+  ⌐■-■  Read diff-review.md AND the diff. Ship: /anderson:approve-diff demo-task · Rework: /anderson:rework demo-task
 
 ╭─ ⌐■-■  SHIP ✓ · THE ONE · welcome to the real world
   Pool: "Green is not understood; read what you merged." / "The gate is not an obstacle; it is the point." / "Review is how respect for the future is spelled."
