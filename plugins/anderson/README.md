@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.9.3-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.9.6-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -143,6 +143,7 @@ then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` 
 /anderson:approve-diff  brief-views     # SHIP for real: commit on a branch + push + open PR (guarded), then clean scratch
 /anderson:rework        brief-views     # loop implement on the checker's blocking findings
 /anderson:status        brief-views     # dashboard + model-override check
+/anderson:demo                          # zero-token dry-run of the full pipeline (no subagents launched)
 ```
 
 All commands are **namespaced** `/anderson:<command>` — `/anderson:start`,
@@ -154,7 +155,7 @@ anyway: once a flow is running you can drive every gate in plain text —
 same `state.md`.
 
 **What you see while it runs.** Each stage prints a compact framed banner — stage,
-persona, and model on one line; a rotating aphorism on the next:
+persona, and model on one line; a quote picked deterministically per stage on the next:
 
 ```
 ╭─ ⌐■-■  IMPLEMENT · 4/5 · NEO · sonnet/medium
@@ -168,6 +169,30 @@ which one is working.
 
 State persists in `feature-research/<task>/state.md` in the current repo, so you
 can stop at a gate and resume later.
+
+### State file
+
+The machine-read contract shared by `hooks/scheduler.py`, `commands/status.md`, and
+`bin/feature.sh`. Seeded by `/anderson:start` with this exact block (parsing is lenient —
+tolerates `- ` bullets and `**` bold around keys):
+
+```
+<!-- STATE:START -->
+task:            <task>
+stage:           plan
+gate:            none
+iteration:       0
+max_iterations:  2
+exit_rule:       all tests pass and lint clean, only major issues fixed
+plan_verdict:    pending
+diff_verdict:    pending
+<!-- STATE:END -->
+```
+
+Fields: `task` = slug; `stage` = current pipeline stage; `gate` = `none` or `human`;
+`iteration` = rework pass count; `max_iterations` = hard cap on implement↔review loops;
+`exit_rule` = the human-readable rule the diff reviewer enforces; `plan_verdict` /
+`diff_verdict` = `pending`, `ship`, `fix_first`, or `regrill`.
 
 ## Models & effort — what runs where, and how to verify
 
@@ -294,6 +319,21 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.9.6** — Quote pools doubled to 20 per stage and the modulus is now read dynamically
+  from the `"Pool (M):"` label in each banner block, so the formula `(N + stageN + iteration) mod M`
+  never needs updating when pools grow. All six pools were expanded: the original 10 aphorisms kept
+  verbatim plus 10 Matrix-trilogy lines matched to each stage's persona (THE ARCHITECT, THE
+  INTERROGATOR, THE ORACLE, NEO, AGENT SMITH, THE ONE). The IMPLEMENT and DIFF_REVIEW pools are
+  kept byte-identical across `approve-plan.md` and `rework.md`. Live-loop only; `bin/*` terminal
+  scripts unchanged.
+- **0.9.5** — Stage banners switched from a model-printed "pick ONE quote at random" instruction
+  to a deterministic, model-computable index: `(N + stageN + iteration) mod M`, where N is the
+  character count of the task slug, stageN is a fixed offset per stage (PLAN=1, GRILL=2,
+  PLAN\_REVIEW=3, IMPLEMENT=4, DIFF\_REVIEW=5, SHIP=6), and iteration is read fresh from
+  `state.md`. Varies by task, stage, and rework pass; mod M over the pool always yields a valid
+  index. The unreliable tiebreaker ("recall what you already showed") was dropped — iteration
+  covers the only recurrence (rework). `rework.md` gained an explicit `iteration += 1` step so
+  rework banners read a post-increment value. Live-loop only; 27 scheduler tests pass.
 - **0.9.4** — Finished the banner-reliability fix: added a named per-stage **BANNER RULE**
   invariant (setup first, banner last before the agent, nothing between, never skipped)
   restated at every stage so later banners stop getting dropped; `rework.md` now inlines
