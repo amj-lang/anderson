@@ -29,5 +29,9 @@ banner and the agent line; never skip a banner.
 3. Print and STOP — fill in the real task slug for every `<task>` and the real
    verdict for `<diff_verdict>` so the commands + path are copy-pasteable (e.g.
    `/anderson:approve-diff brief-views`, NOT a literal `<task>`):
-   `■ GATE 2 · awaiting you. Read feature-research/<task>/diff-review.md AND the actual diff (verdict=<diff_verdict>). Then /anderson:approve-diff <task> to ship, or /anderson:rework <task>.`
+   ```
+   ﾊﾐﾐ 0ｺ1  🔴 G A T E  2 · AWAITING YOU  1ｺ0 ﾐﾐﾊ
+     ⌐■-■  Read feature-research/<task>/diff-review.md AND the actual diff (verdict=<diff_verdict>), then
+            /anderson:approve-diff <task> to ship, or /anderson:rework <task>.
+   ```
    Halt is unconditional even on a ship verdict.

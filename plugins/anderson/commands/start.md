@@ -95,5 +95,9 @@ back-to-back; never let any other line fall between a banner and the agent line.
 6. Print and STOP — fill in the real task slug for every `<task>` and the real
    verdict for `<plan_verdict>` so the command + path are copy-pasteable (e.g.
    `/anderson:approve-plan brief-views`, NOT a literal `<task>`):
-   `■ GATE 1 · your turn. Read feature-research/<task>/plan.md (## Diverged because, verdict=<plan_verdict>). Then /anderson:approve-plan <task> — or just say "approved, go". Don't implement yet.`
+   ```
+   ﾊﾐﾐ 0ｺ1  🔴 G A T E  1 · YOUR TURN  1ｺ0 ﾐﾐﾊ
+     ⌐■-■  Read feature-research/<task>/plan.md (## Diverged because, verdict=<plan_verdict>), then
+            /anderson:approve-plan <task> — or just say "approved, go". Don't implement yet.
+   ```
    Halt is unconditional even on a ship verdict.

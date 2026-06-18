@@ -278,6 +278,10 @@ stays flat. Keep agent prompts byte-stable so Claude Code caches the prefix (cac
 reads ≈ 0.1× input); don't inject the date/iteration into a prompt prefix — that's
 what the on-disk state is for.
 
+The read-heavy review agents are scoped to the plan plus the files it names
+(diff-first) instead of sweeping the tree, which trims input tokens — a modest,
+input-side saving, not a dramatic one.
+
 ## Extras (terminal)
 
 Two optional flourishes in `bin/` — run them in a real terminal (the in-loop banners are plain text and don't animate):
