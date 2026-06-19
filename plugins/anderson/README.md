@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.9.6-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.9.7-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -323,6 +323,14 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.9.7** — Consolidated the human-facing output into ONE document: plan-review and
+  diff-review now write into `plan.md` under `## 🔭 Review` (no separate `diff-review.md`),
+  and reviewer divergences are inline colored `<del>`/`<ins>` edits at the change site instead
+  of a prepended `## Diverged because` block. The planner template gains a `## 🗺 Design` mermaid
+  slot and a `###` logical-grouping convention; `state.md` is now machine-only (not a human doc).
+  Terminal color added to the shell surfaces — green stages, red gates — in `bin/banner.sh`,
+  `bin/demo.sh`, `bin/feature.sh`, `bin/matrix.sh`, all TTY + `NO_COLOR` gated so logs/CI stay clean.
+  CI now FAILS a PR that changes `plugins/anderson/` without bumping the version.
 - **0.9.6** — Quote pools doubled to 20 per stage and the modulus is now read dynamically
   from the `"Pool (M):"` label in each banner block, so the formula `(N + stageN + iteration) mod M`
   never needs updating when pools grow. All six pools were expanded: the original 10 aphorisms kept
