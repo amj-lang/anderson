@@ -73,6 +73,9 @@ back-to-back; never let any other line fall between a banner and the agent line.
    - If a question can be answered by exploring the codebase, explore instead of asking.
    - After each resolved decision, fold it into plan.md (update the affected section; record
      non-obvious choices under a `## Decisions` heading).
+   - Explicitly walk the "💥 Blast radius" table: for each vector, challenge whether the
+     enumeration is complete and whether out-of-scope calls are justified. Confirm the
+     "📈 Scorecard"; if Risk is high or Confidence is low, decide whether to proceed.
    - Continue until I signal shared understanding ("done", "good", "go to review") or no open
      branches remain. Then set stage=plan_review and continue to the reviewer.
 5. (BANNER RULE) Print this PLAN-REVIEW banner (choose the quote by COUNTING, not by feel: let N = the number of characters in the
@@ -91,7 +94,7 @@ back-to-back; never let any other line fall between a banner and the agent line.
    ```
    Pool (20): "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does." / "The second pair of eyes sees the assumption the first pair made." / "Improve the plan, not the planner's feelings." / "A good review changes the plan; a great one changes the question." / "Disagree on paper now, or apologize in the incident channel later." / "The cheapest place to be wrong is before the first commit." / "Trust the plan less than the reasons behind it." / "You've already made the choice; now you have to understand it." / "What's really going to bake your noodle is, would you still have broken it if I hadn't said anything?" / "We can never see past the choices we don't understand." / "You have a good soul — and I'm tough on souls." / "I hate giving good people bad news." / "Being the One is like being in love: no one can tell you, you just know it." / "I'd ask you to sit down, but you're not going to anyway." / "Candy?" / "You have the gift, but it looks like you're waiting for something." / "I only ever tell you what you need to hear."
    Then immediately invoke the **plan-reviewer** subagent → edits plan.md in place, prepends
-   "## Diverged because", keeps plan.orig.md, sets plan_verdict.
+   "## Diverged because", sets plan_verdict.
 6. Print and STOP — fill in the real task slug for every `<task>` and the real
    verdict for `<plan_verdict>` so the command + path are copy-pasteable (e.g.
    `/anderson:approve-plan brief-views`, NOT a literal `<task>`):

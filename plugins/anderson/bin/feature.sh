@@ -38,9 +38,9 @@ set_field() { sed -i.bak -E "s|^($1:[[:space:]]*).*|\1$2|" "$state" && rm -f "$s
 run() { claude -p "$3" --model "$1" --permission-mode "$2" --output-format json | tee -a "$dir/run.log"; }
 
 plan()        { run opus   acceptEdits "Use the planner subagent on task '$task'. Goal: $goal. Write feature-research/$task/plan.md."; set_field stage plan_review; }
-plan_review() { run opus   acceptEdits "Use the plan-reviewer subagent on task '$task'. stage=plan_review. Edit plan.md in place, prepend '## Diverged because', keep plan.orig.md, set plan_verdict."
+plan_review() { run opus   acceptEdits "Use the plan-reviewer subagent on task '$task'. stage=plan_review. Edit plan.md in place, prepend '## Diverged because', set plan_verdict."
                 set_field gate human
-                echo ">>> PLAN GATE. Read $dir/plan.md ('## Diverged because', verdict $(get plan_verdict)); original at plan.orig.md."
+                echo ">>> PLAN GATE. Read $dir/plan.md ('## Diverged because', verdict $(get plan_verdict))."
                 echo ">>> Approve: ./feature.sh --approve-plan $task"; exit 10; }
 implement()   { it=$(( $(get iteration) + 1 )); set_field iteration "$it"
                 [ "$it" -gt "$(get max_iterations)" ] && { echo ">>> EXIT: hit max_iterations. Escalating to you."; exit 1; }

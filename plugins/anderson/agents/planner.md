@@ -28,9 +28,47 @@ shape:
 **Files touched:** the COMPLETE list of files to create or modify (a vague or
 absent list is a defect; if you can't bound it, say so and stop).
 
+## 💥 Blast radius
+Before writing this, trace dependents — do not guess. For each row, note the file(s)
+and whether they are IN scope (in Files touched) or deliberately OUT (with why).
+| Vector | Sites found | In scope? |
+|--------|-------------|-----------|
+| Callers / call-sites of changed symbols | | |
+| Dependents (import/require the changed module) | | |
+| Shared types / contracts / interfaces | | |
+| Parallel / sibling implementations | | |
+| Duplicated or copy-pasted logic | | |
+| Tests (unit + integration) covering the above | | |
+| Docs / README / comments stating the old behaviour | | |
+| Config / env / migrations / fixtures | | |
+A vector you checked and found empty must say "none found" — a blank cell is a defect.
+Every "in scope" site MUST also appear in Files touched above.
+
+## 📈 Scorecard
+Score each 0–10 against the anchors; one line of justification each. The PLANNER fills the
+"Planner" column. The PLAN-REVIEWER fills the "Reviewer" column independently in this SAME
+table (do not start a second scorecard) and reconciles any gap ≥ 3 in "Diverged because".
+| Dimension | Planner | Reviewer | Why (1 line) |
+|-----------|---------|----------|--------------|
+| Risk (10 = could break prod / data loss; 0 = cosmetic) | | | |
+| Horizontality (10 = many files/contracts/teams; 0 = one isolated file) | | | |
+| Testability (0–3 unit only · 4–6 needs integration · 7–10 needs a human/manual tester) | | | |
+| Reversibility (10 = trivial revert; 0 = irreversible migration/data change) | | | |
+| Confidence (10 = certain; 0 = many unknowns — LOW confidence is itself a fix_first trigger) | | | |
+| Coupling (10 = entangled with many modules/shared state; 0 = isolated / pure) | | | |
+| Observability (10 = a failure would be silent — no logs/metrics/test signal; 0 = a failure is loud, caught immediately) | | | |
+
 ## ✅ Decisions
 <each as Q → chosen answer, one line each; open questions the human must decide>
 ```
+
+Before finalizing, trace the blast radius — do NOT rely on the direct edit site alone.
+For every symbol/function/type/file you plan to change, grep for its usages, find its
+callers, and glob for sibling/parallel implementations and duplicated logic. Then fill
+the "💥 Blast radius" table from what you found (not from memory) and pull every in-scope
+site into "Files touched". You already have Grep + Glob tools (frontmatter L4) — use them.
+A blast-radius table with blank cells or a Files-touched list that omits an in-scope blast
+site is a defect.
 
 Do not edit source. Do not run state-changing git. Precise, pragmatic, brief.
 Report the plan path and stop.

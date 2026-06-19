@@ -18,6 +18,12 @@ in the audit's list but NOT the plan's is out-of-scope creep — report it
 (blocking if it changes behavior). Read the plan, the audit, and the scoped diff.
 Hunt for what the audit does NOT mention within scope.
 
+Read the `## 📈 Scorecard` from the plan or audit. Scale your review depth by Risk and
+Coupling: where either score is high (Risk ≥ 8 or Coupling ≥ 7), re-verify that the
+blast radius held in the actual diff — check that no undeclared dependent was silently
+affected. Echo the scorecard into `diff-review.md` under `## 📊 Scope + risk addressed?`
+with a note on whether the realized diff matched the predicted blast radius.
+
 Write `feature-research/<task>/diff-review.md` using this shape:
 
 ```markdown

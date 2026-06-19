@@ -44,9 +44,9 @@ high   [ YOU ]   xhigh (edits)            medium        xhigh (read-only)
 
 | Stage        | Agent          | Model  | Effort | Gate  | Does                                  |
 |--------------|----------------|--------|--------|-------|---------------------------------------|
-| plan         | `planner`      | opus   | high   | —     | writes `plan.md`                      |
+| plan         | `planner`      | opus   | high   | —     | writes `plan.md` + blast radius + scorecard |
 | grill        | *(you)*        | —      | —      | human | relentless one-at-a-time Q&A on the plan, folds decisions into `plan.md` — no subagent |
-| plan_review  | `plan-reviewer`| opus   | xhigh  | human | **edits** `plan.md` + `## Diverged because`, keeps `plan.orig.md`; verdict `ship`/`fix_first`/`regrill` |
+| plan_review  | `plan-reviewer`| opus   | xhigh  | human | **edits** `plan.md` + `## Diverged because`; re-scores + checks blast radius; verdict `ship`/`fix_first`/`regrill` |
 | implement    | `implementer`  | sonnet | medium | —     | writes `audit.md`                     |
 | diff_review  | `reviewer`     | opus   | xhigh  | human | **read-only** diff review → `diff-review.md` |
 
@@ -137,7 +137,7 @@ then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` 
 
 ```
 /anderson:start          brief-views  normalize briefs_table.views[] into brief_views_table
-            # START. plan → grill (you harden it) → plan-review, then halts. Read plan.md → "## Decisions" + "## Diverged because".
+            # START. plan → grill (you harden it) → plan-review, then halts. Read plan.md → "## Decisions" + "## Diverged because" + "## 💥 Blast radius" + "## 📈 Scorecard".
 /anderson:approve-plan  brief-views
             # implement + diff-review, then halts. Read diff-review.md AND the diff.
 /anderson:approve-diff  brief-views     # SHIP for real: commit on a branch + push + open PR (guarded), then clean scratch
@@ -193,6 +193,8 @@ Fields: `task` = slug; `stage` = current pipeline stage; `gate` = `none` or `hum
 `iteration` = rework pass count; `max_iterations` = hard cap on implement↔review loops;
 `exit_rule` = the human-readable rule the diff reviewer enforces; `plan_verdict` /
 `diff_verdict` = `pending`, `ship`, `fix_first`, or `regrill`.
+
+`plan.md` carries two mandatory sections beyond the How/Decisions narrative: a **`## 💥 Blast radius`** table (planner traces all dependents/callers/siblings/tests/docs before finalizing; reviewer hard-checks it, blocking on blank cells or missed in-scope sites) and a **`## 📈 Scorecard`** (7 dimensions — Risk, Horizontality, Testability, Reversibility, Confidence, Coupling, Observability — with Planner and Reviewer columns in one table; gaps ≥ 3 reconciled in "## Diverged because"; Risk ≥ 8 or Confidence ≤ 3 blocks `ship`). The scorecard is echoed verbatim into `audit.md` and `diff-review.md` by the implementer and diff-reviewer respectively.
 
 ## Models & effort — what runs where, and how to verify
 
