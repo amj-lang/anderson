@@ -38,6 +38,27 @@ jobs:
             exit 1
           fi
 
+      - name: Require a version bump when the plugin changes (PRs only)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          BASE="origin/$BASE_REF"
+          # Compare shippable plugin content against the PR base; tests don't count.
+          if git diff --quiet "$BASE" HEAD -- plugins/anderson ':(exclude)plugins/anderson/test'; then
+            echo "no shippable plugin changes — version bump not required"
+            exit 0
+          fi
+          BASE_VER=$(git show "$BASE:plugins/anderson/.claude-plugin/plugin.json" | jq -r .version)
+          HEAD_VER=$(jq -r .version plugins/anderson/.claude-plugin/plugin.json)
+          echo "base=$BASE_VER  head=$HEAD_VER"
+          if [ "$BASE_VER" = "$HEAD_VER" ]; then
+            echo "::error::plugins/anderson changed but version not bumped (still $HEAD_VER) — bump plugin.json + marketplace.json"
+            exit 1
+          fi
+          echo "version bumped $BASE_VER -> $HEAD_VER"
+
   release:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
