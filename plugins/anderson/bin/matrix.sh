@@ -19,6 +19,7 @@ if [ -n "${NO_COLOR:-}" ] || [ "$tty" -eq 0 ]; then color=0; fi
 
 grn(){  if [ "$color" -eq 1 ]; then printf '\033[32m';   fi; }
 grnb(){ if [ "$color" -eq 1 ]; then printf '\033[1;32m'; fi; }
+red(){  if [ "$color" -eq 1 ]; then printf '\033[31m';   fi; }
 rst(){  if [ "$color" -eq 1 ]; then printf '\033[0m';    fi; }
 
 quotes=(
@@ -43,7 +44,18 @@ montage(){
   local d="${MATRIX_MONTAGE_DELAY:-0.5}"
   printf '\033[2J\033[H\n'
   grnb; printf '   ⌐■-■  A N D E R S O N    ·    one task → a reviewed, shipped PR\n\n'; rst
-  step(){ grnb; printf '   ▸ %-12s' "$1"; rst; grn; printf ' %s\n' "$2"; rst; sleep "$d"; }
+  step(){
+    local label="$1" desc="$2"
+    grnb; printf '   ▸ %-12s' "$label"; rst
+    # Split description at ■ GATE to color the gate marker red
+    case "$desc" in
+      *"■ GATE"*)
+        before="${desc%%■ GATE*}"; after="■ GATE${desc#*■ GATE}"
+        grn; printf ' %s' "$before"; rst; red; printf '%s' "$after"; rst; printf '\n';;
+      *)
+        grn; printf ' %s\n' "$desc"; rst;;
+    esac
+    sleep "$d"; }
   step "PLAN"        "THE ARCHITECT · opus/high"
   step "GRILL"       "THE INTERROGATOR · you"
   step "PLAN_REVIEW" "THE ORACLE · opus/xhigh        ■ GATE 1"

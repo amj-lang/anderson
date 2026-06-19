@@ -37,20 +37,26 @@ get() { grep -E "^$1:" "$state" | head -1 | sed -E "s/^$1:[[:space:]]*//; s/[[:s
 set_field() { sed -i.bak -E "s|^($1:[[:space:]]*).*|\1$2|" "$state" && rm -f "$state.bak"; }
 run() { claude -p "$3" --model "$1" --permission-mode "$2" --output-format json | tee -a "$dir/run.log"; }
 
+_tty=1; [ -t 1 ] || _tty=0; case "${TERM:-}" in dumb|"") _tty=0 ;; esac
+_color=1; if [ -n "${NO_COLOR:-}" ] || [ "$_tty" -eq 0 ]; then _color=0; fi
+grn(){ if [ "$_color" -eq 1 ]; then printf '\033[32m'; fi; }
+red(){ if [ "$_color" -eq 1 ]; then printf '\033[31m'; fi; }
+rst(){ if [ "$_color" -eq 1 ]; then printf '\033[0m';  fi; }
+
 plan()        { run opus   acceptEdits "Use the planner subagent on task '$task'. Goal: $goal. Write feature-research/$task/plan.md."; set_field stage plan_review; }
-plan_review() { run opus   acceptEdits "Use the plan-reviewer subagent on task '$task'. stage=plan_review. Edit plan.md in place, prepend '## Diverged because', keep plan.orig.md, set plan_verdict."
+plan_review() { run opus   acceptEdits "Use the plan-reviewer subagent on task '$task'. stage=plan_review. Make inline strike-through edits in plan.md, append review under ## 🔭 Review, set plan_verdict."
                 set_field gate human
-                echo ">>> PLAN GATE. Read $dir/plan.md ('## Diverged because', verdict $(get plan_verdict)); original at plan.orig.md."
-                echo ">>> Approve: ./feature.sh --approve-plan $task"; exit 10; }
+                red; printf '>>> PLAN GATE. Read %s/plan.md (## 🔭 Review, verdict %s).\n' "$dir" "$(get plan_verdict)"; rst
+                printf '>>> Approve: ./feature.sh --approve-plan %s\n' "$task"; exit 10; }
 implement()   { it=$(( $(get iteration) + 1 )); set_field iteration "$it"
                 [ "$it" -gt "$(get max_iterations)" ] && { echo ">>> EXIT: hit max_iterations. Escalating to you."; exit 1; }
                 set_field stage implement; set_field gate none
                 run sonnet acceptEdits "Use the implementer subagent on task '$task'. Execute plan.md (iteration $it); on rework fix only 'Still open'. Write audit.md."
                 set_field stage diff_review; }
-diff_review() { run opus   acceptEdits "Use the reviewer subagent on task '$task'. stage=diff_review. Diff-review the union scope; write diff-review.md; set diff_verdict."
+diff_review() { run opus   acceptEdits "Use the reviewer subagent on task '$task'. stage=diff_review. Diff-review the union scope; append diff review under ## 🔭 Review in plan.md; set diff_verdict."
                 set_field gate human
-                echo ">>> DIFF GATE. Read $dir/diff-review.md (verdict $(get diff_verdict)) AND the diff."
-                echo ">>> Ship: ./feature.sh --approve-diff $task | Loop: ./feature.sh --rework $task"; exit 20; }
+                red; printf '>>> DIFF GATE. Read %s/plan.md (## 🔭 Review, verdict %s) AND the diff.\n' "$dir" "$(get diff_verdict)"; rst
+                printf '>>> Ship: ./feature.sh --approve-diff %s | Loop: ./feature.sh --rework %s\n' "$task" "$task"; exit 20; }
 
 # ship — fold the diff-review verdict into a real commit + PR, guarded for any repo / CI.
 # Builds the message from the scratch BEFORE deleting it, branches off the default branch
@@ -67,7 +73,7 @@ ship() {
     echo "${title:-$task}"
     echo
     echo "Shipped by anderson (gated maker/checker loop). Diff-review verdict: ship."
-    [ -f "$dir/diff-review.md" ] && { echo; echo "## Diff review"; echo; cat "$dir/diff-review.md"; }
+    [ -f "$dir/plan.md" ] && { echo; echo "## Diff review"; echo; sed -n '/^## 🔭 Review/,$p' "$dir/plan.md"; }
     [ -f "$dir/audit.md" ]       && { echo; echo "## Implementation audit"; echo; cat "$dir/audit.md"; }
   } > "$bodyfile"
 

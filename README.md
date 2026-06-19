@@ -28,7 +28,7 @@ plan ─▶ grill ─▶ plan_review ──[ YOU ]──▶ implement ─▶ dif
 |-----|---------------|----------------------------|-----------------|----------------|--------------|
 | 🏛  | `plan`        | THE ARCHITECT              | opus · high     | —              | drafts `plan.md` |
 | 🕶  | `grill`       | THE INTERROGATOR · *you*   | — (human)       | 🛑 human       | interrogates the plan one question at a time; your answers harden it |
-| 🔮  | `plan_review` | THE ORACLE                 | opus · xhigh    | 🛑 **GATE 1**  | edits the plan + `## Diverged because`; verdict `ship` / `fix_first` / `regrill` |
+| 🔮  | `plan_review` | THE ORACLE                 | opus · xhigh    | 🛑 **GATE 1**  | edits the plan inline + appends review to `## 🔭 Review`; verdict `ship` / `fix_first` / `regrill` |
 | 🟢  | `implement`   | NEO                        | sonnet · medium | —              | writes the code + `audit.md` |
 | 🕴  | `diff_review` | AGENT SMITH                | opus · xhigh    | 🛑 **GATE 2**  | independent, read-only diff review |
 | 🔑  | `ship`        | THE ONE                    | —               | —              | branch `anderson/<slug>` + commit + push + PR, scratch cleaned |

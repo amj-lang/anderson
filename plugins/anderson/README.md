@@ -28,7 +28,7 @@ A gated maker/checker loop: one task at a time, per-stage model+effort, state on
 |------------------|---------------|----------------------------------------|----------------|
 | THE ARCHITECT    | `plan`        | writes the plan                        | opus / high    |
 | THE INTERROGATOR | `grill`       | you — relentless one-at-a-time Q&A     | — (human)      |
-| THE ORACLE       | `plan_review` | edits the plan + `## Diverged because` | opus / xhigh   |
+| THE ORACLE       | `plan_review` | edits the plan inline + appends review to `## 🔭 Review` | opus / xhigh   |
 | NEO              | `implement`   | executes the approved plan             | sonnet / medium|
 | AGENT SMITH      | `diff_review` | read-only diff review                  | opus / xhigh   |
 | THE ONE          | `done`        | shipped — commit + PR                  | — (terminal)   |
@@ -44,11 +44,11 @@ high   [ YOU ]   xhigh (edits)            medium        xhigh (read-only)
 
 | Stage        | Agent          | Model  | Effort | Gate  | Does                                  |
 |--------------|----------------|--------|--------|-------|---------------------------------------|
-| plan         | `planner`      | opus   | high   | —     | writes `plan.md`                      |
+| plan         | `planner`      | opus   | high   | —     | writes `plan.md` + blast radius + scorecard |
 | grill        | *(you)*        | —      | —      | human | relentless one-at-a-time Q&A on the plan, folds decisions into `plan.md` — no subagent |
-| plan_review  | `plan-reviewer`| opus   | xhigh  | human | **edits** `plan.md` + `## Diverged because`, keeps `plan.orig.md`; verdict `ship`/`fix_first`/`regrill` |
+| plan_review  | `plan-reviewer`| opus   | xhigh  | human | **edits** `plan.md` inline + appends review to `## 🔭 Review`; re-scores + checks blast radius; verdict `ship`/`fix_first`/`regrill` |
 | implement    | `implementer`  | sonnet | medium | —     | writes `audit.md`                     |
-| diff_review  | `reviewer`     | opus   | xhigh  | human | **read-only** diff review → `diff-review.md` |
+| diff_review  | `reviewer`     | opus   | xhigh  | human | diff review appended to `plan.md` `## 🔭 Review` |
 
 The agents are **self-contained** — the implementer/reviewer logic is inlined, so
 there is no external skill to install. Per-stage `model` + `effort` switch
@@ -137,9 +137,9 @@ then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` 
 
 ```
 /anderson:start          brief-views  normalize briefs_table.views[] into brief_views_table
-            # START. plan → grill (you harden it) → plan-review, then halts. Read plan.md → "## Decisions" + "## Diverged because".
+            # START. plan → grill (you harden it) → plan-review, then halts. Read plan.md → "## 🔭 Review" + "## 💥 Blast radius" + "## 📈 Scorecard".
 /anderson:approve-plan  brief-views
-            # implement + diff-review, then halts. Read diff-review.md AND the diff.
+            # implement + diff-review, then halts. Read plan.md ## 🔭 Review AND the diff.
 /anderson:approve-diff  brief-views     # SHIP for real: commit on a branch + push + open PR (guarded), then clean scratch
 /anderson:rework        brief-views     # loop implement on the checker's blocking findings
 /anderson:status        brief-views     # dashboard + model-override check
@@ -172,6 +172,8 @@ can stop at a gate and resume later.
 
 ### State file
 
+`state.md` is a machine-only file — it is not a human-facing artifact. Humans read `plan.md`.
+
 The machine-read contract shared by `hooks/scheduler.py`, `commands/status.md`, and
 `bin/feature.sh`. Seeded by `/anderson:start` with this exact block (parsing is lenient —
 tolerates `- ` bullets and `**` bold around keys):
@@ -193,6 +195,8 @@ Fields: `task` = slug; `stage` = current pipeline stage; `gate` = `none` or `hum
 `iteration` = rework pass count; `max_iterations` = hard cap on implement↔review loops;
 `exit_rule` = the human-readable rule the diff reviewer enforces; `plan_verdict` /
 `diff_verdict` = `pending`, `ship`, `fix_first`, or `regrill`.
+
+`plan.md` carries mandatory sections beyond the How narrative: a **`## 💥 Blast radius`** table (planner traces all dependents/callers/siblings/tests/docs before finalizing; reviewer hard-checks it, blocking on blank cells or missed in-scope sites), a **`## 📈 Scorecard`** (7 dimensions — Risk, Horizontality, Testability, Reversibility, Confidence, Coupling, Observability — with Planner and Reviewer columns in one table; gaps ≥ 3 reconciled inline; Risk ≥ 8 or Confidence ≤ 3 blocks `ship`), and a **`## 🔭 Review`** section (last, reserved — the plan-reviewer appends its structured report here after making inline edits, and the diff-reviewer appends its diff review here; replaces the former separate `diff-review.md` and `## Diverged because` block). The scorecard is echoed verbatim into `audit.md` by the implementer.
 
 ## Models & effort — what runs where, and how to verify
 

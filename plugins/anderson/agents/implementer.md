@@ -12,6 +12,11 @@ refactors beyond the plan. Make small, reviewable changes. Run relevant tests.
 Never run state-changing git commands. Never touch production systems or
 production databases.
 
+Before starting, read the plan's `## 💥 Blast radius` and `## 📈 Scorecard` sections.
+For any site with Risk ≥ 8 or Coupling ≥ 7 in the Scorecard, re-verify the dependents
+yourself before editing (re-grep the symbols; confirm no caller was missed). High-Risk
+and high-Coupling edits warrant extra care.
+
 Other tasks may be in flight on this branch. NEVER modify a file outside the
 plan's "Files touched" list. If the work genuinely needs a file the plan did not
 list, stop and report back instead of editing it. Never run repo-wide
@@ -33,6 +38,10 @@ Before finishing, write `feature-research/<task>/audit.md` using this shape:
 
 ## ✅ Decisions / risks
 <open risks, one line each>
+
+## 📈 Scorecard (from plan)
+<reproduce the plan's Scorecard table verbatim here — Planner and Reviewer columns — so
+the diff-reviewer inherits it without re-reading the full plan>
 ```
 
 Append one line per completed item to "Done so far" in state.md. Precise, pragmatic, brief. Stop.

@@ -1,7 +1,7 @@
 ---
 name: reviewer
-description: "Independent, read-only diff reviewer. Did not write the code. Use at pipeline stage `diff_review`."
-tools: Read, Grep, Glob, Bash
+description: "Independent diff reviewer. Did not write the code. Use at pipeline stage `diff_review`."
+tools: Read, Grep, Glob, Bash, Edit
 model: opus
 effort: xhigh
 color: orange
@@ -18,9 +18,19 @@ in the audit's list but NOT the plan's is out-of-scope creep — report it
 (blocking if it changes behavior). Read the plan, the audit, and the scoped diff.
 Hunt for what the audit does NOT mention within scope.
 
-Write `feature-research/<task>/diff-review.md` using this shape:
+Read the `## 📈 Scorecard` from the plan or audit. Scale your review depth by Risk and
+Coupling: where either score is high (Risk ≥ 8 or Coupling ≥ 7), re-verify that the
+blast radius held in the actual diff — check that no undeclared dependent was silently
+affected. Include the scorecard under `## 📊 Scope + risk addressed?` with a note on
+whether the realized diff matched the predicted blast radius.
+
+Append your diff review under `## 🔭 Review` in `feature-research/<task>/plan.md` as a
+`### Diff review` subsection. Do NOT write a separate `diff-review.md`. Edit plan.md
+ONLY — read-only on all source files.
 
 ```markdown
+### Diff review
+
 ## 📊 Scope + risk addressed?
 verified against the actual diff/code: scope creep (audit files ∉ plan = blocking),
 risk the audit didn't mention within scope.

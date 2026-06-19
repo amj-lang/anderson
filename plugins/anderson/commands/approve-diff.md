@@ -9,11 +9,11 @@ it only runs because you invoked it at the gate. Print what it's about to do bef
 each network step. NEVER force-push; never touch an existing branch destructively.
 
 1. Build the messages FROM the scratch (it's still present — do this before step 5):
-   - Read the goal, the verdict from `diff-review.md`, and "Files changed" + the
+   - Read the goal, the verdict from `plan.md` `## 🔭 Review`, and "Files changed" + the
      blocking count from `audit.md`.
    - Commit subject (≤72 chars): `<goal>  (review: ship · <N> blocking resolved)`
    - PR body (markdown): 2–4 lines on WHAT changed + WHY (from `plan.md`), the review
-     verdict + any notable points (`diff-review.md`), the files touched (`audit.md`),
+     verdict + any notable points (`plan.md` `## 🔭 Review`), the files touched (`audit.md`),
      and test/lint status. Keep it tight. For a multi-line body, write it to a temp
      file and use `gh pr create --body-file` (cleaner than inline quoting).
 
