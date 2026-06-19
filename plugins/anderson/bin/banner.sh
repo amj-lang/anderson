@@ -9,6 +9,15 @@ stage="${1:-plan}"
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 quotes="$dir/quotes.txt"
 
+tty=1
+[ -t 1 ] || tty=0
+case "${TERM:-}" in dumb|"") tty=0 ;; esac
+color=1
+if [ -n "${NO_COLOR:-}" ] || [ "$tty" -eq 0 ]; then color=0; fi
+grn(){  if [ "$color" -eq 1 ]; then printf '\033[32m';   fi; }
+grnb(){ if [ "$color" -eq 1 ]; then printf '\033[1;32m'; fi; }
+rst(){  if [ "$color" -eq 1 ]; then printf '\033[0m';    fi; }
+
 case "$stage" in
   plan)        persona="THE ARCHITECT"; agent="planner";       spec="opus · high";     act="scoping → plan.md";         n="1/4"; mood="design";;
   plan_review) persona="THE ORACLE";    agent="plan-reviewer";  spec="opus · xhigh";    act="editing plan.md";           n="2/4"; mood="insight";;
@@ -32,6 +41,6 @@ mid="$persona"
 [ -n "$spec" ]  && mid="$mid · $spec"
 [ -n "$act" ]   && mid="$mid · $act"
 
-printf '  ⌐■-■  A N D E R S O N   ·   %s · %s\n' "$n" "$(printf '%s' "$stage" | tr 'a-z' 'A-Z')"
+grn; printf '  ⌐■-■  A N D E R S O N   ·   %s · %s\n' "$n" "$(printf '%s' "$stage" | tr 'a-z' 'A-Z')"; rst
 printf '        %s\n' "$mid"
 [ -n "$quote" ] && printf '        "%s"\n' "$quote"

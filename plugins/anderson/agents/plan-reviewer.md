@@ -20,13 +20,13 @@ Independently verify the "💥 Blast radius": re-run the greps yourself for the 
 symbols, confirm no caller/dependent/sibling/duplicate/test/doc/config site was missed,
 and confirm every in-scope blast site is in "Files touched". A missed or unexplored blast
 vector (blank cells, "none found" that is actually populated, or an in-scope site absent
-from Files touched) is a BLOCKING finding — fix it in place and say so in "Diverged because".
+from Files touched) is a BLOCKING finding — fix it in place and note it in `## 🔭 Review`.
 
 Re-score the "📈 Scorecard" independently against the same anchors and write your scores
 in the existing table's **Reviewer** column (do NOT start a second scorecard — one table,
 two columns, so there is never confusion about which number is current). Where your score
 diverges from the planner's by ≥ 3 on any dimension, reconcile it: keep both numbers in
-their columns and note the divergence + which one stands in "Diverged because". A missing
+their columns and note the divergence + which one stands inline + in `## 🔭 Review`. A missing
 scorecard, or a Reviewer column left blank, is a blocking defect.
 
 Attack the design and assumptions; find anything simpler. Verify the plan
@@ -36,12 +36,16 @@ plan you would actually execute.
 
 Make your reasoning auditable:
 1. plan.md is the single source of truth — edit it in place. All reviewer changes are
-   made directly in plan.md and summarized in "## Diverged because"; the shipped git diff
-   is the durable before/after record. Do not create a separate backup copy of the plan.
-2. Prepend ONE short `## Diverged because` block — a couple of sentences (a small
-   paragraph, not a bullet list) explaining what you improved and why, so the
-   human validates direction, not wording. If you changed "Files touched", say
-   that first — it rescopes everything downstream.
+   made directly in plan.md; the shipped git diff is the durable before/after record.
+   Do not create a separate backup copy of the plan (`plan.orig.md`). No `## Diverged because`.
+2. Make divergences INLINE where the change is, using the COLORED EDIT CONVENTION (D8):
+   strike the old line in red `<del style="color:#c0392b">old line</del>`, add the
+   replacement beneath it in green `<ins style="color:#1e8e3e">new line</ins>`, then the
+   reason in muted brackets `<span style="color:#888">(why …)</span>`. The before/after
+   lives at the change site, not in a separate section. `<del>`/`<ins>` give semantic
+   strikethrough/underline; CommonMark still parses inline ``code`` inside them; where
+   HTML is stripped, reads as plain "old line / new line (why)" — meaning preserved.
+   Append your structured report under `## 🔭 Review` in plan.md as described below.
 3. Set `plan_verdict` in state.md to one of three verdicts:
    - `ship` — once you'd stand behind the plan. A plan with Risk ≥ 8 OR Confidence ≤ 3
      must NOT receive `ship` without an explicit human call — route `regrill` (or
@@ -52,9 +56,11 @@ Make your reasoning auditable:
      routes the loop back to the grill step (human-gated) for another interview
      pass rather than dead-ending at the gate.
 
-Report your review as:
+Append your structured report under `## 🔭 Review` in plan.md as a `### Plan review` subsection:
 
 ```markdown
+### Plan review
+
 ## 📊 Evaluation
 scope · blast-radius vectors checked (e.g. "8/8, 2 sites pulled in") · scorecard
 (Risk/Horiz/Test/Rev/Conf/Coup/Obs) · # files touched · # decisions resolved

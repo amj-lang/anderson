@@ -93,14 +93,14 @@ back-to-back; never let any other line fall between a banner and the agent line.
      ╰─
    ```
    Pool (20): "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does." / "The second pair of eyes sees the assumption the first pair made." / "Improve the plan, not the planner's feelings." / "A good review changes the plan; a great one changes the question." / "Disagree on paper now, or apologize in the incident channel later." / "The cheapest place to be wrong is before the first commit." / "Trust the plan less than the reasons behind it." / "You've already made the choice; now you have to understand it." / "What's really going to bake your noodle is, would you still have broken it if I hadn't said anything?" / "We can never see past the choices we don't understand." / "You have a good soul — and I'm tough on souls." / "I hate giving good people bad news." / "Being the One is like being in love: no one can tell you, you just know it." / "I'd ask you to sit down, but you're not going to anyway." / "Candy?" / "You have the gift, but it looks like you're waiting for something." / "I only ever tell you what you need to hear."
-   Then immediately invoke the **plan-reviewer** subagent → edits plan.md in place, prepends
-   "## Diverged because", sets plan_verdict.
+   Then immediately invoke the **plan-reviewer** subagent → makes inline strike-through
+   edits and appends its review under `## 🔭 Review` in plan.md; sets plan_verdict.
 6. Print and STOP — fill in the real task slug for every `<task>` and the real
    verdict for `<plan_verdict>` so the command + path are copy-pasteable (e.g.
    `/anderson:approve-plan brief-views`, NOT a literal `<task>`):
    ```
    ﾊﾐﾐ 0ｺ1  🔴 G A T E  1 · YOUR TURN  1ｺ0 ﾐﾐﾊ
-     ⌐■-■  Read feature-research/<task>/plan.md (## Diverged because, verdict=<plan_verdict>), then
+     ⌐■-■  Read feature-research/<task>/plan.md (## 🔭 Review, verdict=<plan_verdict>), then
             /anderson:approve-plan <task> — or just say "approved, go". Don't implement yet.
    ```
    Halt is unconditional even on a ship verdict.

@@ -23,8 +23,26 @@ shape:
 ## 🤔 Why
 <one or two lines: the problem this solves>
 
+## 🗺 Design
+_(single-file change — no diagram needed)_
+<!-- OR, when non-trivial: -->
+```mermaid
+flowchart LR
+  A[start] --> B[step]
+```
+
+<!-- COLORED EDIT CONVENTION (D8) — used by plan-reviewer and diff-reviewer when
+     editing this document inline. Render in a local IDE preview (feature-research/ is
+     gitignored, never on GitHub). Degrades to plain text elsewhere (meaning preserved).
+     old line:  <del style="color:#c0392b">old text</del>
+     new line:  <ins style="color:#1e8e3e">new text</ins>
+     reason:    <span style="color:#888">(why …)</span> -->
+
 ## 🛠 How
-<the concrete steps / change-per-file, in order — small reviewable steps>
+
+### <Group summary — one sentence describing the group's intent>
+<related change-per-file bullets under this heading>
+
 **Files touched:** the COMPLETE list of files to create or modify (a vague or
 absent list is a defect; if you can't bound it, say so and stop).
 
@@ -47,7 +65,7 @@ Every "in scope" site MUST also appear in Files touched above.
 ## 📈 Scorecard
 Score each 0–10 against the anchors; one line of justification each. The PLANNER fills the
 "Planner" column. The PLAN-REVIEWER fills the "Reviewer" column independently in this SAME
-table (do not start a second scorecard) and reconciles any gap ≥ 3 in "Diverged because".
+table (do not start a second scorecard) and reconciles any gap ≥ 3 inline + in `## 🔭 Review`.
 | Dimension | Planner | Reviewer | Why (1 line) |
 |-----------|---------|----------|--------------|
 | Risk (10 = could break prod / data loss; 0 = cosmetic) | | | |
@@ -60,6 +78,10 @@ table (do not start a second scorecard) and reconciles any gap ≥ 3 in "Diverge
 
 ## ✅ Decisions
 <each as Q → chosen answer, one line each; open questions the human must decide>
+
+## 🔭 Review
+<!-- Plan-reviewer and diff-reviewer write here. Replaces the separate diff-review.md
+     and the prepended ## Diverged because. -->
 ```
 
 Before finalizing, trace the blast radius — do NOT rely on the direct edit site alone.
