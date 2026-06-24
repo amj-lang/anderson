@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.11.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.12.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -42,6 +42,13 @@ existing subagents unchanged. The only human action is merging the resulting dra
   collection error (a hollow red) triggers one bounded rewrite, then aborts.
 - **Calibration metrics.** Every run emits a one-line `metrics:` record (tier · reviewers · arbiter ·
   rounds · ci · outcome) to the PR + report, so the thresholds can be tuned from real outcomes.
+- **PR body leads with the validated plan.** The draft PR opens with the source-ticket link (from
+  the TaskSpec `source_url`, when present) + a short reviewed-and-validated plan summary; the audit
+  trail and metrics collapse to the bottom.
+- **Multi-repo.** When the task must change other repos (TaskSpec `repos:`, scope spilling outside the
+  repo, or a sibling repo in project memory / `CLAUDE.md`), each repo gets an isolated **git worktree**,
+  its own branch, and its own cross-linked draft PR (labeled `needs-human`). A dirty tree is isolated
+  in a worktree rather than aborting.
 
 Still review the PR carefully — auto mode is experimental, and the gates are orchestrator
 *instructions* the model follows, not enforced code.
@@ -365,6 +372,18 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.12.0** — **Auto mode: PR body leads with the validated plan + multi-repo handling.**
+  - **PR body restructured (step 8d)** — opens with the source-ticket link (TaskSpec `source_url`,
+    rendered only when present — never fabricated) + a short *reviewed-and-validated* plan summary
+    (the `## 🛠 How` groups as terse bullets + a one-line gate-validation stamp); the audit trail,
+    residual risks, and `metrics:` line collapse into a `<details>` at the bottom.
+  - **Multi-repo (steps 2d + 8e)** — when the task must change repos beyond the current one
+    (TaskSpec `repos:`, scope outside the repo, or a sibling repo in project memory / `CLAUDE.md`),
+    each repo gets an isolated **git worktree**, its own branch off its latest default, and its own
+    cross-linked draft PR (`Companion PRs:` ↔ `Part of <task-id>`), labeled `needs-human`.
+  - **Worktree isolation** — a dirty working tree is isolated in a worktree instead of aborting, so
+    a run never disturbs in-flight work; worktrees are removed on the terminal path.
+  - New additive state fields: `source_url`, `repos`. Version bump `0.11.0 → 0.12.0`.
 - **0.11.0** — **Auto mode: adaptive verification (panels + routing + arbiter + CI veto).** Wires
   the four `TODO` stubs in `commands/auto.md` into a difficulty-adaptive harness that targets the
   best success-rate / token / latency balance:

@@ -87,7 +87,10 @@ task:
   title:
   body:
   acceptance_criteria: # optional; derived from body if absent (+ confidence flag)
-  repo:
+  source_url:          # optional; the ticket link (Linear/GitHub/Jira/…). Rendered at the TOP of
+                       # the PR body when present; omitted (never fabricated) when absent.
+  repo:                # the primary repo
+  repos:               # optional; additional repos the task must change → one branch + PR per repo
   scope_paths:         # optional; bounds where the planner looks and where the diff may touch
 ```
 
@@ -136,9 +139,15 @@ Adapters (Linear, GitHub Issues, chat, CLI) are **out of scope for this doc** �
 ## Workspace isolation
 
 - Fresh branch off the **latest** default branch (`git fetch` first — never a stale local ref).
-- **Isolated worktree or fresh clone per run** so concurrent runs cannot collide on one checkout.
-- Clean working tree precondition — abort if dirty.
-- Branch naming: `anderson/auto/<task-id>-<short-slug>`.
+- **Isolated git worktree (or fresh clone) per repo** so a run never disturbs in-flight work and
+  concurrent runs cannot collide on one checkout. A DIRTY working tree → use a worktree rather than
+  aborting (the earlier "abort if dirty" rule); a CLEAN tree may branch in place.
+- **Multi-repo:** when the task must change repos beyond the current one (`repos:` in the TaskSpec,
+  scope spilling outside the repo, or a sibling repo recorded in project memory / `CLAUDE.md`),
+  isolate a worktree per repo, branch each off its latest default, and open **one draft PR per repo**
+  — cross-linked (`Companion PRs:` on the primary, `Part of <task-id>` on each companion) and
+  labeled `needs-human` (cross-repo is higher-risk by default).
+- Branch naming (every repo): `anderson/auto/<task-id>-<short-slug>`.
 
 ## Gates & panels
 
