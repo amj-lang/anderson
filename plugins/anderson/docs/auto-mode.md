@@ -2,11 +2,21 @@
 
 **Status:** v1 spec · **Type:** design doc · **Owner:** TBD
 
-> **Implementation status (0.11.0):** the orchestrator (`commands/auto.md`) and all four hardening
-> stubs are wired — the 3-lens plan critic panel (gate 4), the 3 blind diff reviewers + CI veto
-> (gate 7), and red-for-right-reason (step 5). Panels invoke the existing subagents sequentially
-> (lens + refute posture passed via the prompt) and the orchestrator tallies the votes. Source
-> adapters and difficulty routing remain out of scope.
+> **Implementation status (0.11.0):** the orchestrator (`commands/auto.md`) ships a
+> difficulty-adaptive version of the gates below. Notable divergences from the original spec, made
+> for the success-rate / token / latency balance:
+> - **Difficulty routing is IN** (was "v2 / out of scope") — a tier from the plan Scorecard, re-derived
+>   from diff size at the gate (max-only), sizes the whole downstream harness.
+> - **Plan gate (gate 4) is ONE `plan-reviewer`, not a 3-lens panel** (skipped for a trivial tier).
+>   Plan errors are cheap; rigor is concentrated at the diff gate.
+> - **Diff panel (gate 7) is tier-sized 1/2/3 and runs in PARALLEL** (each reviewer writes its own
+>   file + returns a verdict, so no shared-state collision), then an **arbiter** resolves splits on
+>   merit with a forced `## Options considered` (+/−) table — instead of a flat majority-vote.
+> - **CI veto runs first and short-circuits** a red build before reviewer tokens are spent.
+> - **Rework** re-enters at the panel with a per-round reset and a one-time **replan bounce** before
+>   `needs-human`. **Red-for-right-reason** is enforced at gate 5.
+> - Every run emits a `metrics:` line for threshold calibration.
+> Source adapters remain out of scope.
 
 ## Summary
 
@@ -132,18 +142,26 @@ Adapters (Linear, GitHub Issues, chat, CLI) are **out of scope for this doc** �
 
 ## Gates & panels
 
-### Plan critic panel (gate 4)
-- 3 critics, each a distinct lens: **feasibility**, **criteria coverage**, **blast radius**.
-- Prompt posture: *"Refute this plan. Find why it fails or misses an acceptance criterion.
-  Default to reject if uncertain."*
-- Pass requires panel clear **and** every acceptance criterion mapped to a plan step.
+> Shipped shape (0.11.0) below. The original design called for a 3-critic plan panel; it was slimmed
+> to one reviewer because plan errors are cheap to fix (you rework — nothing ships), so the rigor
+> budget is concentrated at the diff gate. Panel size is now tier-driven (see Difficulty routing).
 
-### Diff reviewer panel (gate 7)
-- 3 reviewers, fresh context, **blind to the implementer's reasoning** (anchoring kills independence).
-- Lenses: **correctness**, **does the diff match the plan?**, **regressions / security**.
-- Vote: kill if ≥2/3 refute.
-- **CI is a veto, not a vote** — red tests/build fail the gate regardless of votes. The one gate the
-  model cannot talk its way past.
+### Plan gate (gate 4)
+- Mechanical criteria-coverage check + **one** `plan-reviewer` with a refute posture: *"Refute this
+  plan. Find why it fails or misses an acceptance criterion. Default to reject if uncertain."*
+- **Skipped entirely for a trivial tier.** Pass requires `ship` **and** every acceptance criterion
+  mapped to a plan step. One bounded plan-rework on failure, then abort.
+
+### Diff reviewer panel + arbiter (gate 7)
+- **Tier-sized** 1 / 2 / 3 reviewers, fresh context, **blind to the implementer's reasoning** and to
+  each other (anchoring kills independence). Run **in parallel** — each writes its own review file and
+  returns its verdict, so there is no shared-state collision.
+- Lenses (added in order): **correctness**, **regressions / security**, **does the diff match the plan?**
+- **Arbiter on split** — a unanimous panel decides directly; any split (or a critical tier) invokes
+  one opus arbiter that rules **on merit, not headcount**, justified in a required `## Options
+  considered` (+/−) table. This replaces a flat ≥2/3 majority vote.
+- **CI is a veto, not a vote** — it runs FIRST and a red build short-circuits before any reviewer
+  tokens are spent. The one gate the model cannot talk its way past.
 
 ## Verification hardening
 
@@ -222,8 +240,10 @@ and ships confident-wrong fixes. `auto` mode deliberately avoids it.
    (more autonomous, weaker). Current default: derive-if-absent + confidence flag.
 4. **Panel size / threshold** — ~~start at 3 / majority-refute, tune later.~~ **Implemented (0.11.0):**
    3 panelists / majority-refute at both gates; still tunable.
-5. **Difficulty routing** — size the harness to estimated task difficulty (trivial fix shouldn't pay
-   for full panels)? Likely a v2 optimization.
+5. **Difficulty routing** — ~~size the harness to estimated task difficulty? Likely v2.~~
+   **Implemented (0.11.0):** a tier (trivial/normal/hard/critical) from the plan Scorecard, re-derived
+   from diff size at the gate (max-only), sizes the plan gate, the diff panel (1/2/3), and the arbiter
+   policy. Thresholds are first-guess defaults — calibrate from the per-run `metrics:` line.
 
 ## Out of scope (later)
 

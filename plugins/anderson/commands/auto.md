@@ -142,6 +142,10 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       ci_status:           pending
       ci_conclusion:       none
       red_reason:          none
+      tier:                pending
+      reviewers:           0
+      arbiter:             none
+      replan_bounced:      no
       budget_state:        ok
       <!-- STATE:END -->
 
@@ -243,50 +247,46 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       Set state.md `stage: aborted`, print the report, and STOP.
       If Confidence > 3: continue.
 
-4. PLAN GATE — 3-lens critic panel (feasibility / criteria-coverage / blast-radius) + criteria check.
+   3b. ROUTE — compute the difficulty tier (drives plan-gate depth, diff panel size, and arbiter
+       policy). Difficulty routing means a one-line fix does not pay for a four-agent panel.
+
+   f. Read the `## 📈 Scorecard` Planner column: Risk, Coupling, Confidence, Testability. Compute
+      the INITIAL tier (first match wins, top-down):
+        - CRITICAL — Risk ≥ 9 OR Testability ≥ 7 (the scorecard anchor "needs a human/manual
+                     tester" — cannot be verified autonomously).
+        - HARD     — Risk ≥ 7 OR Coupling ≥ 7 OR Confidence ≤ 4.
+        - TRIVIAL  — Risk ≤ 2 AND Coupling ≤ 3 AND Confidence ≥ 8.
+        - NORMAL   — anything else (default).
+      Record `tier: <trivial|normal|hard|critical>` in state.md. This tier is PROVISIONAL — step 7d
+      re-tiers it against the actual diff size and takes the MAX (tier can only escalate, never drop).
+
+4. PLAN GATE — criteria-coverage check + ONE plan-reviewer (skipped for a TRIVIAL tier). Plan errors
+   are cheap to fix (you rework; nothing ships), so this side stays light — the rigor budget is
+   spent at the diff gate.
 
    a. Update state.md: set `stage: plan_gate`, `plan_panel: pending`.
 
    b. Acceptance-criteria coverage check (mechanical): for each criterion derived/given in step 1,
-      verify that at least one `## 🛠 How` step in `plan.md` can be mapped to that criterion.
-      Collect unmapped criteria as blocking findings — they seed the coverage panelist (4d) and
-      count in the gate decision (4e).
+      verify at least one `## 🛠 How` step in `plan.md` maps to it. Collect unmapped criteria as
+      blocking findings.
 
-   c. (BANNER RULE) Print the PLAN GATE banner now as the last line before the first panelist runs.
-      Print it ONCE for the whole panel — not per panelist.
+   c. TRIVIAL shortcut: if `tier: trivial` AND no unmapped criteria → set `plan_panel: clear` (a
+      trivial plan does not earn a reviewer) and continue to step 5.
 
-   d. Run the critic panel — three **plan-reviewer** invocations, ONE AT A TIME (sequential, never
-      parallel: the panelists share `plan.md` and the single `plan_verdict` field, so concurrent
-      runs would clobber each other). Each panelist gets a distinct lens and a refute posture:
-        1. feasibility       — "Can this plan be built exactly as written? Find the step that
-                                won't work, the missing prerequisite, the hand-wave."
-        2. criteria-coverage — "Does every acceptance criterion map to a concrete plan step? Name
-                                each unmapped or weakly-mapped one." (Seed with 4b's unmapped list.)
-        3. blast-radius      — "Is `## 💥 Blast radius` complete and honest? Re-run the greps; find
-                                the caller / dependent / sibling / test / doc the plan missed."
-      For each panelist, invoke the **plan-reviewer** subagent with this framing:
-        "You are panelist <i>/3 on the auto-mode plan CRITIC panel. Your lens: <lens>. Refute this
-         plan through that lens only — find why it fails or misses a criterion; default to reject
-         (`fix_first`) if uncertain. You MAY make inline fixes for your lens (your normal mode), but
-         do not re-litigate the other panelists' lenses. Append your findings under a
-         `### Plan critic — <lens>` subsection of `plan.md`'s `## 🔭 Review` (do NOT overwrite the
-         other subsections). Set `plan_verdict` in state.md to `ship` | `fix_first` | `regrill`."
-      After EACH panelist returns: read `plan_verdict` from state.md, record a
-      `- plan_vote_<lens>: <verdict>` line under `## Done so far`, then reset
-      `plan_verdict: pending` so the next panelist starts clean.
+   d. (BANNER RULE) Print the PLAN GATE banner now as the last line before invoking the plan-reviewer.
 
-   e. Tally the panel (count a `fix_first` or `regrill` as a refute):
-      - PANEL CLEAR — 0–1 refute votes AND no unmapped criteria remain: set `plan_panel: clear`
-        and continue to step 5.
-      - REGRILL MAJORITY — ≥2 panelists returned `regrill` (the plan needs human decisions auto
-        mode cannot make): set `plan_panel: needs-human`, write a needs-spec report
-        (`stage: aborted`, reason `plan-needs-human`, list the three votes), print it, and STOP.
-      - FIXABLE — ≥2 `fix_first` refutes (no regrill majority) OR unmapped criteria remain: do ONE
-        bounded plan-rework pass — invoke the **planner** again with the specific blocking findings
-        the panel raised plus the unmapped criteria, then RE-RUN the panel once (steps c–d, a single
-        time; print the banner again). Record the round-2 tally in `plan_panel:`.
-      - Still ≥2 refutes after the rework: set `plan_panel: rejected`, write a report
-        (`stage: aborted`, reason `plan-rejected`, include both rounds' votes), print it, and STOP.
+   e. Invoke ONE **plan-reviewer** subagent with a refute posture: "Refute this plan — find why it
+      fails, misses an acceptance criterion, or under-counts the blast radius; default to reject
+      (`fix_first`) if uncertain. Make inline fixes (your normal mode). Append your report under
+      `## 🔭 Review`. Set `plan_verdict` in state.md." Seed it with the unmapped criteria from 4b.
+
+   f. Read `plan_verdict`:
+      - `ship` AND no unmapped criteria → set `plan_panel: clear` and continue to step 5.
+      - `fix_first` OR unmapped criteria remain → ONE bounded plan-rework: invoke the **planner**
+        again with the specific blockers, then re-run the plan-reviewer once. Still not `ship` →
+        set `plan_panel: rejected`, abort (`stage: aborted`, reason `plan-rejected`), print, STOP.
+      - `regrill` → needs human decisions auto mode cannot make: set `plan_panel: needs-human`,
+        abort (`stage: aborted`, reason `plan-needs-human`), print, STOP.
 
 5. RED — write a failing test encoding the acceptance criteria, confirm it fails for the right
    reason, then freeze it.
@@ -344,9 +344,12 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       The implementer also runs a self-review pass before the diff gate (cheap; cuts panel rounds).
       Set stage=diff_gate after invocation.
 
-7. DIFF GATE — 3 blind reviewers + objective vetoes (tamper guard, CI, scope).
+7. DIFF GATE — CI veto + a tier-sized blind reviewer panel + arbiter-on-split.
+   Order is deliberate: the free objective gate (CI) runs FIRST and short-circuits a red build before
+   any reviewer tokens are spent; the panel size scales with `tier`; the arbiter runs only when the
+   panel splits (or the tier is critical).
 
-   a. Update state.md: set `stage: diff_gate`, `diff_panel: pending`.
+   a. Update state.md: set `stage: diff_gate`, `diff_panel: pending`, `arbiter: none`.
 
    b. Test-tamper guard: run `git hash-object <frozen_test>` (the path from state.md).
       Compare to `frozen_test_hash:` from state.md.
@@ -386,66 +389,105 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
            the veto. Set `ci_status: in-tree (fallback)` and `ci_conclusion: pass|fail`, and note
            the fallback under `## Done so far` (it surfaces in the PR body + final report).
 
-   d. Scope and forbidden-path guard: run `git diff --name-only HEAD~1` (or against the branch
-      base). Check each changed file:
-      - If any file matches `.github/`, `*.yml` in `.github/`, CI config paths, `*.lock`,
-        `package-lock.json`, `yarn.lock`, `Pipfile.lock`, migration files (`*/migrations/*`),
-        or secrets-like paths (`.env`, `*.pem`, `*.key`): set a `needs-human` label for the PR.
-        Record flagged paths in state.md `## Done so far`.
-      - If scope_paths was provided and changed files fall outside it: record as a finding.
-      - If diff exceeds 200 lines or 20 files: record as a runaway-refactor finding.
+      iv. SHORT-CIRCUIT: if the CI/suite veto FAILED (`ci_conclusion` not `success`/`pass`), a red
+          build is dispositive — do NOT run the reviewer panel (no tokens on a known-bad diff). Set
+          `diff_panel: ci-veto` and go straight to the rework loop (step 7h).
 
-   e. (BANNER RULE) Print the DIFF GATE banner now as the last line before the first reviewer runs.
+   d. Scope / forbidden-path guard + RE-TIER. Measure the diff against the branch base with
+      `git diff --name-only` and `git diff --stat`; record files-changed and lines-changed
+      (added+deleted).
+      - FORBIDDEN / DEPENDENCY paths — if any changed file matches `.github/`, `*.yml` in `.github/`,
+        CI config, `*.lock`, `package-lock.json`, `yarn.lock`, `Pipfile.lock`, `*/migrations/*`, or
+        secrets-like paths (`.env`, `*.pem`, `*.key`): attach a `needs-human` label AND force
+        `tier: critical` (supply-chain surface overrides any score). Record flagged paths.
+      - SCOPE — if scope_paths was provided and changed files fall outside it: record a finding.
+      - RUNAWAY — if the diff exceeds 200 lines OR 20 files: record a runaway-refactor finding
+        (a hard cap, independent of tiering).
+      - RE-TIER on actual diff size, taking the MAX with the current tier (tier only escalates):
+          · diff LARGE (≥150 lines OR ≥8 files) → at least HARD
+          · diff SMALL (≤40 lines AND ≤2 files) → does NOT lower the tier (max rule)
+        Set `tier:` = max(current tier, diff-derived tier); a forbidden/dep hit pins it to CRITICAL.
+
+   e. (BANNER RULE) Print the DIFF GATE banner now as the last line before the panel runs.
       Print it ONCE for the whole panel — not per reviewer.
 
-   f. Run the blind reviewer panel — three **reviewer** invocations, ONE AT A TIME (sequential: the
-      reviewers share `plan.md` and the single `diff_verdict` field). Each is BLIND and gets a
-      distinct lens:
-        1. correctness          — "Does the diff do what the task asks, correctly, with no logic
-                                   bug or unhandled case?"
-        2. plan-match           — "Does the diff match `plan.md` — nothing more (scope creep),
-                                   nothing less (a missed step)?"
-        3. regressions+security — "What does this break elsewhere, and what does it expose (input
-                                   handling, secrets, injection, auth)?"
-      For each reviewer, invoke the **reviewer** subagent with this framing:
-        "You are reviewer <i>/3 on the auto-mode diff panel. Your lens: <lens>. You are BLIND:
-         judge from the scoped diff + `plan.md` + the task ONLY. Do NOT read `audit.md` (the
-         implementer's self-justification) and do NOT read the other reviewers' `### Diff review`
-         subsections — independence is the whole point. Refute the diff through your lens; default
-         to reject (`fix_first`) if uncertain. Append your review under a `### Diff review — <lens>`
-         subsection of `plan.md`'s `## 🔭 Review`. Set `diff_verdict` in state.md to `ship` |
-         `fix_first`."
-      After EACH reviewer returns: read `diff_verdict`, record a `- diff_vote_<lens>: <verdict>`
-      line under `## Done so far`, then reset `diff_verdict: pending` for the next reviewer.
+   f. Run the blind reviewer panel — SIZE IT BY `tier`:
+        - TRIVIAL  → 1 reviewer:  correctness
+        - NORMAL   → 2 reviewers: correctness, regressions+security
+        - HARD     → 3 reviewers: correctness, regressions+security, plan-match
+        - CRITICAL → 3 reviewers: same as HARD (escalation past HARD is always-arbiter + the
+                     mandatory `needs-human` label, NOT more reviewers — a 4th lens just duplicates).
+      Lenses:
+        · correctness          — "Does the diff do what the task asks, correctly, with no logic bug
+                                  or unhandled case?"
+        · regressions+security — "What does this break elsewhere, and what does it expose (input
+                                  handling, secrets, injection, auth)?"
+        · plan-match           — "Does the diff match `plan.md` — nothing more (scope creep), nothing
+                                  less (a missed step)?"
+      Record `reviewers: <n>`. Run the panelists IN PARALLEL — emit all N **reviewer** invocations in
+      a SINGLE message (one Agent call each). Parallel is safe here ONLY because each panelist writes
+      to its OWN file and returns its verdict in its reply — no shared `plan.md` / `diff_verdict`
+      writes to collide (that is why the plan gate stays sequential and this one does not). Frame each:
+        "You are reviewer <i>/<n> on the auto-mode diff panel. Lens: <lens>. You are BLIND: judge from
+         the scoped diff + `plan.md` + the task ONLY. Do NOT read `audit.md` and do NOT read any other
+         review file — independence is the point. Refute the diff through your lens; default to reject
+         (`fix_first`) if uncertain. Write your review ONLY to
+         `feature-research/<task-id>/review-<lens>-r<round>.md` (do NOT touch plan.md or state.md).
+         End your final message with exactly two lines: `VERDICT: ship|fix_first` and
+         `FINDINGS: <count of blocking findings>`."
+      MODEL TIERING (where the harness supports a per-invocation model override): run the panelists on
+      a faster/cheaper tier (sonnet) and the arbiter on the reviewer default (opus/xhigh). If no
+      override is available, panelists run at the reviewer default — tiering is a cost optimization,
+      not a correctness requirement.
+      Collect each panelist's `VERDICT` + `FINDINGS` from its reply; record one
+      `- diff_vote_<lens>: <verdict> (<findings>)` line under `## Done so far`.
 
-   g. Evaluate the gate (panel votes + objective vetoes). Count a `fix_first` as a refute:
-      - GATE PASSES if: ≤1 reviewer refuted AND `ci_conclusion` is `success`/`pass` AND the tamper
-        guard passed AND there is no runaway-refactor finding. (Scope / forbidden-path / dependency
-        findings only attach a `needs-human` label — they do NOT fail the gate.)
-      - GATE FAILS (→ rework, step 7h) if: ≥2 reviewers refuted (kill on majority-refute) OR
-        CI / the suite is red OR the tamper guard triggered OR a runaway-refactor finding fired.
-      Record the outcome in `diff_panel: <pass | killed-by-vote | ci-veto | tamper | runaway>`.
+   g. Resolve the gate (CI already passed — a red build short-circuited at 7c-iv and never reaches
+      here). Count a `fix_first` as a refute. Decide whether the ARBITER runs:
+        - SPLIT — the panel is NOT unanimous (a mix of ship and fix_first) → arbiter runs.
+        - UNANIMOUS SHIP — all panelists ship → gate PASSES, NO arbiter (the token saver), EXCEPT
+          `tier: critical`, where the arbiter ALWAYS runs even on unanimous ship (the safety margin).
+        - UNANIMOUS REFUTE — all panelists fix_first → gate FAILS, no arbiter (nothing to debate) →
+          rework (7h).
+      When the arbiter runs: invoke ONE **reviewer** subagent as the ARBITER (read-only; reviewer
+      default opus/xhigh), given the diff + `plan.md` + task + ALL panel review files. Frame it:
+        "You are the ARBITER — the panel split, or this is a critical task. Read every review file and
+         the diff. Resolve each CONTESTED finding ON MERIT, not on headcount: a lone correct reviewer
+         outranks two wrong ones. You MUST emit an `## Options considered` table BEFORE your verdict:
+           | Option | + (pro) | − (con) | Score | Verdict |
+         with AT LEAST two rows (e.g. `ship as-is`, `rework finding X`) — a single-row table is a
+         defect; redo it. Every rejected option must state why it is worse than the chosen one.
+         Default to reject if uncertain. End with `ARBITER: ship|fix_first`."
+      Record `arbiter: <ship|fix_first|none>`.
+      GATE PASSES if: (arbiter `ship` when it ran) OR (unanimous ship when it did not) — AND the
+      tamper guard passed AND no runaway finding. (Scope / forbidden / dependency findings only
+      attach the `needs-human` label; they do not fail the gate.)
+      GATE FAILS → rework (7h) if: arbiter `fix_first`, OR unanimous refute, OR a runaway finding.
+      Set `diff_panel: <pass | killed-by-arbiter | killed-by-vote | runaway>`.
+      Consolidate the per-lens review files (+ the arbiter's, if any) into `plan.md`'s `## 🔭 Review`
+      as `### Diff review — <lens> (round <n>)` subsections — the durable PR record.
 
-   h. On GATE FAIL — rework loop:
-      Read `rework_round:` from state.md. Increment it by 1.
-      Read `open_findings:` (the count from the previous round, or 0 on first fail).
-      Count the total blocking findings across the three panel reviewers (plus any CI failure) for
-      this round. If finding count >= previous `open_findings`
-      AND `rework_round: > 1` (i.e. findings did not shrink across two rounds):
-        Thrash breaker fires — abort:
-        ```
-        ## Auto-mode abort: thrash
-        reason: open findings did not shrink across two rework rounds
-        task_id: <task-id>
-        rework_round: <n>
-        open_findings: <count>
-        ```
-        Set `stage: aborted`, print report, STOP.
-      Update `open_findings:` and `rework_round:` in state.md.
-      If `rework_round > max_iterations`: abort with budget report (stage: aborted, reason: budget).
-      Otherwise: invoke the **implementer** again (fix only "Still open" from state.md), then
-      re-run the diff gate from step 7b — the tamper guard, the CI veto (re-push → re-await CI),
-      and the full 3-reviewer panel all run again this round. Loop is bounded by max_iterations.
+   h. On GATE FAIL — rework. CLEAN UP the round, then re-enter at the PANEL (NOT step 1):
+      i. Per-round reset: set `diff_verdict`/`arbiter` back to pending (the per-lens review files are
+         already round-stamped `-r<round>`); prune "Still open" to ONLY the unresolved blocking
+         findings — those are the implementer's instructions for this round.
+      ii. Increment `rework_round:`. Read the prior `open_findings:`. Count this round's blocking
+          findings (panel + arbiter).
+      iii. NON-CONVERGENCE check — if findings did NOT shrink vs the prior round
+           (count >= previous AND `rework_round > 1`) OR a finding RECURS identically across rounds,
+           the implementer is not converging → this is an APPROACH problem, not a local bug:
+           - REPLAN BOUNCE (once): if `replan_bounced: no`, set it `yes`, route back to PLAN — invoke
+             the **planner** with the panel/arbiter's standing objection to choose a DIFFERENT
+             approach (the planner MUST emit an `## Options considered` table — ≥2 approaches with
+             +/− and a justified pick over the rejected ones), then resume at step 6 (IMPLEMENT) with
+             the fresh plan. Re-freezing the RED test is not needed (criteria unchanged).
+           - If `replan_bounced: yes` already: give up cleanly — abort with a `needs-human` report
+             (`stage: aborted`, reason `no-convergence`, list the recurring findings), print, STOP.
+           Otherwise (findings are shrinking normally): continue to iv.
+      iv. Budget: if `rework_round > max_iterations` → abort (`stage: aborted`, reason `budget`).
+      v. Otherwise: update `open_findings:`, invoke the **implementer** again (fix ONLY "Still open"),
+         then re-enter the diff gate at step 7b — tamper guard + CI veto (re-push → re-await) + the
+         tier-sized panel all re-run on the new diff. Bounded by max_iterations.
 
 8. SHIP — push branch and open a draft PR.
 
@@ -461,14 +503,18 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       - Criteria and criteria_confidence
       - Plan summary (link to plan.md)
       - Audit summary (from audit.md)
-      - Plan panel: the three `plan_vote_<lens>` verdicts + the `plan_panel:` outcome
-      - Diff panel: the three `diff_vote_<lens>` verdicts + the `diff_panel:` outcome
+      - Tier: `tier` (and whether step 7d escalated it from the plan tier)
+      - Plan gate: `plan_panel` outcome (or "skipped — trivial")
+      - Diff panel: the per-lens `diff_vote_<lens>` verdicts + the `diff_panel:` outcome
+      - Arbiter: `arbiter` verdict (or "not run — unanimous")
       - CI: `ci_status` + `ci_conclusion` (note when the in-tree fallback was used)
       - Test results: baseline + final suite output summary; `red_reason` for the RED test
-      - Rework rounds: N rounds, findings per round
+      - Rework rounds: N rounds, findings per round; `replan_bounced` if the plan was re-bounced
       - Self-reported confidence (from planner's scorecard Confidence score)
       - Residual risks (e.g. low `criteria_confidence`, CI fallback, `needs-human` flags)
       - Labels applied
+      - METRICS line (for later threshold calibration — keep it one line, machine-greppable):
+        `metrics: tier=<t> reviewers=<n> arbiter=<ship|fix_first|none> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> outcome=SHIP`
 
    e. Push the branch: `git push -u origin <branch>` (idempotent — the CI veto at step 7c may have
       already pushed it; this just sends any final rework commits). If no remote or push fails,
@@ -496,9 +542,11 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       task_id:      <task-id>
       pr_url:       <url or "see printed PR body above">
       branch:       <branch>
-      rework_rounds: <n>
-      plan_panel:   <clear | round-2 tally>  (votes: feasibility/coverage/blast-radius)
-      diff_panel:   <pass>  (votes: correctness/plan-match/regressions+security)
+      tier:         <trivial|normal|hard|critical>
+      reviewers:    <n>   arbiter: <ship|fix_first|none>
+      rework_rounds: <n>   replan_bounced: <yes|no>
+      plan_gate:    <clear | skipped-trivial | rejected>
+      diff_panel:   <pass>  (votes: correctness/regressions+security/plan-match)
       ci:           <ci_status> <ci_conclusion>
       red_reason:   <genuine | green>
       criteria_confidence: <high|low>
@@ -507,6 +555,7 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
         - <criterion 2> → …
       residual_risks:
         - <low criteria_confidence, CI in-tree fallback, needs-human flags, or "none">
+      metrics: tier=<t> reviewers=<n> arbiter=<v> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> outcome=SHIP
       ```
       On abort path, print the report.md contents instead, clearly headed:
       ```
@@ -514,4 +563,5 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       status: ABORTED
       reason: <reason>
       report: feature-research/<task-id>/report.md (scratch retained)
+      metrics: tier=<t> reviewers=<n> arbiter=<v> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> outcome=ABORTED:<reason>
       ```
