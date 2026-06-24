@@ -9,6 +9,30 @@
 
 A gated maker/checker loop: one task at a time, per-stage model+effort, state on disk, ships a real PR. Two unconditional human gates mean nothing merges without your eyes on it.
 
+## auto mode (experimental)
+
+`/anderson:auto <task-id> <title> [body|@taskspec-file]` runs the full pipeline **end-to-end with
+no human halts** — plan → RED test → implement → diff-review → draft PR. It reuses the four
+existing subagents unchanged. The only human action is merging the resulting draft PR.
+
+- **Non-halting:** never prints a GATE line; never waits for you. Terminal states are SHIP (draft PR
+  opened, `stage: done`) or abort (`stage: aborted` with a structured report in `feature-research/<task-id>/report.md`).
+- **Draft PR only.** Auto-merge is never performed. Branch only — never pushes to the default branch.
+- **Baseline-green precondition.** If the test suite is red before any change, the run aborts.
+- **Test-tamper guard.** The RED test is content-hash frozen at step 5; a mismatch at the diff gate aborts.
+- **Scope/forbidden-path guard.** Changes to `.github/`, CI config, lockfiles, migrations trigger a
+  `needs-human` label. Manifest/dependency changes always flag the PR.
+- **Thrash breaker.** If open findings don't shrink across two rework rounds, the run escalates.
+- **Stubbed gates (this increment).** The critic panel (step 4) and reviewer panel (step 7) each run
+  a single `plan-reviewer`/`reviewer` subagent with a refute posture; full 3-lens adversarial panels
+  and a real CI-runner veto are deferred to the next increment (see `TODO(panel)` / `TODO(ci)` markers
+  in `commands/auto.md`). Do not use for production tasks without reviewing the PR carefully.
+
+The scheduler hook (`hooks/scheduler.py`) exits silently when it detects `mode: auto` in the active
+`state.md`, so hook chaining does not interfere with the command's own in-turn sequencing.
+
+Living spec: `plugins/anderson/docs/auto-mode.md`. Design context: `plugins/anderson/docs/auto-mode-handoff.md`.
+
 ## 30-second quickstart
 
 ```
@@ -323,6 +347,16 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.10.0** — **`/anderson:auto` (experimental non-halting mode).** New orchestrator command runs
+  the full plan → RED test → implement → diff-review pipeline end-to-end to a draft PR with no human
+  halts. Reuses the four existing subagents unchanged. Enforced this increment: baseline-green
+  precondition, run lock per task-id, confidence-gate bail-to-human, test-tamper guard (content-hash
+  snapshot at RED), scope/forbidden-path guard (`needs-human` label on dependency changes), thrash
+  breaker (open-findings must shrink each rework round), draft-PR-only + branch-only ship. Stubbed
+  this increment (explicit `TODO` markers): full 3-lens critic/reviewer panels, real CI-runner veto,
+  isolated worktree, red-for-right-reason auto-check. Scheduler gains an additive `mode: auto`
+  early-exit guard so hook chaining does not interfere. Spec docs moved into plugin:
+  `docs/auto-mode.md` + `docs/auto-mode-handoff.md`. Version bump `0.9.7 → 0.10.0`.
 - **0.9.7** — Consolidated the human-facing output into ONE document: plan-review and
   diff-review now write into `plan.md` under `## 🔭 Review` (no separate `diff-review.md`),
   and reviewer divergences are inline colored `<del>`/`<ins>` edits at the change site instead

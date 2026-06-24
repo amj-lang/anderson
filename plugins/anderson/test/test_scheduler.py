@@ -111,5 +111,38 @@ class TestRegrill(unittest.TestCase):
         self.assertFalse(self.should_regrill("implement", "regrill"))
 
 
+class TestAutoModeGuard(unittest.TestCase):
+    """Mirror the auto-mode early-exit condition — no I/O, pure helper."""
+
+    @staticmethod
+    def is_auto_run(mode):
+        return mode == "auto"
+
+    def test_auto_mode_skips(self):
+        self.assertTrue(self.is_auto_run("auto"))
+
+    def test_absent_mode_does_not_skip(self):
+        self.assertFalse(self.is_auto_run(None))
+
+    def test_gated_mode_does_not_skip(self):
+        self.assertFalse(self.is_auto_run("gated"))
+
+    def test_empty_string_does_not_skip(self):
+        self.assertFalse(self.is_auto_run(""))
+
+    def test_field_absent_returns_none(self):
+        # field() returns None for a missing key — None == "auto" is False (gated path intact)
+        self.assertIsNone(field("stage: plan", "mode"))
+        self.assertFalse(self.is_auto_run(field("stage: plan", "mode")))
+
+    def test_field_present_auto(self):
+        self.assertEqual(field("mode: auto", "mode"), "auto")
+        self.assertTrue(self.is_auto_run(field("mode: auto", "mode")))
+
+    def test_field_present_other(self):
+        self.assertEqual(field("mode: gated", "mode"), "gated")
+        self.assertFalse(self.is_auto_run(field("mode: gated", "mode")))
+
+
 if __name__ == "__main__":
     unittest.main()
