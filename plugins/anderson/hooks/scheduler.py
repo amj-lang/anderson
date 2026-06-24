@@ -46,6 +46,11 @@ def main():
     states = sorted(glob.glob("feature-research/*/state.md"), key=os.path.getmtime)
     if not states: sys.exit(0)
     path = states[-1]; t = open(path).read()
+    # auto-mode guard: if the most-recent state.md belongs to an auto run, the
+    # orchestrator self-sequences all stages in one command turn — hook chaining
+    # would conflict. Exit silently so gated runs (no mode: field) are untouched.
+    if field(t, "mode") == "auto":
+        sys.exit(0)
     stage, task = field(t, "stage"), field(t, "task")
     if stage in (None, "done") or stage not in NEXT: sys.exit(0)
     if stage == "implement" and int(field(t, "iteration") or 0) > int(field(t, "max_iterations") or 2):

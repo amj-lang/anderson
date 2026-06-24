@@ -58,5 +58,6 @@ Drive the gates in plain text — "approved, go" / "ship it" / "rework the block
 ## More
 
 - **Full operator docs** — models/effort verification, autonomous chaining, terminal flair, troubleshooting: **[plugins/anderson/README.md](plugins/anderson/README.md)**.
+- **auto mode (experimental)** — non-halting end-to-end pipeline to a draft PR: `/anderson:auto <task-id> <title>`. See the "auto mode" subsection in [plugins/anderson/README.md](plugins/anderson/README.md) and the spec at [plugins/anderson/docs/auto-mode.md](plugins/anderson/docs/auto-mode.md).
 - **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs scheduler unit tests, `py_compile`, shellcheck (advisory), and version-sync enforcement; on push to `main` it auto-creates a `vX.Y.Z` tag + GitHub release when `plugin.json` carries a new version.
 - Licensed under the [MIT License](LICENSE).
