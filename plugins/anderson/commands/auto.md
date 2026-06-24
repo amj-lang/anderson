@@ -137,6 +137,11 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       frozen_test_hash:    none
       rework_round:        0
       open_findings:       0
+      plan_panel:          pending
+      diff_panel:          pending
+      ci_status:           pending
+      ci_conclusion:       none
+      red_reason:          none
       budget_state:        ok
       <!-- STATE:END -->
 
@@ -238,33 +243,53 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       Set state.md `stage: aborted`, print the report, and STOP.
       If Confidence > 3: continue.
 
-4. PLAN GATE (stub) — single-critic plan review + criteria-coverage check.
+4. PLAN GATE — 3-lens critic panel (feasibility / criteria-coverage / blast-radius) + criteria check.
 
-   a. Update state.md: set `stage: plan_gate`.
+   a. Update state.md: set `stage: plan_gate`, `plan_panel: pending`.
 
-   b. Acceptance-criteria coverage check: for each criterion derived/given in step 1, verify
-      that at least one `## 🛠 How` step in `plan.md` can be mapped to that criterion.
-      Unmapped criteria are blocking findings — collect them.
+   b. Acceptance-criteria coverage check (mechanical): for each criterion derived/given in step 1,
+      verify that at least one `## 🛠 How` step in `plan.md` can be mapped to that criterion.
+      Collect unmapped criteria as blocking findings — they seed the coverage panelist (4d) and
+      count in the gate decision (4e).
 
-   c. (BANNER RULE) Print the PLAN GATE banner now as the last line before invoking the plan-reviewer.
+   c. (BANNER RULE) Print the PLAN GATE banner now as the last line before the first panelist runs.
+      Print it ONCE for the whole panel — not per panelist.
 
-   d. Invoke the **plan-reviewer** subagent with a refute-lens prompt: "Refute this plan. Find
-      why it fails or misses an acceptance criterion. Default to reject if uncertain."
-      The plan-reviewer edits `plan.md` inline and appends its review to `## 🔭 Review`;
-      sets `plan_verdict` in state.md.
-      # TODO(panel): replace with 3-lens critic panel (feasibility/coverage/blast-radius),
-      # majority-refute threshold. This increment: single reviewer, refute posture.
+   d. Run the critic panel — three **plan-reviewer** invocations, ONE AT A TIME (sequential, never
+      parallel: the panelists share `plan.md` and the single `plan_verdict` field, so concurrent
+      runs would clobber each other). Each panelist gets a distinct lens and a refute posture:
+        1. feasibility       — "Can this plan be built exactly as written? Find the step that
+                                won't work, the missing prerequisite, the hand-wave."
+        2. criteria-coverage — "Does every acceptance criterion map to a concrete plan step? Name
+                                each unmapped or weakly-mapped one." (Seed with 4b's unmapped list.)
+        3. blast-radius      — "Is `## 💥 Blast radius` complete and honest? Re-run the greps; find
+                                the caller / dependent / sibling / test / doc the plan missed."
+      For each panelist, invoke the **plan-reviewer** subagent with this framing:
+        "You are panelist <i>/3 on the auto-mode plan CRITIC panel. Your lens: <lens>. Refute this
+         plan through that lens only — find why it fails or misses a criterion; default to reject
+         (`fix_first`) if uncertain. You MAY make inline fixes for your lens (your normal mode), but
+         do not re-litigate the other panelists' lenses. Append your findings under a
+         `### Plan critic — <lens>` subsection of `plan.md`'s `## 🔭 Review` (do NOT overwrite the
+         other subsections). Set `plan_verdict` in state.md to `ship` | `fix_first` | `regrill`."
+      After EACH panelist returns: read `plan_verdict` from state.md, record a
+      `- plan_vote_<lens>: <verdict>` line under `## Done so far`, then reset
+      `plan_verdict: pending` so the next panelist starts clean.
 
-   e. Read `plan_verdict` from state.md after the plan-reviewer runs.
-      - If `plan_verdict: ship` AND no unmapped criteria: continue to step 5.
-      - If `plan_verdict: fix_first` OR unmapped criteria exist: this is fixable — do one
-        bounded plan-rework pass: invoke the **planner** again with the specific blockers,
-        then re-run the plan-reviewer (steps d–e above, once only). If still not `ship`, abort:
-        write a report (`stage: aborted`, reason `plan-rejected`), print it, and STOP.
-      - If `plan_verdict: regrill` or hard-reject language in the review: abort immediately.
-        Write report (`stage: aborted`, reason `plan-rejected`), print it, and STOP.
+   e. Tally the panel (count a `fix_first` or `regrill` as a refute):
+      - PANEL CLEAR — 0–1 refute votes AND no unmapped criteria remain: set `plan_panel: clear`
+        and continue to step 5.
+      - REGRILL MAJORITY — ≥2 panelists returned `regrill` (the plan needs human decisions auto
+        mode cannot make): set `plan_panel: needs-human`, write a needs-spec report
+        (`stage: aborted`, reason `plan-needs-human`, list the three votes), print it, and STOP.
+      - FIXABLE — ≥2 `fix_first` refutes (no regrill majority) OR unmapped criteria remain: do ONE
+        bounded plan-rework pass — invoke the **planner** again with the specific blocking findings
+        the panel raised plus the unmapped criteria, then RE-RUN the panel once (steps c–d, a single
+        time; print the banner again). Record the round-2 tally in `plan_panel:`.
+      - Still ≥2 refutes after the rework: set `plan_panel: rejected`, write a report
+        (`stage: aborted`, reason `plan-rejected`, include both rounds' votes), print it, and STOP.
 
-5. RED (stub) — write a failing test encoding the acceptance criteria, then freeze it.
+5. RED — write a failing test encoding the acceptance criteria, confirm it fails for the right
+   reason, then freeze it.
 
    a. Update state.md: set `stage: red`.
 
@@ -275,14 +300,32 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       - Will fail with a meaningful assertion error (not an import/syntax error)
       - Is a single self-contained test file
       Record the test file path as `<frozen_test_path>`.
-      # TODO(red): red-for-right-reason auto-check — in v1 the model judges whether the
-      # failure is a genuine assertion vs an import/syntax error. Add automated detection
-      # (parse stderr for SyntaxError/ImportError) next increment.
 
-   d. Run the test to confirm it is RED:
-      `<test_cmd> <frozen_test_path>` (or equivalent filter). If it exits 0 (unexpected green),
-      the criteria may already be met — record this anomaly in `## Done so far` and proceed
-      anyway (the diff gate will confirm).
+   d. Run the test to confirm it is RED: `<test_cmd> <frozen_test_path>` (or the equivalent
+      single-file filter). Capture BOTH the exit code and the output, then classify the failure
+      (red-for-right-reason auto-check):
+      - GENUINE RED — non-zero exit AND the output shows a real ASSERTION failure for the new test
+        (`AssertionError`, a pytest `assert` diff, `Error: expect(...)`, JUnit
+        `AssertionFailedError`, a Go `--- FAIL` with a checked condition, etc.). Set
+        `red_reason: genuine` in state.md and proceed to 5e.
+      - HOLLOW RED — non-zero exit but the failure is a LOAD/COLLECTION error, not an assertion:
+        scan the output for `SyntaxError`, `ImportError`, `ModuleNotFoundError`, `NameError` at
+        collection, pytest `errors` / `collected 0 items` / `INTERNALERROR`, `cannot find module`,
+        or a build/compile error, with NO assertion failure present. A test that errors is not a
+        red test. Set `red_reason: hollow`, then do ONE bounded rewrite: fix only the
+        import/syntax/collection fault (keep the SAME assertion intent) and re-run.
+        - If GENUINE RED on the retry → set `red_reason: genuine` and proceed.
+        - If still HOLLOW → abort. Write `feature-research/<task-id>/report.md`:
+          ```
+          ## Auto-mode abort: hollow-red
+          reason: the RED test errors (import/syntax/collection) instead of failing an assertion
+          task_id: <task-id>
+          frozen_test: <frozen_test_path>
+          last_error: <the key error line from the output>
+          ```
+          Set `stage: aborted`, print the report, and STOP.
+      - UNEXPECTED GREEN — exit 0: the criteria may already be met. Record the anomaly in
+        `## Done so far`, set `red_reason: green`, and proceed anyway (the diff gate confirms).
 
    e. Freeze the test: record `frozen_test: <frozen_test_path>` in state.md.
       Capture the content hash: run `git hash-object <frozen_test_path>` and record the output
@@ -301,9 +344,9 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       The implementer also runs a self-review pass before the diff gate (cheap; cuts panel rounds).
       Set stage=diff_gate after invocation.
 
-7. DIFF GATE (stub) + CI veto (stub) — blind review, tamper guard, scope check, suite.
+7. DIFF GATE — 3 blind reviewers + objective vetoes (tamper guard, CI, scope).
 
-   a. Update state.md: set `stage: diff_gate`.
+   a. Update state.md: set `stage: diff_gate`, `diff_panel: pending`.
 
    b. Test-tamper guard: run `git hash-object <frozen_test>` (the path from state.md).
       Compare to `frozen_test_hash:` from state.md.
@@ -319,9 +362,29 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       ```
       Set `stage: aborted`, print the report, and STOP.
 
-   c. Run the full test suite: `<test_cmd>`. Capture exit code and output.
-      # TODO(ci): replace with real CI runner (GH Actions) — see open question 1 in docs/auto-mode.md.
-      # This increment: run the suite in-tree on the current branch.
+   c. CI / suite veto. CI is a VETO, not a vote — a red build or suite fails the gate regardless
+      of how the reviewers vote. It is the one gate the model cannot talk its way past.
+
+      i. Baseline-comparison run (ALWAYS): run the full suite in-tree `<test_cmd>`; capture exit
+         code and output. The baseline was GREEN at step 2, so any failure here is new. Before
+         trusting a red, re-run a single suspected-flaky failing test once — a test that then
+         passes is a flake, not a regression; note it and do not count it.
+
+      ii. Authoritative CI veto (WHEN AVAILABLE): if the repo has GitHub Actions CI
+          (a `.github/workflows/*.yml` triggered on `push` or `pull_request`) AND a remote exists
+          (`git remote` is non-empty) AND `gh auth status` succeeds:
+            - Push the run branch to trigger CI: `git push -u origin <branch>` (branch-only and
+              safe; SHIP re-pushes the final state — see step 8e).
+            - Await the run for the pushed head SHA: poll
+              `gh run list --branch <branch> --limit 1 --json status,conclusion,headSha,databaseId`
+              until `status` is `completed` (or `gh run watch <databaseId> --exit-status`). Bound
+              the wait by the per-run time budget — if it blows, set `budget_state: blown` and
+              treat as a CI fail.
+            - Set `ci_status: gh-actions` and `ci_conclusion: <success|failure|cancelled|timed_out>`.
+              Anything other than `success` fires the CI VETO (gate FAILS → rework, step 7h).
+      iii. Fallback: if GH Actions / a remote / `gh` are unavailable, the in-tree run from (i) IS
+           the veto. Set `ci_status: in-tree (fallback)` and `ci_conclusion: pass|fail`, and note
+           the fallback under `## Done so far` (it surfaces in the PR body + final report).
 
    d. Scope and forbidden-path guard: run `git diff --name-only HEAD~1` (or against the branch
       base). Check each changed file:
@@ -332,25 +395,42 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       - If scope_paths was provided and changed files fall outside it: record as a finding.
       - If diff exceeds 200 lines or 20 files: record as a runaway-refactor finding.
 
-   e. (BANNER RULE) Print the DIFF GATE banner now as the last line before invoking the reviewer.
+   e. (BANNER RULE) Print the DIFF GATE banner now as the last line before the first reviewer runs.
+      Print it ONCE for the whole panel — not per reviewer.
 
-   f. Invoke the **reviewer** subagent — blind context: provide diff + plan + task only (NOT the
-      implementer's self-justification). The reviewer appends its review to `## 🔭 Review` in
-      `plan.md` and sets `diff_verdict` in state.md.
-      # TODO(panel): replace with 3 blind reviewers (correctness / plan-match / regressions+security),
-      # kill if ≥2/3 refute. This increment: single reviewer, refute posture.
+   f. Run the blind reviewer panel — three **reviewer** invocations, ONE AT A TIME (sequential: the
+      reviewers share `plan.md` and the single `diff_verdict` field). Each is BLIND and gets a
+      distinct lens:
+        1. correctness          — "Does the diff do what the task asks, correctly, with no logic
+                                   bug or unhandled case?"
+        2. plan-match           — "Does the diff match `plan.md` — nothing more (scope creep),
+                                   nothing less (a missed step)?"
+        3. regressions+security — "What does this break elsewhere, and what does it expose (input
+                                   handling, secrets, injection, auth)?"
+      For each reviewer, invoke the **reviewer** subagent with this framing:
+        "You are reviewer <i>/3 on the auto-mode diff panel. Your lens: <lens>. You are BLIND:
+         judge from the scoped diff + `plan.md` + the task ONLY. Do NOT read `audit.md` (the
+         implementer's self-justification) and do NOT read the other reviewers' `### Diff review`
+         subsections — independence is the whole point. Refute the diff through your lens; default
+         to reject (`fix_first`) if uncertain. Append your review under a `### Diff review — <lens>`
+         subsection of `plan.md`'s `## 🔭 Review`. Set `diff_verdict` in state.md to `ship` |
+         `fix_first`."
+      After EACH reviewer returns: read `diff_verdict`, record a `- diff_vote_<lens>: <verdict>`
+      line under `## Done so far`, then reset `diff_verdict: pending` for the next reviewer.
 
-   g. Read `diff_verdict` from state.md. Evaluate gate:
-      - GATE PASSES if: `diff_verdict: ship` AND suite is GREEN AND tamper guard passed AND no
-        runaway-refactor finding (or scope/forbidden findings only warrant `needs-human` label,
-        not an abort).
-      - GATE FAILS if: `diff_verdict: fix_first` OR suite is RED OR tamper guard triggered OR
-        runaway-refactor abort.
+   g. Evaluate the gate (panel votes + objective vetoes). Count a `fix_first` as a refute:
+      - GATE PASSES if: ≤1 reviewer refuted AND `ci_conclusion` is `success`/`pass` AND the tamper
+        guard passed AND there is no runaway-refactor finding. (Scope / forbidden-path / dependency
+        findings only attach a `needs-human` label — they do NOT fail the gate.)
+      - GATE FAILS (→ rework, step 7h) if: ≥2 reviewers refuted (kill on majority-refute) OR
+        CI / the suite is red OR the tamper guard triggered OR a runaway-refactor finding fired.
+      Record the outcome in `diff_panel: <pass | killed-by-vote | ci-veto | tamper | runaway>`.
 
    h. On GATE FAIL — rework loop:
       Read `rework_round:` from state.md. Increment it by 1.
       Read `open_findings:` (the count from the previous round, or 0 on first fail).
-      Count new findings from the reviewer's output. If finding count >= previous `open_findings`
+      Count the total blocking findings across the three panel reviewers (plus any CI failure) for
+      this round. If finding count >= previous `open_findings`
       AND `rework_round: > 1` (i.e. findings did not shrink across two rounds):
         Thrash breaker fires — abort:
         ```
@@ -364,7 +444,8 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       Update `open_findings:` and `rework_round:` in state.md.
       If `rework_round > max_iterations`: abort with budget report (stage: aborted, reason: budget).
       Otherwise: invoke the **implementer** again (fix only "Still open" from state.md), then
-      re-run the diff gate checks from step 7b. Loop is bounded by max_iterations.
+      re-run the diff gate from step 7b — the tamper guard, the CI veto (re-push → re-await CI),
+      and the full 3-reviewer panel all run again this round. Loop is bounded by max_iterations.
 
 8. SHIP — push branch and open a draft PR.
 
@@ -380,14 +461,19 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       - Criteria and criteria_confidence
       - Plan summary (link to plan.md)
       - Audit summary (from audit.md)
-      - Test results: baseline + final suite output summary
+      - Plan panel: the three `plan_vote_<lens>` verdicts + the `plan_panel:` outcome
+      - Diff panel: the three `diff_vote_<lens>` verdicts + the `diff_panel:` outcome
+      - CI: `ci_status` + `ci_conclusion` (note when the in-tree fallback was used)
+      - Test results: baseline + final suite output summary; `red_reason` for the RED test
       - Rework rounds: N rounds, findings per round
       - Self-reported confidence (from planner's scorecard Confidence score)
-      - Residual risks and stubs (TODO items from this run)
+      - Residual risks (e.g. low `criteria_confidence`, CI fallback, `needs-human` flags)
       - Labels applied
 
-   e. Push the branch: `git push -u origin <branch>`. If no remote or push fails, note it and
-      proceed to open the PR body as printed text (degrade gracefully — mirrors approve-diff.md).
+   e. Push the branch: `git push -u origin <branch>` (idempotent — the CI veto at step 7c may have
+      already pushed it; this just sends any final rework commits). If no remote or push fails,
+      note it and proceed to open the PR body as printed text (degrade gracefully — mirrors
+      approve-diff.md).
 
    f. Open the draft PR:
       `gh pr create --draft --title "<title> [auto-mode]" --body "<pr_body>" --label "auto-mode"`
@@ -411,12 +497,16 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       pr_url:       <url or "see printed PR body above">
       branch:       <branch>
       rework_rounds: <n>
+      plan_panel:   <clear | round-2 tally>  (votes: feasibility/coverage/blast-radius)
+      diff_panel:   <pass>  (votes: correctness/plan-match/regressions+security)
+      ci:           <ci_status> <ci_conclusion>
+      red_reason:   <genuine | green>
       criteria_confidence: <high|low>
       criteria_evidence:
         - <criterion 1> → <plan step / test name>
         - <criterion 2> → …
       residual_risks:
-        - <any TODO(panel)/TODO(ci)/TODO(red) stubs active this run>
+        - <low criteria_confidence, CI in-tree fallback, needs-human flags, or "none">
       ```
       On abort path, print the report.md contents instead, clearly headed:
       ```

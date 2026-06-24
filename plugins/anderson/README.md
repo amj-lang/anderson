@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.9.7-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.11.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -23,10 +23,19 @@ existing subagents unchanged. The only human action is merging the resulting dra
 - **Scope/forbidden-path guard.** Changes to `.github/`, CI config, lockfiles, migrations trigger a
   `needs-human` label. Manifest/dependency changes always flag the PR.
 - **Thrash breaker.** If open findings don't shrink across two rework rounds, the run escalates.
-- **Stubbed gates (this increment).** The critic panel (step 4) and reviewer panel (step 7) each run
-  a single `plan-reviewer`/`reviewer` subagent with a refute posture; full 3-lens adversarial panels
-  and a real CI-runner veto are deferred to the next increment (see `TODO(panel)` / `TODO(ci)` markers
-  in `commands/auto.md`). Do not use for production tasks without reviewing the PR carefully.
+- **3-lens plan critic panel (step 4).** Three sequential `plan-reviewer` invocations — feasibility,
+  criteria-coverage, blast-radius — each with a refute posture; majority-refute fails the gate (one
+  bounded plan-rework, then abort).
+- **3 blind diff reviewers (step 7).** Three sequential `reviewer` invocations — correctness,
+  plan-match, regressions+security — each blind to `audit.md` and to the other reviewers; kill on
+  majority-refute (≥2/3).
+- **CI veto (step 7).** When the repo has GitHub Actions + a remote + `gh`, the branch is pushed and
+  the run's conclusion is awaited; a red build fails the gate regardless of votes. Falls back to the
+  in-tree suite when CI isn't available.
+- **Red-for-right-reason (step 5).** The RED test must fail on an *assertion*; an import/syntax/
+  collection error (a hollow red) triggers one bounded rewrite, then aborts.
+
+Still review the PR carefully — auto mode is experimental.
 
 The scheduler hook (`hooks/scheduler.py`) exits silently when it detects `mode: auto` in the active
 `state.md`, so hook chaining does not interfere with the command's own in-turn sequencing.
@@ -347,6 +356,16 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.11.0** — **Auto mode: wired the adversarial panels + CI veto + red-check.** The four
+  `TODO` stubs in `commands/auto.md` are now implemented: the PLAN GATE runs a 3-lens plan critic
+  panel (feasibility / criteria-coverage / blast-radius, majority-refute), the DIFF GATE runs 3
+  blind `reviewer`s (correctness / plan-match / regressions+security, kill on ≥2/3) plus a real
+  GitHub-Actions CI veto (push branch, await conclusion; in-tree fallback), and RED enforces
+  red-for-right-reason (an import/syntax/collection error is a hollow red → one rewrite, else
+  abort). Panels run subagents sequentially and the orchestrator tallies the votes; the subagents
+  are reused unchanged (lens + posture passed via the invocation prompt). New additive state
+  fields: `plan_panel`, `diff_panel`, `ci_status`, `ci_conclusion`, `red_reason`. PR body + final
+  report now carry the panel votes, CI conclusion, and `red_reason`. Version bump `0.10.0 → 0.11.0`.
 - **0.10.0** — **`/anderson:auto` (experimental non-halting mode).** New orchestrator command runs
   the full plan → RED test → implement → diff-review pipeline end-to-end to a draft PR with no human
   halts. Reuses the four existing subagents unchanged. Enforced this increment: baseline-green

@@ -1,6 +1,12 @@
 # Anderson — `auto` mode (autonomous build loop)
 
-**Status:** v1 spec (draft) · **Type:** design doc · **Owner:** TBD
+**Status:** v1 spec · **Type:** design doc · **Owner:** TBD
+
+> **Implementation status (0.11.0):** the orchestrator (`commands/auto.md`) and all four hardening
+> stubs are wired — the 3-lens plan critic panel (gate 4), the 3 blind diff reviewers + CI veto
+> (gate 7), and red-for-right-reason (step 5). Panels invoke the existing subagents sequentially
+> (lens + refute posture passed via the prompt) and the orchestrator tallies the votes. Source
+> adapters and difficulty routing remain out of scope.
 
 ## Summary
 
@@ -207,13 +213,15 @@ and ships confident-wrong fixes. `auto` mode deliberately avoids it.
 
 ## Open questions
 
-1. **Runner** — GitHub Actions (CI gate = the workflow itself, native `gh` auth) vs. a long-running
-   worker. Shapes how steps 2 and 7 execute the suite.
+1. **Runner** — ~~GitHub Actions vs. a long-running worker.~~ **Resolved (0.11.0):** GitHub Actions
+   is the authoritative CI veto when the repo has it + a remote + `gh`; otherwise the in-tree suite
+   run is the fallback veto. A dedicated worker is not required for v1.
 2. **RED step universality** — always (bug fix → yes; feature → test encodes criteria), or
-   feature-exempt?
+   feature-exempt? (Red-for-right-reason is now enforced when RED runs.)
 3. **Acceptance criteria** — require as input (stronger spec, less autonomous) vs. always derive
    (more autonomous, weaker). Current default: derive-if-absent + confidence flag.
-4. **Panel size / threshold** — start at 3 / majority-refute, tune later.
+4. **Panel size / threshold** — ~~start at 3 / majority-refute, tune later.~~ **Implemented (0.11.0):**
+   3 panelists / majority-refute at both gates; still tunable.
 5. **Difficulty routing** — size the harness to estimated task difficulty (trivial fix shouldn't pay
    for full panels)? Likely a v2 optimization.
 
