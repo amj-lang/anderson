@@ -128,6 +128,8 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       diff_verdict:        pending
       mode:                auto
       task_id:             <task-id>
+      source_url:          none
+      repos:               current
       branch:              anderson/auto/<task-id>-<slug>
       baseline:            pending
       test_cmd:            none
@@ -163,9 +165,20 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       `criteria_confidence: low` in state.md. Record derived criteria under `## Done so far` in
       state.md as a bullet list prefixed `[criteria]`.
 
-   g. (BANNER RULE) Print the INGEST banner now as the last line before any further action.
+   g. Parse the SOURCE LINK and REPO scope from the TaskSpec (body or @file):
+      - `source_url:` — if the TaskSpec carries a source-task URL (a Linear/GitHub/Jira/etc. ticket
+        link) or a bare id you can resolve to one, record it as `source_url:` in state.md. This is
+        rendered at the TOP of the PR body so a reviewer can trace the work to its ticket. If absent,
+        leave `source_url: none` (the PR body simply omits the link — never invent one).
+      - `repos:` — the set of repos this task must change. Default `current` (the repo you are in).
+        Set it to a comma-list when the work spans repos: the TaskSpec names additional `repos:`, OR
+        scope_paths / the plan point outside this repo, OR project memory / `CLAUDE.md` records a
+        sibling repo this task must touch. Record as `repos: <current>[,<repo2>,...]`. Multi-repo
+        runs are handled in BASELINE (isolation) + SHIP (one branch + PR per repo).
 
-   h. Report INGEST complete in state.md `## Done so far`.
+   h. (BANNER RULE) Print the INGEST banner now as the last line before any further action.
+
+   i. Report INGEST complete in state.md `## Done so far`.
 
 2. BASELINE — verify the repo is in a green state before any change.
 
@@ -176,9 +189,20 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
    c. Determine the default branch name: `git symbolic-ref refs/remotes/origin/HEAD` or inspect
       `git branch -r` for `origin/HEAD`.
 
-   d. Create the run branch off the latest default:
-      `git checkout -b anderson/auto/<task-id>-<slug> origin/<default-branch>`.
-      Update `branch:` in state.md with the resolved branch name.
+   d. Workspace isolation — set up a clean, isolated checkout per repo so this run never disturbs
+      in-flight work, and concurrent runs can't collide. Branch name (each repo): `anderson/auto/<task-id>-<slug>`.
+      - SINGLE repo (`repos: current`): if the working tree is DIRTY, do NOT branch in place (you
+        would entangle someone's uncommitted work) — instead create an isolated **git worktree** off
+        the latest default and operate there:
+        `git worktree add -b anderson/auto/<task-id>-<slug> ../.anderson-auto/<task-id> origin/<default-branch>`,
+        then run all subsequent steps from that worktree path. If the tree is CLEAN, a normal
+        `git checkout -b anderson/auto/<task-id>-<slug> origin/<default-branch>` is fine.
+      - MULTI repo (`repos:` lists more than `current`): for EACH repo in the list, create an isolated
+        worktree (preferred — fast, shares the object store) or a fresh clone if no local checkout
+        exists, branch off that repo's latest default, and record its path. NEVER edit another repo's
+        primary checkout in place. Record the per-repo branch + worktree path under `## Done so far`.
+      - Clean up worktrees on the terminal path: after SHIP/abort, `git worktree remove` each one
+        (the branch + PR are the durable record). Update `branch:` in state.md with the resolved name.
 
    e. Resolve `test_cmd`:
       - If the TaskSpec body or @file contains a `test_cmd:` field, use it directly and set
@@ -495,41 +519,53 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
 
    b. (BANNER RULE) Print the SHIP banner now as the last line before the ship step.
 
-   c. Determine any labels: if forbidden/dependency paths were flagged in step 7d, add
-      `needs-human` label. Always add `auto-mode` label.
+   c. Determine labels: always add `auto-mode`. Add `needs-human` if forbidden/dependency paths were
+      flagged (step 7d) OR this is a multi-repo run (cross-repo is higher-risk by default).
 
-   d. Build the PR body from the audit trail:
-      - Task: title + task-id
-      - Criteria and criteria_confidence
-      - Plan summary (link to plan.md)
-      - Audit summary (from audit.md)
-      - Tier: `tier` (and whether step 7d escalated it from the plan tier)
-      - Plan gate: `plan_panel` outcome (or "skipped — trivial")
-      - Diff panel: the per-lens `diff_vote_<lens>` verdicts + the `diff_panel:` outcome
-      - Arbiter: `arbiter` verdict (or "not run — unanimous")
-      - CI: `ci_status` + `ci_conclusion` (note when the in-tree fallback was used)
-      - Test results: baseline + final suite output summary; `red_reason` for the RED test
-      - Rework rounds: N rounds, findings per round; `replan_bounced` if the plan was re-bounced
-      - Self-reported confidence (from planner's scorecard Confidence score)
-      - Residual risks (e.g. low `criteria_confidence`, CI fallback, `needs-human` flags)
-      - Labels applied
-      - METRICS line (for later threshold calibration — keep it one line, machine-greppable):
-        `metrics: tier=<t> reviewers=<n> arbiter=<ship|fix_first|none> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> outcome=SHIP`
+   d. Build the PR body — LEAD WITH THE VALIDATED PLAN, keep it tight, push the audit trail to the
+      bottom. Structure, in this order:
 
-   e. Push the branch: `git push -u origin <branch>` (idempotent — the CI veto at step 7c may have
-      already pushed it; this just sends any final rework commits). If no remote or push fails,
-      note it and proceed to open the PR body as printed text (degrade gracefully — mirrors
-      approve-diff.md).
+      1. SOURCE — if `source_url` is set, the first line is `Source: <source_url>` (the ticket this
+         traces to; weave any ticket context in as background). Omit the line entirely when
+         `source_url: none` — never fabricate one.
 
-   f. Open the draft PR:
-      `gh pr create --draft --title "<title> [auto-mode]" --body "<pr_body>" --label "auto-mode"`
-      Add `--label needs-human` if flagged. If `gh` is unavailable, print the PR body and note
-      the human should open it.
+      2. SUMMARY (2–4 lines) — what changed + why, lifted from plan.md `## 🎯 What` / `## 🤔 Why`.
 
-   g. Set state.md `stage: done`.
+      3. `## Plan (reviewed & validated)` — the SHORT version of the plan that passed the gates: the
+         `## 🛠 How` groups as 3–6 terse bullets (one per group, NOT the full text), each tied to the
+         acceptance criterion it satisfies. Then one validation line:
+         `Validated: plan-gate <plan_panel> · diff-panel <diff_panel> · arbiter <arbiter> · CI <ci_conclusion>`.
+         This is the headline a reviewer reads first — keep it to a screenful.
 
-   h. Remove the scratch directory: `rm -rf feature-research/<task-id>/`. The PR is the durable
-      record. (On any abort path the scratch is KEPT as the report — do not remove on abort.)
+      4. `## Verification` (condensed — one compact block, not prose):
+         `tier <tier> · reviewers <n> · arbiter <arbiter> · rework rounds <r> · red <red_reason>`,
+         plus the per-lens `diff_vote_<lens>` verdicts on one line.
+
+      5. `<details>Audit & risks</details>` — collapse the long tail: audit.md summary (files
+         changed), residual risks, labels applied, links to plan.md / audit.md, and the
+         machine-greppable metrics line:
+         `metrics: tier=<t> reviewers=<n> arbiter=<v> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> outcome=SHIP`.
+
+      Write the body to a temp file and use `gh pr create --body-file` (cleaner than inline quoting).
+      For a multi-repo run, the PRIMARY repo's PR carries the full body plus a `Companion PRs:` list;
+      each companion PR gets the same Source + Summary + Plan, plus a `Part of <task-id>` back-link.
+
+   e. Push + open the draft PR(s) — once per repo in `repos:` that has a non-empty diff (single-repo
+      run = just the current repo). For each such repo, from its worktree (or `gh -R <owner/repo>`):
+      - Push: `git push -u origin <branch>` (idempotent — the CI veto at step 7c may have already
+        pushed the primary repo's branch; this sends any final rework commits). No remote / push
+        fails → degrade gracefully: note it and print that repo's PR body as text.
+      - Open: `gh pr create --draft --title "<title> [auto-mode]" --body-file <tmp> --label "auto-mode"`
+        (+ `--label needs-human` per step 8c). If `gh` is unavailable, print the body and note the
+        human should open it. Capture each PR URL.
+      - After all PRs are open, edit the PRIMARY PR's body to fill its `Companion PRs:` list with the
+        other URLs, and each companion's `Part of` back-link.
+
+   f. Set state.md `stage: done`.
+
+   g. Clean up the workspace: `git worktree remove` each worktree created in step 2d, then
+      `rm -rf feature-research/<task-id>/`. The PR(s) + git history are the durable record. (On any
+      abort path the scratch + worktrees are KEPT for inspection — do not remove on abort.)
 
 9. REPORT — print the structured terminal result.
 
