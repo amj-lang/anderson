@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.9.7-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.11.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -22,11 +22,29 @@ existing subagents unchanged. The only human action is merging the resulting dra
 - **Test-tamper guard.** The RED test is content-hash frozen at step 5; a mismatch at the diff gate aborts.
 - **Scope/forbidden-path guard.** Changes to `.github/`, CI config, lockfiles, migrations trigger a
   `needs-human` label. Manifest/dependency changes always flag the PR.
-- **Thrash breaker.** If open findings don't shrink across two rework rounds, the run escalates.
-- **Stubbed gates (this increment).** The critic panel (step 4) and reviewer panel (step 7) each run
-  a single `plan-reviewer`/`reviewer` subagent with a refute posture; full 3-lens adversarial panels
-  and a real CI-runner veto are deferred to the next increment (see `TODO(panel)` / `TODO(ci)` markers
-  in `commands/auto.md`). Do not use for production tasks without reviewing the PR carefully.
+- **Thrash breaker + replan bounce.** If findings don't shrink (or recur) across rework rounds, the
+  run bounces back to PLAN **once** for a different approach, then escalates to `needs-human`.
+- **Difficulty routing (step 3b).** A tier is computed from the plan's Scorecard (Risk / Coupling /
+  Confidence / Testability) and re-computed against the actual diff size at the gate — it only ever
+  escalates. The tier sizes everything downstream, so a one-line fix never pays for a 3-agent panel.
+- **Plan gate (step 4).** Criteria-coverage check + **one** `plan-reviewer` (skipped entirely for a
+  trivial tier). Plan errors are cheap to fix, so the rigor budget is spent at the diff gate.
+- **CI veto first (step 7c).** When the repo has GitHub Actions + a remote + `gh`, the branch is
+  pushed and the run's conclusion is awaited; a red build fails the gate and **short-circuits before
+  any reviewer tokens are spent**. Falls back to the in-tree suite when CI isn't available.
+- **Tier-sized blind diff panel (step 7f).** 1 / 2 / 3 `reviewer`s by tier (correctness ·
+  regressions+security · plan-match), run **in parallel** (each writes its own file + returns a
+  verdict, so no shared-state collision), blind to `audit.md` and to each other.
+- **Arbiter on split (step 7g).** A unanimous panel decides directly (the token saver); a split
+  invokes one opus arbiter that rules **on merit, not headcount**, and must justify its call in a
+  required `## Options considered` (+/−) table. Critical tier always runs the arbiter.
+- **Red-for-right-reason (step 5).** The RED test must fail on an *assertion*; an import/syntax/
+  collection error (a hollow red) triggers one bounded rewrite, then aborts.
+- **Calibration metrics.** Every run emits a one-line `metrics:` record (tier · reviewers · arbiter ·
+  rounds · ci · outcome) to the PR + report, so the thresholds can be tuned from real outcomes.
+
+Still review the PR carefully — auto mode is experimental, and the gates are orchestrator
+*instructions* the model follows, not enforced code.
 
 The scheduler hook (`hooks/scheduler.py`) exits silently when it detects `mode: auto` in the active
 `state.md`, so hook chaining does not interfere with the command's own in-turn sequencing.
@@ -347,6 +365,31 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.11.0** — **Auto mode: adaptive verification (panels + routing + arbiter + CI veto).** Wires
+  the four `TODO` stubs in `commands/auto.md` into a difficulty-adaptive harness that targets the
+  best success-rate / token / latency balance:
+  - **Difficulty routing (step 3b)** — a tier (trivial/normal/hard/critical) is derived from the
+    plan Scorecard and re-derived from the actual diff size at the gate (max-only; tier can only
+    escalate). A forbidden/dependency-path hit pins it to critical.
+  - **Plan gate (step 4)** slimmed to criteria-check + one `plan-reviewer` (skipped for trivial) —
+    plan errors are cheap, so rigor is spent at the diff gate.
+  - **CI veto first (step 7c)** — real GitHub-Actions gate (push branch, await conclusion; in-tree
+    fallback). A red build short-circuits before any reviewer tokens are spent.
+  - **Tier-sized blind diff panel (step 7f)** — 1/2/3 `reviewer`s by tier
+    (correctness · regressions+security · plan-match), run **in parallel** (each writes its own file
+    + returns a verdict, so no shared-state collision), blind to `audit.md` and to each other.
+  - **Arbiter on split (step 7g)** — unanimous panel decides directly; a split (or critical tier)
+    invokes one opus arbiter that rules on merit and must justify it in a required `## Options
+    considered` (+/−) table.
+  - **Rework (step 7h)** re-enters straight at the panel with a per-round reset; non-convergence
+    bounces to PLAN **once** (forced options table) then escalates to `needs-human`.
+  - **Red-for-right-reason (step 5)** — a hollow red (import/syntax/collection error) triggers one
+    rewrite, else abort.
+  - **Calibration metrics** — every run emits a one-line `metrics:` record for later threshold
+    tuning.
+  Subagents reused unchanged (lens/posture/model passed via the invocation prompt). New additive
+  state fields: `plan_panel`, `diff_panel`, `ci_status`, `ci_conclusion`, `red_reason`, `tier`,
+  `reviewers`, `arbiter`, `replan_bounced`. Version bump `0.10.0 → 0.11.0`.
 - **0.10.0** — **`/anderson:auto` (experimental non-halting mode).** New orchestrator command runs
   the full plan → RED test → implement → diff-review pipeline end-to-end to a draft PR with no human
   halts. Reuses the four existing subagents unchanged. Enforced this increment: baseline-green
