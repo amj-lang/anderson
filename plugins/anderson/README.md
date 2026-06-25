@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.13.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.14.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -74,8 +74,10 @@ gate). They are the executable ground truth the panel reasons against.
   skips it (nothing to debate → straight to rework).
 - **Red-for-right-reason (step 5).** The RED test must fail on an *assertion*; an import/syntax/
   collection error (a hollow red) triggers one bounded rewrite, then aborts.
-- **Calibration metrics.** Every run emits a one-line `metrics:` record (tier · reviewers · arbiter ·
-  rounds · ci · outcome) to the PR + report, so the thresholds can be tuned from real outcomes.
+- **Calibration metrics.** Every run emits a one-line `metrics:` record — `tier · panel_model ·
+  reviewers · arbiter · arbiter_trigger · rounds · ci · replan · red · override · outcome` — to the PR
+  + report, so each new behavior is greppable (which model the panel ran on, why the arbiter fired,
+  which soft guardrails were relaxed) and the thresholds can be tuned from real outcomes.
 - **PR body leads with the validated plan.** The draft PR opens with the source-ticket link (from
   the TaskSpec `source_url`, when present) + a short reviewed-and-validated plan summary; the audit
   trail and metrics collapse to the bottom.
@@ -433,6 +435,14 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.14.0** — **Auto mode: metric references for every new behavior + bigger quote pools.**
+  - **Observability** — the `metrics:` line + state.md gained `panel_model`, `arbiter_trigger`, and
+    `override`, so each 0.13.0 behavior is greppable (which model the panel ran on, why the arbiter
+    fired, which soft guardrails were relaxed; the migration hard-stop surfaces as
+    `outcome=ABORTED:needs-migration`). Extended in all three metrics-emit sites + the REPORT block.
+  - **More banner quotes** — every persona's quote pool expanded: auto-mode stages 10 → 14, gated
+    commands 20 → 24 (IMPLEMENT/DIFF pools kept byte-identical across `approve-plan.md` + `rework.md`;
+    each `(M)` label re-synced to its actual count, which the deterministic selector reads).
 - **0.13.0** — **Auto mode: operator override policy + tiered diff panel + always-on arbiter.**
   - **Override policy (operator opt-in)** — auto pushes through the *soft* guardrails to finish the
     task (low planner confidence, scope/runaway caps, sensitive non-migration paths now attach a
