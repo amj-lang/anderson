@@ -74,8 +74,10 @@ gate). They are the executable ground truth the panel reasons against.
   skips it (nothing to debate → straight to rework).
 - **Red-for-right-reason (step 5).** The RED test must fail on an *assertion*; an import/syntax/
   collection error (a hollow red) triggers one bounded rewrite, then aborts.
-- **Calibration metrics.** Every run emits a one-line `metrics:` record (tier · reviewers · arbiter ·
-  rounds · ci · outcome) to the PR + report, so the thresholds can be tuned from real outcomes.
+- **Calibration metrics.** Every run emits a one-line `metrics:` record — `tier · panel_model ·
+  reviewers · arbiter · arbiter_trigger · rounds · ci · replan · red · override · outcome` — to the PR
+  + report, so each new behavior is greppable (which model the panel ran on, why the arbiter fired,
+  which soft guardrails were relaxed) and the thresholds can be tuned from real outcomes.
 - **PR body leads with the validated plan.** The draft PR opens with the source-ticket link (from
   the TaskSpec `source_url`, when present) + a short reviewed-and-validated plan summary; the audit
   trail and metrics collapse to the bottom.
@@ -445,6 +447,11 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
     every unanimous ship (final sign-off, independent re-review — not a rubber-stamp); only a
     unanimous refute skips it. Closes the gap where a panel that agreed too easily could ship a
     subtly-wrong diff. Gate: PASS iff arbiter `ship`; FAIL on arbiter `fix_first` or unanimous refute.
+  - **Observability** — the `metrics:` line + state.md gained `panel_model`, `arbiter_trigger`, and
+    `override`, so each new behavior is greppable (which model the panel ran on, why the arbiter fired,
+    which soft guardrails were relaxed; the migration hard-stop surfaces as `outcome=ABORTED:needs-migration`).
+  - **More banner quotes** — every persona's quote pool expanded: auto-mode stages 10 → 14, gated
+    commands 20 → 24 (IMPLEMENT/DIFF pools kept byte-identical across `approve-plan.md` + `rework.md`).
   - **Docs** — full Commands reference + a full auto-mode pipeline section in the root README; the
     "what replaces the human gates" detail, three-modes section, and override policy in this README.
 - **0.12.0** — **Auto mode: PR body leads with the validated plan + multi-repo handling.**

@@ -52,7 +52,7 @@ INGEST banner (stage offset 1):
   │  "[quote from INGEST pool]"
   ╰─
 ```
-INGEST pool (10): "Every run starts with a question you can't answer yet." / "Feed it everything; it will tell you what matters." / "A task without a lock is a collision waiting to happen." / "The spec is a promise — read it before you make one." / "Before the first line compiles, the brief must." / "Wake the machine; give it something real to chew on." / "Context is the only thing that separates signal from noise." / "The job isn't real until it's written down." / "Lock it or lose it." / "Derive what you can; flag what you can't."
+INGEST pool (14): "Every run starts with a question you can't answer yet." / "Feed it everything; it will tell you what matters." / "A task without a lock is a collision waiting to happen." / "The spec is a promise — read it before you make one." / "Before the first line compiles, the brief must." / "Wake the machine; give it something real to chew on." / "Context is the only thing that separates signal from noise." / "The job isn't real until it's written down." / "Lock it or lose it." / "Derive what you can; flag what you can't." / "Read the brief twice; build once." / "An untyped task is a guess with a deadline." / "Normalize the noise before you chase the signal." / "Wake up, Neo — the work has found you."
 
 BASELINE banner (stage offset 2):
 ```
@@ -60,7 +60,7 @@ BASELINE banner (stage offset 2):
   │  "[quote from BASELINE pool]"
   ╰─
 ```
-BASELINE pool (10): "Never build a fix on a broken tree." / "Green at the start, green at the end — or you fixed nothing." / "A red baseline is not your bug to own." / "Fetch first; stale refs have ended careers." / "The suite tells no lies if you ask it correctly." / "Trust the test run you ran, not the one you remember." / "A clean branch is the only safe foundation." / "If it was already broken, say so and stop." / "The ground must be solid before you add a floor." / "Run it now, so you can prove it later."
+BASELINE pool (14): "Never build a fix on a broken tree." / "Green at the start, green at the end — or you fixed nothing." / "A red baseline is not your bug to own." / "Fetch first; stale refs have ended careers." / "The suite tells no lies if you ask it correctly." / "Trust the test run you ran, not the one you remember." / "A clean branch is the only safe foundation." / "If it was already broken, say so and stop." / "The ground must be solid before you add a floor." / "Run it now, so you can prove it later." / "Prove the floor before you trust the floor." / "A baseline you didn't run is a baseline you don't have." / "Inherit no failure you did not cause." / "Measure on green so you can prove on red."
 
 PLAN banner (stage offset 3):
 ```
@@ -68,7 +68,7 @@ PLAN banner (stage offset 3):
   │  "[quote from PLAN pool]"
   ╰─
 ```
-PLAN pool (10): "Design twice, so reality only has to happen once." / "The most dangerous flaw is the one the blueprint calls a feature." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it." / "Every line you don't write is a line you never debug." / "Decide the hard things on paper, where erasing is cheap." / "The shape of the solution hides in the shape of the problem." / "Cut the scope until it bleeds, then ship the part that lived." / "A blueprint nobody questions is a blueprint nobody read." / "Denial is the most predictable of all human responses."
+PLAN pool (14): "Design twice, so reality only has to happen once." / "The most dangerous flaw is the one the blueprint calls a feature." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it." / "Every line you don't write is a line you never debug." / "Decide the hard things on paper, where erasing is cheap." / "The shape of the solution hides in the shape of the problem." / "Cut the scope until it bleeds, then ship the part that lived." / "A blueprint nobody questions is a blueprint nobody read." / "Denial is the most predictable of all human responses." / "The blueprint is cheaper than the rebuild." / "Name the blast radius before it names you." / "A plan survives contact only if it expected the contact." / "I can only show you the door; the plan is how you walk through it."
 
 PLAN GATE banner (stage offset 4):
 ```
@@ -76,7 +76,7 @@ PLAN GATE banner (stage offset 4):
   │  "[quote from PLAN GATE pool]"
   ╰─
 ```
-PLAN GATE pool (10): "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does." / "The second pair of eyes sees the assumption the first pair made." / "Improve the plan, not the planner's feelings." / "A good review changes the plan; a great one changes the question." / "Disagree on paper now, or apologize in the incident channel later." / "The cheapest place to be wrong is before the first commit." / "Trust the plan less than the reasons behind it."
+PLAN GATE pool (14): "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does." / "The second pair of eyes sees the assumption the first pair made." / "Improve the plan, not the planner's feelings." / "A good review changes the plan; a great one changes the question." / "Disagree on paper now, or apologize in the incident channel later." / "The cheapest place to be wrong is before the first commit." / "Trust the plan less than the reasons behind it." / "The plan you can't defend on paper won't survive the diff." / "Refute it now, while erasing is free." / "A criterion with no step is a promise with no plan." / "There is no shortcut past the review."
 
 RED banner (stage offset 5):
 ```
@@ -84,7 +84,7 @@ RED banner (stage offset 5):
   │  "[quote from RED pool]"
   ╰─
 ```
-RED pool (10): "A test that can't fail tells you nothing." / "Write the failure first; let success prove itself." / "Red is honest; green is a hypothesis." / "The test you skip is the bug you ship." / "If it doesn't break, it doesn't test." / "Encode the crime before you solve it." / "Freeze the witness before the suspect can coach them." / "A hollow red is worse than no red at all." / "The assertion must sting — or it's decoration." / "Lock the test before you write the fix."
+RED pool (14): "A test that can't fail tells you nothing." / "Write the failure first; let success prove itself." / "Red is honest; green is a hypothesis." / "The test you skip is the bug you ship." / "If it doesn't break, it doesn't test." / "Encode the crime before you solve it." / "Freeze the witness before the suspect can coach them." / "A hollow red is worse than no red at all." / "The assertion must sting — or it's decoration." / "Lock the test before you write the fix." / "A green you didn't earn is a lie you'll inherit." / "Make it fail for the reason you claim it fails." / "An import error is a no-show, not a witness." / "Break it on purpose, or production breaks it for you."
 
 IMPLEMENT banner (stage offset 6):
 ```
@@ -92,7 +92,7 @@ IMPLEMENT banner (stage offset 6):
   │  "[quote from IMPLEMENT pool]"
   ╰─
 ```
-IMPLEMENT pool (10): "Make it small enough to be wrong cheaply." / "Touch only what the plan told you to touch." / "One reviewable step beats ten clever ones." / "The first version should be obvious, not impressive." / "Done is a diff someone else can understand." / "I know kung fu." / "There is no spoon." / "Don't think you are; know you are." / "Free your mind." / "He is beginning to believe."
+IMPLEMENT pool (14): "Make it small enough to be wrong cheaply." / "Touch only what the plan told you to touch." / "One reviewable step beats ten clever ones." / "The first version should be obvious, not impressive." / "Done is a diff someone else can understand." / "I know kung fu." / "There is no spoon." / "Don't think you are; know you are." / "Free your mind." / "He is beginning to believe." / "Change the diff, not the mandate." / "Small enough to revert is small enough to trust." / "The plan is the path; walk it, don't wander." / "Stop trying to be clever and be correct."
 
 DIFF GATE banner (stage offset 7):
 ```
@@ -100,7 +100,7 @@ DIFF GATE banner (stage offset 7):
   │  "[quote from DIFF GATE pool]"
   ╰─
 ```
-DIFF GATE pool (10): "Read the diff as if your worst enemy wrote it." / "Your green tests are a comfort, not a verdict." / "Approve nothing you would not be paged for at midnight." / "The bug you cannot find is the one you decided was not there." / "Every assumption is a door you left unlocked." / "Find the failure before the failure finds the user." / "Mr. Anderson." / "That is the sound of inevitability." / "Never send a human to do a machine's job." / "You are a plague, and I am the cure."
+DIFF GATE pool (14): "Read the diff as if your worst enemy wrote it." / "Your green tests are a comfort, not a verdict." / "Approve nothing you would not be paged for at midnight." / "The bug you cannot find is the one you decided was not there." / "Every assumption is a door you left unlocked." / "Find the failure before the failure finds the user." / "Mr. Anderson." / "That is the sound of inevitability." / "Never send a human to do a machine's job." / "You are a plague, and I am the cure." / "Green is not innocence; it is an alibi to check." / "The diff you wave through is the page you write at 3 a.m." / "Trust the merit, never the headcount." / "Inevitability, Mr. Anderson — the bug you chose not to see."
 
 SHIP banner (stage offset 8):
 ```
@@ -108,7 +108,7 @@ SHIP banner (stage offset 8):
   │  "[quote from SHIP pool]"
   ╰─
 ```
-SHIP pool (10): "Draft only. The human merges." / "A branch, a PR, a verdict — that's the job." / "Ship the evidence, not the confidence." / "The record is the PR; the scratch is disposable." / "Open the door; let the human walk through it." / "Push the branch, not the merge." / "Every good run ends with a diff someone can approve." / "The draft is honest about what it is." / "Done means reviewable, not merged." / "Raise your hand when you're finished — don't merge yourself."
+SHIP pool (14): "Draft only. The human merges." / "A branch, a PR, a verdict — that's the job." / "Ship the evidence, not the confidence." / "The record is the PR; the scratch is disposable." / "Open the door; let the human walk through it." / "Push the branch, not the merge." / "Every good run ends with a diff someone can approve." / "The draft is honest about what it is." / "Done means reviewable, not merged." / "Raise your hand when you're finished — don't merge yourself." / "One clean commit; one honest history." / "Squash the noise; keep the story." / "The branch is yours; the merge is theirs." / "I came to hand you the key, not to turn it."
 
 REPORT banner (stage offset 9):
 ```
@@ -116,7 +116,7 @@ REPORT banner (stage offset 9):
   │  "[quote from REPORT pool]"
   ╰─
 ```
-REPORT pool (10): "The result is only as good as the evidence behind it." / "State the outcome; show your work." / "A structured report is a gift to the next person in the chain." / "Name the blockers before the blockers name you." / "The human needs the map, not just the destination." / "Criteria in; evidence out." / "If you can't report it clearly, you don't understand it yet." / "The PR is the answer; the report is the reasoning." / "Leave breadcrumbs: someone will need to retrace this." / "End with the truth, whatever it is."
+REPORT pool (14): "The result is only as good as the evidence behind it." / "State the outcome; show your work." / "A structured report is a gift to the next person in the chain." / "Name the blockers before the blockers name you." / "The human needs the map, not just the destination." / "Criteria in; evidence out." / "If you can't report it clearly, you don't understand it yet." / "The PR is the answer; the report is the reasoning." / "Leave breadcrumbs: someone will need to retrace this." / "End with the truth, whatever it is." / "A metric unrecorded is a lesson unlearned." / "Say what shipped, what slipped, and why." / "The next operator reads what you leave behind." / "End with evidence, not optimism."
 
 Quote selection rule (same deterministic formula as other commands): let N = number of characters in
 task-id; let stageOffset = the stage offset printed in the banner above (1–9); let rework_round =
@@ -175,10 +175,13 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       ci_conclusion:       none
       red_reason:          none
       tier:                pending
+      panel_model:         pending
       reviewers:           0
       arbiter:             none
+      arbiter_trigger:     none
       replan_bounced:      no
       budget_state:        ok
+      override:            none
       <!-- STATE:END -->
 
       ## Done so far
@@ -290,9 +293,11 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       Find the Confidence row. If the planner's Confidence score is ≤ 3 (ambiguous,
       underspecified, or out-of-scope):
       RELAXED in auto mode (Override Policy) — do NOT abort. Record
-      `low planner confidence (<score>) — proceeding under override` under `## Done so far`, set a
-      flag to add the `needs-human` label at SHIP (step 8c), and CONTINUE. The diff gate's RED test +
-      CI veto + blind panel remain the safety net for an under-specified task.
+      `low planner confidence (<score>) — proceeding under override` under `## Done so far`, append
+      `low-confidence` to the `override:` field in state.md (the metric reference for this relaxation;
+      it is comma-joined if more relaxations fire later), set a flag to add the `needs-human` label at
+      SHIP (step 8c), and CONTINUE. The diff gate's RED test + CI veto + blind panel remain the safety
+      net for an under-specified task.
       (Previously: this aborted with a needs-spec report when Confidence ≤ 3.)
       If Confidence > 3: continue normally.
 
@@ -444,21 +449,26 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
 
    d. Scope / forbidden-path guard + RE-TIER. Measure the diff against the branch base with
       `git diff --name-only` and `git diff --stat`; record files-changed and lines-changed
-      (added+deleted).
+      (added+deleted). Each RELAXED guard below that actually fires appends its tag to the `override:`
+      field in state.md (comma-joined) — that field is this step's metric reference, surfaced in the
+      `metrics:` line so a relaxed run is greppable.
       - MIGRATIONS (HARD STOP — Override Policy rule 1) — if any changed file is a DB migration
         (`*/migrations/*`, or the repo's migration directory/format), auto has violated a
         non-negotiable rule: it must NEVER author a migration. Discard the change, write a
         `needs-migration` hand-off report to `feature-research/<task-id>/report.md`, set
-        `stage: aborted`, print it, and STOP.
+        `stage: aborted` (the abort surfaces as `outcome=ABORTED:needs-migration` in the metrics
+        line — the metric reference for the migration guard), print it, and STOP.
       - OTHER SENSITIVE / DEPENDENCY paths (RELAXED — Override Policy) — `.github/`, `*.yml` in
         `.github/`, CI config, `*.lock`, `package-lock.json`, `yarn.lock`, `Pipfile.lock`, dependency
         manifests, or secrets-like paths (`.env`, `*.pem`, `*.key`): auto MAY change these when the
         task requires it. Attach the `needs-human` label as a heads-up AND force `tier: critical`
-        (extra scrutiny), record the flagged paths — but do NOT abort and do NOT fail the gate.
+        (extra scrutiny), record the flagged paths, append `sensitive-paths` to `override:` — but do
+        NOT abort and do NOT fail the gate.
       - SCOPE (RELAXED — Override Policy) — if scope_paths was provided and changed files fall outside
-        it: record the out-of-scope files; do NOT fail the gate.
+        it: record the out-of-scope files, append `scope` to `override:`; do NOT fail the gate.
       - RUNAWAY (RELAXED — Override Policy) — if the diff exceeds 200 lines OR 20 files: record the
-        size as a NOTE; do NOT fail the gate (the panel + CI still judge the diff on merit).
+        size as a NOTE, append `runaway` to `override:`; do NOT fail the gate (the panel + CI still
+        judge the diff on merit).
       - RE-TIER on actual diff size, taking the MAX with the current tier (tier only escalates):
           · diff LARGE (≥150 lines OR ≥8 files) → at least HARD
           · diff SMALL (≤40 lines AND ≤2 files) → does NOT lower the tier (max rule)
@@ -497,7 +507,9 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       tiers has real blast radius and a stronger reviewer earns its cost there. The arbiter ALWAYS
       runs at the reviewer default (opus/xhigh) regardless of tier. If no override is available, all
       panelists run at the reviewer default — model tiering is a cost optimization, not a correctness
-      requirement.
+      requirement. Record the model the panel actually ran on as `panel_model: <sonnet|opus>` in
+      state.md (`opus` when no override is available and all panelists fell back to the default) — this
+      is step 7f's metric reference, surfaced in the `metrics:` line.
       Collect each panelist's `VERDICT` + `FINDINGS` from its reply; record one
       `- diff_vote_<lens>: <verdict> (<findings>)` line under `## Done so far`.
 
@@ -505,13 +517,16 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       here). Count a `fix_first` as a refute. The arbiter is the opus quality gate over the panel — it
       runs on every outcome EXCEPT a unanimous refute:
         - SPLIT — the panel is NOT unanimous (a mix of ship and fix_first) → arbiter runs to resolve
-          the contested findings.
+          the contested findings. Set `arbiter_trigger: split` in state.md.
         - UNANIMOUS SHIP — all panelists ship → the arbiter ALWAYS runs as a final opus sign-off over
           the panel. It does NOT rubber-stamp: it independently re-reviews the diff and tries to find
           the one objection the panel missed. This is the safety net for a panel that agreed too
-          easily — especially a cheaper sonnet panel on a trivial/normal tier.
-        - UNANIMOUS REFUTE — all panelists fix_first → gate FAILS, no arbiter (nothing to debate) →
-          rework (7h).
+          easily — especially a cheaper sonnet panel on a trivial/normal tier. Set
+          `arbiter_trigger: unanimous-ship` (or `critical` when the tier is critical) in state.md.
+        - UNANIMOUS REFUTE — all panelists fix_first → gate FAILS, no arbiter runs (nothing to debate)
+          → set `arbiter_trigger: none` and go to rework (7h).
+      (`arbiter_trigger` is step 7g's metric reference — it records WHY the arbiter ran, surfaced in
+      the `metrics:` line — distinct from `arbiter`, which records its verdict.)
       When the arbiter runs: invoke ONE **reviewer** subagent as the ARBITER (read-only; reviewer
       default opus/xhigh), given the diff + `plan.md` + task + ALL panel review files. Frame it:
         "You are the ARBITER. Either the panel split, this is a critical task, or the panel
@@ -589,7 +604,7 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       5. `<details>Audit & risks</details>` — collapse the long tail: audit.md summary (files
          changed), residual risks, labels applied, links to plan.md / audit.md, and the
          machine-greppable metrics line:
-         `metrics: tier=<t> reviewers=<n> arbiter=<v> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> outcome=SHIP`.
+         `metrics: tier=<t> panel_model=<m> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> outcome=SHIP`.
 
       Write the body to a temp file and use `gh pr create --body-file` (cleaner than inline quoting).
       For a multi-repo run, the PRIMARY repo's PR carries the full body plus a `Companion PRs:` list;
@@ -629,8 +644,9 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       task_id:      <task-id>
       pr_url:       <url or "see printed PR body above">
       branch:       <branch>
-      tier:         <trivial|normal|hard|critical>
-      reviewers:    <n>   arbiter: <ship|fix_first|none>
+      tier:         <trivial|normal|hard|critical>   panel_model: <sonnet|opus>
+      reviewers:    <n>   arbiter: <ship|fix_first|none> (trigger: <split|unanimous-ship|critical|none>)
+      override:     <comma-joined relaxations applied (low-confidence,scope,runaway,sensitive-paths), or none>
       rework_rounds: <n>   replan_bounced: <yes|no>
       plan_gate:    <clear | skipped-trivial | rejected>
       diff_panel:   <pass>  (votes: correctness/regressions+security/plan-match)
@@ -642,7 +658,7 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
         - <criterion 2> → …
       residual_risks:
         - <low criteria_confidence, CI in-tree fallback, needs-human flags, or "none">
-      metrics: tier=<t> reviewers=<n> arbiter=<v> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> outcome=SHIP
+      metrics: tier=<t> panel_model=<m> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> outcome=SHIP
       ```
       On abort path, print the report.md contents instead, clearly headed:
       ```
@@ -650,5 +666,5 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       status: ABORTED
       reason: <reason>
       report: feature-research/<task-id>/report.md (scratch retained)
-      metrics: tier=<t> reviewers=<n> arbiter=<v> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> outcome=ABORTED:<reason>
+      metrics: tier=<t> panel_model=<m> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> outcome=ABORTED:<reason>
       ```
