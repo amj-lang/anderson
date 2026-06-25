@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.13.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.14.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -435,6 +435,14 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.14.0** — **Auto mode: metric references for every new behavior + bigger quote pools.**
+  - **Observability** — the `metrics:` line + state.md gained `panel_model`, `arbiter_trigger`, and
+    `override`, so each 0.13.0 behavior is greppable (which model the panel ran on, why the arbiter
+    fired, which soft guardrails were relaxed; the migration hard-stop surfaces as
+    `outcome=ABORTED:needs-migration`). Extended in all three metrics-emit sites + the REPORT block.
+  - **More banner quotes** — every persona's quote pool expanded: auto-mode stages 10 → 14, gated
+    commands 20 → 24 (IMPLEMENT/DIFF pools kept byte-identical across `approve-plan.md` + `rework.md`;
+    each `(M)` label re-synced to its actual count, which the deterministic selector reads).
 - **0.13.0** — **Auto mode: operator override policy + tiered diff panel + always-on arbiter.**
   - **Override policy (operator opt-in)** — auto pushes through the *soft* guardrails to finish the
     task (low planner confidence, scope/runaway caps, sensitive non-migration paths now attach a
@@ -447,11 +455,6 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
     every unanimous ship (final sign-off, independent re-review — not a rubber-stamp); only a
     unanimous refute skips it. Closes the gap where a panel that agreed too easily could ship a
     subtly-wrong diff. Gate: PASS iff arbiter `ship`; FAIL on arbiter `fix_first` or unanimous refute.
-  - **Observability** — the `metrics:` line + state.md gained `panel_model`, `arbiter_trigger`, and
-    `override`, so each new behavior is greppable (which model the panel ran on, why the arbiter fired,
-    which soft guardrails were relaxed; the migration hard-stop surfaces as `outcome=ABORTED:needs-migration`).
-  - **More banner quotes** — every persona's quote pool expanded: auto-mode stages 10 → 14, gated
-    commands 20 → 24 (IMPLEMENT/DIFF pools kept byte-identical across `approve-plan.md` + `rework.md`).
   - **Docs** — full Commands reference + a full auto-mode pipeline section in the root README; the
     "what replaces the human gates" detail, three-modes section, and override policy in this README.
 - **0.12.0** — **Auto mode: PR body leads with the validated plan + multi-repo handling.**
