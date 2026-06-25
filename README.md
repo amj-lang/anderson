@@ -35,6 +35,49 @@ plan ─▶ grill ─▶ plan_review ──[ YOU ]──▶ implement ─▶ dif
 
 `regrill` loops plan-review back to **grill**; `fix_first` loops the implementer (capped by `max_iterations`). Both gates halt unconditionally, even on a `ship` verdict.
 
+## auto mode — the autonomous pipeline
+
+`/anderson:auto <task-id> <title> [body|@taskspec-file]` runs the **same four subagents end-to-end with no human halts**. The two interactive gates are replaced by independent adversarial agent panels plus an objective CI gate; it produces a **draft PR** for you to merge. Experimental — review the PR carefully.
+
+```
+ingest ─▶ baseline ─▶ plan ─▶ plan-gate ─▶ RED ─▶ implement ─▶ diff-gate ──▶ ship ─▶ report
+ lock      green       opus    1 reviewer   freeze   sonnet     CI+panel+      draft    metrics
+           tree                (skip triv)  test              arbiter        PR
+                                                     ▲              │ rework (bounded)
+                                                     └──────────────┘
+```
+
+|     | Stage        | Persona         | Model · effort                          | What happens |
+|-----|--------------|-----------------|-----------------------------------------|--------------|
+| 📥  | `ingest`     | THE OPERATOR    | —                                       | normalize the TaskSpec, derive acceptance criteria, acquire a run-lock on `task-id` |
+| 🛡  | `baseline`   | THE GUARDIAN    | —                                       | `git fetch`, isolate a worktree, cut a branch, run the suite — **must be green** (red baseline → abort) |
+| 🏛  | `plan`       | THE ARCHITECT   | opus · high                             | draft `plan.md`; confidence gate; route a difficulty **tier** (trivial/normal/hard/critical) |
+| 🔮  | `plan-gate`  | THE ORACLE      | opus · xhigh                            | criteria-coverage check + **one** plan-reviewer (skipped on a trivial tier) |
+| 🧪  | `RED`        | THE SABOTEUR    | —                                       | write a failing test for the criteria, confirm it fails on an **assertion** (not a load error), then content-hash **freeze** it |
+| 🟢  | `implement`  | NEO             | sonnet · medium                         | make the red test green + `audit.md`; implementer self-reviews first |
+| 🕴  | `diff-gate`  | AGENT SMITH     | panel sonnet/opus · xhigh · arbiter opus · xhigh | **CI veto** (red build short-circuits) → tier-sized **blind panel** (1/2/3) → **opus arbiter** backstop |
+| 🔑  | `ship`       | THE ONE         | —                                       | squash to one clean commit, push the branch, open a **draft** PR (never auto-merge) |
+| 📨  | `report`     | THE MESSENGER   | —                                       | structured terminal result + a machine-greppable `metrics:` line |
+
+**What replaces the two human gates** — never self-approval (the maker never grades its own homework):
+
+| Replaces | Mechanism | Model · effort | Directive |
+|----------|-----------|----------------|-----------|
+| *both gates, objective* | **CI veto** — GitHub Actions run, or the in-tree suite as fallback | — | runs FIRST; a red build/suite fails the gate **before a single reviewer token is spent** |
+| **plan gate** | criteria check + **one plan-reviewer** (skip trivial) | opus · xhigh | refute the plan; map every criterion to a step; default reject |
+| **diff gate** | **tier-sized blind panel** — 1/2/3 reviewers, parallel | **sonnet** (trivial/normal) · **opus** (hard/critical) · xhigh | each judges ONE lens — correctness · regressions+security · plan-match — from the diff+plan only, blind to `audit.md` and each other |
+| **diff arbiter** | **one reviewer**, runs on every split **and** every unanimous ship (skipped only on a unanimous refute) | opus · xhigh | resolve on merit, not headcount; on a clean ship, re-review rather than rubber-stamp; forced `## Options considered` (+/−) table |
+
+Plus:
+
+- **Override policy (operator opt-in).** auto pushes through the soft guardrails to *finish the task* (low planner confidence, scope/runaway caps, sensitive non-migration paths). **Two hard rules never bend:** it **never authors or applies a migration** (hard stop + hand-off) and **never force-pushes any branch but its own** `anderson/auto/*` (squash-to-clean on its own branch only).
+- **Difficulty routing.** A tier from the plan's Scorecard, re-derived from the actual diff size (escalate-only), sizes the plan gate, the panel size, the panel model, and the arbiter — so a one-line fix doesn't pay for a 3-opus panel.
+- **Verification hardening.** RED red-for-right-reason, content-hash tamper guard, full-suite-no-new-failures vs baseline, flake re-runs, and blind reviewers.
+- **Safety rails.** Draft PR only; branch only (its own worktree is the sandbox); baseline-green precondition; dependency/secret-path edits flagged `needs-human`.
+- **Terminal states.** SHIP (`stage: done`, draft PR opened) or abort (`stage: aborted` + a structured `feature-research/<task-id>/report.md`).
+
+Full operator detail: **[plugins/anderson/README.md](plugins/anderson/README.md)** (auto mode) and the spec at **[plugins/anderson/docs/auto-mode.md](plugins/anderson/docs/auto-mode.md)**.
+
 ## Quickstart
 
 ```
@@ -45,6 +88,22 @@ plan ─▶ grill ─▶ plan_review ──[ YOU ]──▶ implement ─▶ dif
 ```
 
 Drive the gates in plain text — "approved, go" / "ship it" / "rework the blockers" — or with `/anderson:approve-plan`, `:approve-diff`, `:rework`, `:status`. Run `/anderson:demo` for a zero-token dry-run of the full pipeline.
+
+## Commands
+
+All commands are namespaced `/anderson:<command>` — bare `/anderson` does not resolve. They take **positional arguments, no flags**: the first word is the `<slug>` / `<task-id>` (the on-disk state-dir key), the rest is the goal/title. Every command just reads the same `feature-research/<slug>/state.md`, so once a flow is running you can also drive it in plain text ("approved, go" / "ship it" / "rework the blockers").
+
+| Command | Invoke | What it does | When to use |
+|---------|--------|--------------|-------------|
+| `start` | `/anderson:start <slug> <goal>` | **Entry point** (gated). Seeds state, plans, **grills you** one question at a time, plan-reviews. Halts at 🛑 Gate 1. | Begin any gated task. |
+| `approve-plan` | `/anderson:approve-plan <slug>` | Pass Gate 1 → implement + independent diff-review. Halts at 🛑 Gate 2. | After you've read `plan.md` + `## 🔭 Review`. |
+| `approve-diff` | `/anderson:approve-diff <slug>` | Pass Gate 2 = **SHIP**: branch + commit + push + PR (all guarded), clean scratch. Never force-pushes. | After you've read the diff + review. |
+| `rework` | `/anderson:rework <slug>` | Loop the implementer on the "Still open" blockers only, then re-review. Back to Gate 2. Bounded by `max_iterations`. | Diff review returned `fix_first`. |
+| `status` | `/anderson:status <slug>` | Dashboard: stage, next agent + model/effort, both verdicts, iteration vs max, model-override check. Read-only. | Check where a run is, or resume later. |
+| `demo` | `/anderson:demo` | Zero-token dry-run: prints every stage banner + both gate lines. No agents, no files. | Preview the UX before a real run. |
+| `auto` | `/anderson:auto <task-id> <title> [body\|@file]` | **Autonomous** end-to-end → draft PR, no human gates (see [auto mode](#auto-mode--the-autonomous-pipeline)). `body` is optional inline text or `@path` to a TaskSpec file. | Well-scoped, unattended fixes you'll review at the PR. |
+
+**Our suggestions.** First-timers: run `/anderson:demo` to see the whole flow for free. For everyday work drive the gated loop `start → approve-plan → approve-diff` (with `rework` between gates as needed) — the two human gates are the point. Reach for `auto` only when the task is well-scoped **and** the suite is green; always review its draft PR. For CI / walk-away runs use the flag-driven headless runner `bin/feature.sh` (`start` / `--approve-plan` / `--approve-diff` / `--rework`) — see [Headless / CI](#headless--ci).
 
 ## Requirements
 
