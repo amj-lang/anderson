@@ -491,34 +491,46 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
          `feature-research/<task-id>/review-<lens>-r<round>.md` (do NOT touch plan.md or state.md).
          End your final message with exactly two lines: `VERDICT: ship|fix_first` and
          `FINDINGS: <count of blocking findings>`."
-      MODEL TIERING (where the harness supports a per-invocation model override): run the panelists on
-      a faster/cheaper tier (sonnet) and the arbiter on the reviewer default (opus/xhigh). If no
-      override is available, panelists run at the reviewer default — tiering is a cost optimization,
-      not a correctness requirement.
+      MODEL TIERING (where the harness supports a per-invocation model override): size the panelist
+      model to the tier — run TRIVIAL and NORMAL panelists on a faster/cheaper tier (sonnet), and run
+      HARD and CRITICAL panelists on the reviewer default (opus/xhigh), since a missed bug at those
+      tiers has real blast radius and a stronger reviewer earns its cost there. The arbiter ALWAYS
+      runs at the reviewer default (opus/xhigh) regardless of tier. If no override is available, all
+      panelists run at the reviewer default — model tiering is a cost optimization, not a correctness
+      requirement.
       Collect each panelist's `VERDICT` + `FINDINGS` from its reply; record one
       `- diff_vote_<lens>: <verdict> (<findings>)` line under `## Done so far`.
 
    g. Resolve the gate (CI already passed — a red build short-circuited at 7c-iv and never reaches
-      here). Count a `fix_first` as a refute. Decide whether the ARBITER runs:
-        - SPLIT — the panel is NOT unanimous (a mix of ship and fix_first) → arbiter runs.
-        - UNANIMOUS SHIP — all panelists ship → gate PASSES, NO arbiter (the token saver), EXCEPT
-          `tier: critical`, where the arbiter ALWAYS runs even on unanimous ship (the safety margin).
+      here). Count a `fix_first` as a refute. The arbiter is the opus quality gate over the panel — it
+      runs on every outcome EXCEPT a unanimous refute:
+        - SPLIT — the panel is NOT unanimous (a mix of ship and fix_first) → arbiter runs to resolve
+          the contested findings.
+        - UNANIMOUS SHIP — all panelists ship → the arbiter ALWAYS runs as a final opus sign-off over
+          the panel. It does NOT rubber-stamp: it independently re-reviews the diff and tries to find
+          the one objection the panel missed. This is the safety net for a panel that agreed too
+          easily — especially a cheaper sonnet panel on a trivial/normal tier.
         - UNANIMOUS REFUTE — all panelists fix_first → gate FAILS, no arbiter (nothing to debate) →
           rework (7h).
       When the arbiter runs: invoke ONE **reviewer** subagent as the ARBITER (read-only; reviewer
       default opus/xhigh), given the diff + `plan.md` + task + ALL panel review files. Frame it:
-        "You are the ARBITER — the panel split, or this is a critical task. Read every review file and
-         the diff. Resolve each CONTESTED finding ON MERIT, not on headcount: a lone correct reviewer
-         outranks two wrong ones. You MUST emit an `## Options considered` table BEFORE your verdict:
+        "You are the ARBITER. Either the panel split, this is a critical task, or the panel
+         unanimously shipped and you are the final opus sign-off. Read every review file and the diff.
+         If there are contested findings, resolve each ON MERIT, not on headcount: a lone correct
+         reviewer outranks two wrong ones. If the panel was unanimous, do NOT rubber-stamp —
+         independently re-review the diff and actively look for the strongest objection the panel
+         missed. You MUST emit an `## Options considered` table BEFORE your verdict:
            | Option | + (pro) | − (con) | Score | Verdict |
-         with AT LEAST two rows (e.g. `ship as-is`, `rework finding X`) — a single-row table is a
-         defect; redo it. Every rejected option must state why it is worse than the chosen one.
-         Default to reject if uncertain. End with `ARBITER: ship|fix_first`."
-      Record `arbiter: <ship|fix_first|none>`.
-      GATE PASSES if: (arbiter `ship` when it ran) OR (unanimous ship when it did not) — AND the
-      tamper guard passed. (Scope / forbidden / dependency / runaway findings only attach the
+         with AT LEAST two rows (e.g. `ship as-is`, `rework finding X` — on a clean unanimous ship the
+         second row is the strongest objection you can construct, even if you ultimately reject it) — a
+         single-row table is a defect; redo it. Every rejected option must state why it is worse than
+         the chosen one. Default to reject if uncertain. End with `ARBITER: ship|fix_first`."
+      Record `arbiter: <ship|fix_first|none>` (`none` only on a unanimous refute, where no arbiter ran).
+      GATE PASSES if: the arbiter returned `ship` (it runs on every split and every unanimous ship) —
+      AND the tamper guard passed. (Scope / forbidden / dependency / runaway findings only attach the
       `needs-human` label or a note in auto mode — see Override Policy — they do NOT fail the gate.)
-      GATE FAILS → rework (7h) if: arbiter `fix_first`, OR unanimous refute.
+      GATE FAILS → rework (7h) if: the arbiter returned `fix_first`, OR the panel unanimously refuted
+      (no arbiter ran).
       Set `diff_panel: <pass | killed-by-arbiter | killed-by-vote>`.
       Consolidate the per-lens review files (+ the arbiter's, if any) into `plan.md`'s `## 🔭 Review`
       as `### Diff review — <lens> (round <n>)` subsections — the durable PR record.

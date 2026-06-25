@@ -24,12 +24,14 @@ never self-approval (the maker never grades its own homework, which is what infl
 |----------|-----------|----------------|----------------------|
 | *both gates — objective* | **CI veto** — GitHub Actions run, or the in-tree suite as fallback | — *(no model)* | Runs FIRST; a red build/suite fails the gate **before a single reviewer token is spent** — the one gate the model can't argue past. |
 | **Gate 1 — plan** *(was: human grill + approve)* | criteria-coverage check + **one `plan-reviewer`** (skipped for a trivial tier) | **opus · xhigh** | Refute the plan — find why it fails or misses an acceptance criterion; default to reject if uncertain; fix inline. |
-| **Gate 2 — diff** *(was: human review)* | **tier-sized blind `reviewer` panel** — 1 / 2 / 3 by difficulty, run in parallel | **sonnet · xhigh** \* | Each judges ONE lens — *correctness* · *regressions+security* · *plan-match* — from the diff + plan only, **blind** to `audit.md` and to each other; refute, default reject. |
-| **Gate 2 — tie-break** | **one `reviewer` as the arbiter** — runs only on a split panel, or always on a critical tier | **opus · xhigh** | Resolve contested findings **on merit, not headcount**; justify the call in a required `## Options considered` (+/−) table. |
+| **Gate 2 — diff** *(was: human review)* | **tier-sized blind `reviewer` panel** — 1 / 2 / 3 by difficulty, run in parallel | **sonnet** (trivial/normal) · **opus** (hard/critical) · xhigh \* | Each judges ONE lens — *correctness* · *regressions+security* · *plan-match* — from the diff + plan only, **blind** to `audit.md` and to each other; refute, default reject. |
+| **Gate 2 — arbiter** | **one `reviewer` as the arbiter** — runs on every split AND every unanimous *ship* (final sign-off); skipped only on a unanimous refute | **opus · xhigh** | Resolve contested findings **on merit, not headcount** (a lone correct reviewer beats two wrong ones); on a clean ship, re-review independently rather than rubber-stamp. Justify the call in a required `## Options considered` (+/−) table. |
 
-\* Panelists take a **sonnet** model override as a cost optimization (effort stays `xhigh` from the
-`reviewer` frontmatter); they fall back to the reviewer default **opus · xhigh** when no per-agent
-override is available. The arbiter always runs at **opus · xhigh**.
+\* Panel model is **tiered**: trivial/normal panels take a **sonnet** override as a cost optimization
+(a one-line fix doesn't pay for opus reviewers); hard/critical panels run on the reviewer default
+**opus · xhigh**, where a missed bug has real blast radius. Effort stays `xhigh` from the `reviewer`
+frontmatter either way; if no per-agent model override is available, all panelists run at opus · xhigh.
+The arbiter always runs at **opus · xhigh** and backstops every panel that doesn't unanimously refute.
 
 Two non-gate mechanisms make those verdicts trustworthy: the **RED test** (frozen, must fail on a
 real assertion — *red-for-right-reason*) and the **test-tamper guard** (content-hash check at the diff
@@ -62,10 +64,14 @@ gate). They are the executable ground truth the panel reasons against.
   any reviewer tokens are spent**. Falls back to the in-tree suite when CI isn't available.
 - **Tier-sized blind diff panel (step 7f).** 1 / 2 / 3 `reviewer`s by tier (correctness ·
   regressions+security · plan-match), run **in parallel** (each writes its own file + returns a
-  verdict, so no shared-state collision), blind to `audit.md` and to each other.
-- **Arbiter on split (step 7g).** A unanimous panel decides directly (the token saver); a split
-  invokes one opus arbiter that rules **on merit, not headcount**, and must justify its call in a
-  required `## Options considered` (+/−) table. Critical tier always runs the arbiter.
+  verdict, so no shared-state collision), blind to `audit.md` and to each other. **Panel model is
+  tiered:** trivial/normal panels run on **sonnet** (cost), hard/critical on **opus** (a missed bug
+  there has real blast radius).
+- **Arbiter always backstops the panel (step 7g).** One **opus** arbiter runs on every outcome except
+  a unanimous refute: it resolves a split **on merit, not headcount**, and on a unanimous *ship* it
+  runs as a final opus sign-off that independently re-reviews the diff rather than rubber-stamping.
+  It must justify its call in a required `## Options considered` (+/−) table. Only a unanimous refute
+  skips it (nothing to debate → straight to rework).
 - **Red-for-right-reason (step 5).** The RED test must fail on an *assertion*; an import/syntax/
   collection error (a hollow red) triggers one bounded rewrite, then aborts.
 - **Calibration metrics.** Every run emits a one-line `metrics:` record (tier · reviewers · arbiter ·
