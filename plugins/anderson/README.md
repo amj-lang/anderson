@@ -17,11 +17,19 @@ existing subagents unchanged. The only human action is merging the resulting dra
 
 - **Non-halting:** never prints a GATE line; never waits for you. Terminal states are SHIP (draft PR
   opened, `stage: done`) or abort (`stage: aborted` with a structured report in `feature-research/<task-id>/report.md`).
-- **Draft PR only.** Auto-merge is never performed. Branch only — never pushes to the default branch.
+- **Draft PR only; its own branch is the sandbox.** Auto-merge is never performed and it never pushes
+  to the default branch. Within its own `anderson/auto/*` branch it may push, update the PR
+  description, and **squash its commits into one clean commit** for tidy releases (force-push with
+  `--force-with-lease` is allowed *only* on its own branch).
 - **Baseline-green precondition.** If the test suite is red before any change, the run aborts.
 - **Test-tamper guard.** The RED test is content-hash frozen at step 5; a mismatch at the diff gate aborts.
-- **Scope/forbidden-path guard.** Changes to `.github/`, CI config, lockfiles, migrations trigger a
-  `needs-human` label. Manifest/dependency changes always flag the PR.
+- **Bypass policy (operator override).** auto pushes through the SOFT guardrails to finish the task:
+  low planner confidence, scope / runaway caps, and sensitive non-migration paths (`.github/`, CI
+  config, lockfiles, dependency manifests) no longer abort — they attach a `needs-human` heads-up
+  label instead. **Two hard rules never bend:** it **never authors or applies a migration** (hard
+  stop + hand-off) and **never force-pushes any branch but its own** without consent. The verification
+  engine — RED test, CI veto, blind panel, arbiter, tamper guard — is unchanged. See the AUTO-MODE
+  OVERRIDE POLICY block in `commands/auto.md`.
 - **Thrash breaker + replan bounce.** If findings don't shrink (or recur) across rework rounds, the
   run bounces back to PLAN **once** for a different approach, then escalates to `needs-human`.
 - **Difficulty routing (step 3b).** A tier is computed from the plan's Scorecard (Risk / Coupling /

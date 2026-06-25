@@ -16,6 +16,12 @@
 > - **Rework** re-enters at the panel with a per-round reset and a one-time **replan bounce** before
 >   `needs-human`. **Red-for-right-reason** is enforced at gate 5.
 > - Every run emits a `metrics:` line for threshold calibration.
+> - **Auto-mode override policy (operator opt-in)** — auto pushes through the SOFT guardrails (low
+>   planner confidence, scope / runaway caps, sensitive non-migration paths) instead of aborting, so it
+>   finishes the task unattended. Two hard rules never bend: never author/apply a migration (hard stop
+>   + hand-off), never force-push outside its own `anderson/auto/*` branch (squash-to-clean on its own
+>   branch is allowed). The verification engine is unchanged. See the AUTO-MODE OVERRIDE POLICY block
+>   in `commands/auto.md`.
 > Source adapters remain out of scope.
 
 ## Summary
