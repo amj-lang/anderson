@@ -15,6 +15,26 @@ A gated maker/checker loop: one task at a time, per-stage model+effort, state on
 no human halts** — plan → RED test → implement → diff-review → draft PR. It reuses the four
 existing subagents unchanged. The only human action is merging the resulting draft PR.
 
+### What replaces the two human gates
+
+In gated mode *you* answer the gates. In `auto` mode independent agents + objective CI answer them —
+never self-approval (the maker never grades its own homework, which is what inflates confident-wrong fixes):
+
+| Replaces | Mechanism | Model · effort | Directive (one line) |
+|----------|-----------|----------------|----------------------|
+| *both gates — objective* | **CI veto** — GitHub Actions run, or the in-tree suite as fallback | — *(no model)* | Runs FIRST; a red build/suite fails the gate **before a single reviewer token is spent** — the one gate the model can't argue past. |
+| **Gate 1 — plan** *(was: human grill + approve)* | criteria-coverage check + **one `plan-reviewer`** (skipped for a trivial tier) | **opus · xhigh** | Refute the plan — find why it fails or misses an acceptance criterion; default to reject if uncertain; fix inline. |
+| **Gate 2 — diff** *(was: human review)* | **tier-sized blind `reviewer` panel** — 1 / 2 / 3 by difficulty, run in parallel | **sonnet · xhigh** \* | Each judges ONE lens — *correctness* · *regressions+security* · *plan-match* — from the diff + plan only, **blind** to `audit.md` and to each other; refute, default reject. |
+| **Gate 2 — tie-break** | **one `reviewer` as the arbiter** — runs only on a split panel, or always on a critical tier | **opus · xhigh** | Resolve contested findings **on merit, not headcount**; justify the call in a required `## Options considered` (+/−) table. |
+
+\* Panelists take a **sonnet** model override as a cost optimization (effort stays `xhigh` from the
+`reviewer` frontmatter); they fall back to the reviewer default **opus · xhigh** when no per-agent
+override is available. The arbiter always runs at **opus · xhigh**.
+
+Two non-gate mechanisms make those verdicts trustworthy: the **RED test** (frozen, must fail on a
+real assertion — *red-for-right-reason*) and the **test-tamper guard** (content-hash check at the diff
+gate). They are the executable ground truth the panel reasons against.
+
 - **Non-halting:** never prints a GATE line; never waits for you. Terminal states are SHIP (draft PR
   opened, `stage: done`) or abort (`stage: aborted` with a structured report in `feature-research/<task-id>/report.md`).
 - **Draft PR only; its own branch is the sandbox.** Auto-merge is never performed and it never pushes
