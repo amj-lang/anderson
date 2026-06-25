@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.12.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.13.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -433,6 +433,20 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.13.0** — **Auto mode: operator override policy + tiered diff panel + always-on arbiter.**
+  - **Override policy (operator opt-in)** — auto pushes through the *soft* guardrails to finish the
+    task (low planner confidence, scope/runaway caps, sensitive non-migration paths now attach a
+    `needs-human` heads-up instead of aborting). **Two hard rules never bend:** never authors/applies
+    a migration (hard stop + hand-off), never force-pushes any branch but its own `anderson/auto/*`
+    (squash-to-clean on its own branch only). The verification engine is unchanged.
+  - **Diff panel model is tier-sized (step 7f)** — trivial/normal panels run on sonnet, hard/critical
+    on opus (a missed bug at those tiers has real blast radius).
+  - **Arbiter backstops every panel (step 7g)** — the opus arbiter now runs on every split **and**
+    every unanimous ship (final sign-off, independent re-review — not a rubber-stamp); only a
+    unanimous refute skips it. Closes the gap where a panel that agreed too easily could ship a
+    subtly-wrong diff. Gate: PASS iff arbiter `ship`; FAIL on arbiter `fix_first` or unanimous refute.
+  - **Docs** — full Commands reference + a full auto-mode pipeline section in the root README; the
+    "what replaces the human gates" detail, three-modes section, and override policy in this README.
 - **0.12.0** — **Auto mode: PR body leads with the validated plan + multi-repo handling.**
   - **PR body restructured (step 8d)** — opens with the source-ticket link (TaskSpec `source_url`,
     rendered only when present — never fabricated) + a short *reviewed-and-validated* plan summary
