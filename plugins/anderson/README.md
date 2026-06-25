@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.12.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.13.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -15,13 +15,43 @@ A gated maker/checker loop: one task at a time, per-stage model+effort, state on
 no human halts** — plan → RED test → implement → diff-review → draft PR. It reuses the four
 existing subagents unchanged. The only human action is merging the resulting draft PR.
 
+### What replaces the two human gates
+
+In gated mode *you* answer the gates. In `auto` mode independent agents + objective CI answer them —
+never self-approval (the maker never grades its own homework, which is what inflates confident-wrong fixes):
+
+| Replaces | Mechanism | Model · effort | Directive (one line) |
+|----------|-----------|----------------|----------------------|
+| *both gates — objective* | **CI veto** — GitHub Actions run, or the in-tree suite as fallback | — *(no model)* | Runs FIRST; a red build/suite fails the gate **before a single reviewer token is spent** — the one gate the model can't argue past. |
+| **Gate 1 — plan** *(was: human grill + approve)* | criteria-coverage check + **one `plan-reviewer`** (skipped for a trivial tier) | **opus · xhigh** | Refute the plan — find why it fails or misses an acceptance criterion; default to reject if uncertain; fix inline. |
+| **Gate 2 — diff** *(was: human review)* | **tier-sized blind `reviewer` panel** — 1 / 2 / 3 by difficulty, run in parallel | **sonnet** (trivial/normal) · **opus** (hard/critical) · xhigh \* | Each judges ONE lens — *correctness* · *regressions+security* · *plan-match* — from the diff + plan only, **blind** to `audit.md` and to each other; refute, default reject. |
+| **Gate 2 — arbiter** | **one `reviewer` as the arbiter** — runs on every split AND every unanimous *ship* (final sign-off); skipped only on a unanimous refute | **opus · xhigh** | Resolve contested findings **on merit, not headcount** (a lone correct reviewer beats two wrong ones); on a clean ship, re-review independently rather than rubber-stamp. Justify the call in a required `## Options considered` (+/−) table. |
+
+\* Panel model is **tiered**: trivial/normal panels take a **sonnet** override as a cost optimization
+(a one-line fix doesn't pay for opus reviewers); hard/critical panels run on the reviewer default
+**opus · xhigh**, where a missed bug has real blast radius. Effort stays `xhigh` from the `reviewer`
+frontmatter either way; if no per-agent model override is available, all panelists run at opus · xhigh.
+The arbiter always runs at **opus · xhigh** and backstops every panel that doesn't unanimously refute.
+
+Two non-gate mechanisms make those verdicts trustworthy: the **RED test** (frozen, must fail on a
+real assertion — *red-for-right-reason*) and the **test-tamper guard** (content-hash check at the diff
+gate). They are the executable ground truth the panel reasons against.
+
 - **Non-halting:** never prints a GATE line; never waits for you. Terminal states are SHIP (draft PR
   opened, `stage: done`) or abort (`stage: aborted` with a structured report in `feature-research/<task-id>/report.md`).
-- **Draft PR only.** Auto-merge is never performed. Branch only — never pushes to the default branch.
+- **Draft PR only; its own branch is the sandbox.** Auto-merge is never performed and it never pushes
+  to the default branch. Within its own `anderson/auto/*` branch it may push, update the PR
+  description, and **squash its commits into one clean commit** for tidy releases (force-push with
+  `--force-with-lease` is allowed *only* on its own branch).
 - **Baseline-green precondition.** If the test suite is red before any change, the run aborts.
 - **Test-tamper guard.** The RED test is content-hash frozen at step 5; a mismatch at the diff gate aborts.
-- **Scope/forbidden-path guard.** Changes to `.github/`, CI config, lockfiles, migrations trigger a
-  `needs-human` label. Manifest/dependency changes always flag the PR.
+- **Bypass policy (operator override).** auto pushes through the SOFT guardrails to finish the task:
+  low planner confidence, scope / runaway caps, and sensitive non-migration paths (`.github/`, CI
+  config, lockfiles, dependency manifests) no longer abort — they attach a `needs-human` heads-up
+  label instead. **Two hard rules never bend:** it **never authors or applies a migration** (hard
+  stop + hand-off) and **never force-pushes any branch but its own** without consent. The verification
+  engine — RED test, CI veto, blind panel, arbiter, tamper guard — is unchanged. See the AUTO-MODE
+  OVERRIDE POLICY block in `commands/auto.md`.
 - **Thrash breaker + replan bounce.** If findings don't shrink (or recur) across rework rounds, the
   run bounces back to PLAN **once** for a different approach, then escalates to `needs-human`.
 - **Difficulty routing (step 3b).** A tier is computed from the plan's Scorecard (Risk / Coupling /
@@ -34,10 +64,14 @@ existing subagents unchanged. The only human action is merging the resulting dra
   any reviewer tokens are spent**. Falls back to the in-tree suite when CI isn't available.
 - **Tier-sized blind diff panel (step 7f).** 1 / 2 / 3 `reviewer`s by tier (correctness ·
   regressions+security · plan-match), run **in parallel** (each writes its own file + returns a
-  verdict, so no shared-state collision), blind to `audit.md` and to each other.
-- **Arbiter on split (step 7g).** A unanimous panel decides directly (the token saver); a split
-  invokes one opus arbiter that rules **on merit, not headcount**, and must justify its call in a
-  required `## Options considered` (+/−) table. Critical tier always runs the arbiter.
+  verdict, so no shared-state collision), blind to `audit.md` and to each other. **Panel model is
+  tiered:** trivial/normal panels run on **sonnet** (cost), hard/critical on **opus** (a missed bug
+  there has real blast radius).
+- **Arbiter always backstops the panel (step 7g).** One **opus** arbiter runs on every outcome except
+  a unanimous refute: it resolves a split **on merit, not headcount**, and on a unanimous *ship* it
+  runs as a final opus sign-off that independently re-reviews the diff rather than rubber-stamping.
+  It must justify its call in a required `## Options considered` (+/−) table. Only a unanimous refute
+  skips it (nothing to debate → straight to rework).
 - **Red-for-right-reason (step 5).** The RED test must fail on an *assertion*; an import/syntax/
   collection error (a hollow red) triggers one bounded rewrite, then aborts.
 - **Calibration metrics.** Every run emits a one-line `metrics:` record (tier · reviewers · arbiter ·
@@ -105,6 +139,34 @@ automatically as the pipeline routes to each agent. Both human gates halt
 unconditionally, even on a `ship` verdict.
 
 Agent docs are written to concise 🎯/🛠/✅-style templates.
+
+## The three modes
+
+Same four subagents, same rework loop — three ways to drive them. The only thing that changes is
+**who answers the gates**.
+
+| Mode | Entry | Gates | Who decides | Terminal | Use when |
+|------|-------|-------|-------------|----------|----------|
+| **Gated / interactive** (default) | `/anderson:start` | 🛑 2 human halts | **you** (grill + 2 approvals) | PR (you ship via `:approve-diff`) | you want eyes on the plan and the diff before anything merges |
+| **Autonomous / `auto`** (experimental) | `/anderson:auto` | none — never halts | **panels + CI** (objective ground truth) | **draft PR** or abort + `report.md` | bulk / unattended fixes you'll review at the PR |
+| **Headless / CI** | `bin/feature.sh` | `exit`s at each gate (codes 10/20) | **your CI / Makefile** | PR on `--approve-diff` | scripting, CI, walk-away |
+
+**Gated / interactive** — `plan → grill → plan_review →` 🛑 **Gate 1** `→ implement → diff_review →`
+🛑 **Gate 2** `→ ship`. Both halts are unconditional, even on a `ship` verdict (green ≠ understood).
+Drive the gates with `/anderson:approve-plan`, `:approve-diff`, `:rework`, or plain text. A
+between-gate scheduler (`hooks/`) can auto-chain the non-gate transitions for you — see *Optional —
+autonomous between-gate chaining* below.
+
+**Autonomous / `auto`** — `plan → plan-gate → RED test → implement → diff-gate → draft PR`, no human
+in the loop. The human gates are replaced by a **CI veto** (a red build short-circuits before any
+reviewer tokens) + a **tier-sized blind reviewer panel** + an **arbiter on split**. A difficulty
+*tier* (trivial/normal/hard/critical) sizes the whole harness, so a one-line fix doesn't pay for a
+3-agent panel. Under the **operator override policy** it pushes through soft guardrails to finish the
+task; two hard rules never bend — **never authors a migration**, **never force-pushes outside its own
+branch**. Always opens a **draft PR** (never auto-merges). See *auto mode (experimental)* at the top.
+
+**Headless / CI** — the deterministic `bin/feature.sh`; same pipeline, exits at each gate so it
+composes with CI or a Makefile, and `--approve-diff` ships for real. See *Use it — headless* below.
 
 ## Structure (important)
 
@@ -184,16 +246,15 @@ then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` 
 
 ## Use it — interactive (slash commands, zero setup)
 
-```
-/anderson:start          brief-views  normalize briefs_table.views[] into brief_views_table
-            # START. plan → grill (you harden it) → plan-review, then halts. Read plan.md → "## 🔭 Review" + "## 💥 Blast radius" + "## 📈 Scorecard".
-/anderson:approve-plan  brief-views
-            # implement + diff-review, then halts. Read plan.md ## 🔭 Review AND the diff.
-/anderson:approve-diff  brief-views     # SHIP for real: commit on a branch + push + open PR (guarded), then clean scratch
-/anderson:rework        brief-views     # loop implement on the checker's blocking findings
-/anderson:status        brief-views     # dashboard + model-override check
-/anderson:demo                          # zero-token dry-run of the full pipeline (no subagents launched)
-```
+| Command | What it does | What to expect |
+|---------|--------------|----------------|
+| `/anderson:start <slug> <goal>` | **Entry point** (gated mode). Seeds `state.md`, plans, **grills you** one question at a time, then plan-reviews (edits the plan inline). | Halts at 🛑 **Gate 1**. Read `plan.md` → `## 🔭 Review` + `## 💥 Blast radius` + `## 📈 Scorecard`. |
+| `/anderson:approve-plan <slug>` | Pass **Gate 1**: implement + independent diff-review. | Code + `audit.md` written, review appended. Halts at 🛑 **Gate 2**. Read `## 🔭 Review` AND the diff. |
+| `/anderson:approve-diff <slug>` | Pass **Gate 2** = **SHIP for real**: branch `anderson/<slug>` + commit + push + open PR (all guarded), then clean scratch. | Branch + PR URL, or a local-commit fallback if no remote/`gh`. **Never force-pushes.** |
+| `/anderson:rework <slug>` | Diff review said `fix_first` — loop the implementer on the "Still open" blockers only, then re-review. | Back to 🛑 **Gate 2**. Bounded by `max_iterations`. |
+| `/anderson:status <slug>` | Dashboard / sanity check. | Current stage, next agent + model/effort, both verdicts, iteration vs max, and the `CLAUDE_CODE_SUBAGENT_MODEL` override check. Read-only. |
+| `/anderson:demo` | Zero-token dry-run of the whole pipeline. | All stage banners + both gate lines + ship banner. No agents, no files, no tokens. |
+| `/anderson:auto <id> <title> [body\|@file]` | **Autonomous mode** — no gates: plan → plan-gate → RED test → implement → CI-veto + panel diff-gate → **draft PR**. | Terminal SHIP (draft PR) or abort + `report.md`. Review the PR — auto mode is experimental. |
 
 All commands are **namespaced** `/anderson:<command>` — `/anderson:start`,
 `/anderson:approve-plan`, `:approve-diff`, `:rework`, `:status`. Bare plugin-name
@@ -372,6 +433,20 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.13.0** — **Auto mode: operator override policy + tiered diff panel + always-on arbiter.**
+  - **Override policy (operator opt-in)** — auto pushes through the *soft* guardrails to finish the
+    task (low planner confidence, scope/runaway caps, sensitive non-migration paths now attach a
+    `needs-human` heads-up instead of aborting). **Two hard rules never bend:** never authors/applies
+    a migration (hard stop + hand-off), never force-pushes any branch but its own `anderson/auto/*`
+    (squash-to-clean on its own branch only). The verification engine is unchanged.
+  - **Diff panel model is tier-sized (step 7f)** — trivial/normal panels run on sonnet, hard/critical
+    on opus (a missed bug at those tiers has real blast radius).
+  - **Arbiter backstops every panel (step 7g)** — the opus arbiter now runs on every split **and**
+    every unanimous ship (final sign-off, independent re-review — not a rubber-stamp); only a
+    unanimous refute skips it. Closes the gap where a panel that agreed too easily could ship a
+    subtly-wrong diff. Gate: PASS iff arbiter `ship`; FAIL on arbiter `fix_first` or unanimous refute.
+  - **Docs** — full Commands reference + a full auto-mode pipeline section in the root README; the
+    "what replaces the human gates" detail, three-modes section, and override policy in this README.
 - **0.12.0** — **Auto mode: PR body leads with the validated plan + multi-repo handling.**
   - **PR body restructured (step 8d)** — opens with the source-ticket link (TaskSpec `source_url`,
     rendered only when present — never fabricated) + a short *reviewed-and-validated* plan summary

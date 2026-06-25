@@ -10,12 +10,20 @@
 > - **Plan gate (gate 4) is ONE `plan-reviewer`, not a 3-lens panel** (skipped for a trivial tier).
 >   Plan errors are cheap; rigor is concentrated at the diff gate.
 > - **Diff panel (gate 7) is tier-sized 1/2/3 and runs in PARALLEL** (each reviewer writes its own
->   file + returns a verdict, so no shared-state collision), then an **arbiter** resolves splits on
->   merit with a forced `## Options considered` (+/−) table — instead of a flat majority-vote.
+>   file + returns a verdict, so no shared-state collision). The panel model is tier-sized (sonnet for
+>   trivial/normal, opus for hard/critical), and an **opus arbiter** backstops every panel that doesn't
+>   unanimously refute — resolving splits on merit and signing off unanimous ships — with a forced
+>   `## Options considered` (+/−) table, instead of a flat majority-vote.
 > - **CI veto runs first and short-circuits** a red build before reviewer tokens are spent.
 > - **Rework** re-enters at the panel with a per-round reset and a one-time **replan bounce** before
 >   `needs-human`. **Red-for-right-reason** is enforced at gate 5.
 > - Every run emits a `metrics:` line for threshold calibration.
+> - **Auto-mode override policy (operator opt-in)** — auto pushes through the SOFT guardrails (low
+>   planner confidence, scope / runaway caps, sensitive non-migration paths) instead of aborting, so it
+>   finishes the task unattended. Two hard rules never bend: never author/apply a migration (hard stop
+>   + hand-off), never force-push outside its own `anderson/auto/*` branch (squash-to-clean on its own
+>   branch is allowed). The verification engine is unchanged. See the AUTO-MODE OVERRIDE POLICY block
+>   in `commands/auto.md`.
 > Source adapters remain out of scope.
 
 ## Summary
@@ -166,9 +174,13 @@ Adapters (Linear, GitHub Issues, chat, CLI) are **out of scope for this doc** �
   each other (anchoring kills independence). Run **in parallel** — each writes its own review file and
   returns its verdict, so there is no shared-state collision.
 - Lenses (added in order): **correctness**, **regressions / security**, **does the diff match the plan?**
-- **Arbiter on split** — a unanimous panel decides directly; any split (or a critical tier) invokes
-  one opus arbiter that rules **on merit, not headcount**, justified in a required `## Options
-  considered` (+/−) table. This replaces a flat ≥2/3 majority vote.
+- **Panel model is tiered** — trivial/normal panels run on **sonnet** (cost), hard/critical on **opus**
+  (a missed bug there has real blast radius). Effort is `xhigh` either way.
+- **Arbiter backstops every panel** — one **opus** arbiter runs on every outcome except a unanimous
+  refute: it resolves a split **on merit, not headcount**, and on a unanimous *ship* it runs as a final
+  opus sign-off (independent re-review, no rubber-stamp). Justified in a required `## Options considered`
+  (+/−) table. This replaces a flat ≥2/3 majority vote and the earlier "unanimous ship skips the arbiter"
+  token-saver.
 - **CI is a veto, not a vote** — it runs FIRST and a red build short-circuits before any reviewer
   tokens are spent. The one gate the model cannot talk its way past.
 

@@ -14,6 +14,36 @@ skip a banner; never print two banners back-to-back. Unlike the gated commands, 
 NEVER prints a GATE line and NEVER halts for a human — it self-sequences all 9 steps in one turn.
 Terminal states: SHIP (stage: done, draft PR) or abort (stage: aborted with a structured report).
 
+AUTO-MODE OVERRIDE POLICY (operator opt-in — GOVERNS the steps below; where a later step conflicts,
+THIS section wins). auto mode runs unattended and is expected to FINISH the task, not bail to a human
+for soft guardrails. Its own branch + draft PR are its SANDBOX: inside that PR it may create the
+draft, push to it, update its description, and squash its own commits. It must not reach outside it.
+
+RELAX (do NOT abort or stop the run for these — push through, complete the task, and just NOTE the
+condition under `## Done so far` + in the PR body so the reviewer sees it):
+- Planner confidence ≤ 3 (step 3a) — proceed; record low confidence and add the `needs-human` label
+  at SHIP instead of aborting.
+- Runaway-refactor cap >200 lines / >20 files (step 7d) — proceed; record the size; do NOT fail the gate.
+- scope_paths violations (step 7d) — proceed; note the out-of-scope files; do NOT fail the gate.
+- Sensitive NON-migration paths — `.github/`, CI config, `*.lock`/lockfiles, dependency manifests,
+  `.env`, `*.pem`, `*.key` (step 7d) — auto MAY change these when the task requires it; attach the
+  `needs-human` label as a heads-up but do NOT abort and do NOT fail the gate.
+
+KEEP unchanged (these are the verification engine + cost backstops, NOT blockers — they stay exactly
+as written): baseline-green precondition (step 2); test_cmd resolution incl. needs-spec when it is
+truly un-inferable (verification needs a test command); RED + red-for-right-reason (step 5);
+test-tamper guard (7b); CI veto (7c); blind panel + arbiter (7f/7g); and the thrash breaker / replan
+bounce / max_iterations budget (7h).
+
+NON-NEGOTIABLE HARD RULES (no override, ever):
+1. NEVER author or apply a database migration. If the task requires a schema/data migration, STOP:
+   write NO migration file, write a hand-off report (reason `needs-migration`), set `stage: aborted`,
+   print it, and STOP. This is the one forbidden path that stays a HARD STOP.
+2. NEVER force-push any branch EXCEPT auto's own `anderson/auto/<task-id>-<slug>` branch. A force-push
+   (use `--force-with-lease`) is allowed ONLY on that own branch — e.g. to squash this run's commits
+   into one clean commit for a tidy release history. Force-pushing the default branch, a shared
+   branch, or a human-authored branch requires explicit human consent.
+
 BANNER POOL — auto stages use these Matrix-flavoured banners in the framed `╭─ ⌐■-■` format:
 
 INGEST banner (stage offset 1):
@@ -259,17 +289,12 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
    e. Read `feature-research/<task-id>/plan.md`. Read the `## 📈 Scorecard` section.
       Find the Confidence row. If the planner's Confidence score is ≤ 3 (ambiguous,
       underspecified, or out-of-scope):
-      Write a needs-spec report to `feature-research/<task-id>/report.md`:
-      ```
-      ## Auto-mode abort: needs-spec
-      reason: planner confidence ≤ 3 — task is ambiguous or underspecified
-      task_id: <task-id>
-      branch: <branch>
-      planner_confidence: <score>
-      recommendation: clarify the task spec and retry
-      ```
-      Set state.md `stage: aborted`, print the report, and STOP.
-      If Confidence > 3: continue.
+      RELAXED in auto mode (Override Policy) — do NOT abort. Record
+      `low planner confidence (<score>) — proceeding under override` under `## Done so far`, set a
+      flag to add the `needs-human` label at SHIP (step 8c), and CONTINUE. The diff gate's RED test +
+      CI veto + blind panel remain the safety net for an under-specified task.
+      (Previously: this aborted with a needs-spec report when Confidence ≤ 3.)
+      If Confidence > 3: continue normally.
 
    3b. ROUTE — compute the difficulty tier (drives plan-gate depth, diff panel size, and arbiter
        policy). Difficulty routing means a one-line fix does not pay for a four-agent panel.
@@ -420,13 +445,20 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
    d. Scope / forbidden-path guard + RE-TIER. Measure the diff against the branch base with
       `git diff --name-only` and `git diff --stat`; record files-changed and lines-changed
       (added+deleted).
-      - FORBIDDEN / DEPENDENCY paths — if any changed file matches `.github/`, `*.yml` in `.github/`,
-        CI config, `*.lock`, `package-lock.json`, `yarn.lock`, `Pipfile.lock`, `*/migrations/*`, or
-        secrets-like paths (`.env`, `*.pem`, `*.key`): attach a `needs-human` label AND force
-        `tier: critical` (supply-chain surface overrides any score). Record flagged paths.
-      - SCOPE — if scope_paths was provided and changed files fall outside it: record a finding.
-      - RUNAWAY — if the diff exceeds 200 lines OR 20 files: record a runaway-refactor finding
-        (a hard cap, independent of tiering).
+      - MIGRATIONS (HARD STOP — Override Policy rule 1) — if any changed file is a DB migration
+        (`*/migrations/*`, or the repo's migration directory/format), auto has violated a
+        non-negotiable rule: it must NEVER author a migration. Discard the change, write a
+        `needs-migration` hand-off report to `feature-research/<task-id>/report.md`, set
+        `stage: aborted`, print it, and STOP.
+      - OTHER SENSITIVE / DEPENDENCY paths (RELAXED — Override Policy) — `.github/`, `*.yml` in
+        `.github/`, CI config, `*.lock`, `package-lock.json`, `yarn.lock`, `Pipfile.lock`, dependency
+        manifests, or secrets-like paths (`.env`, `*.pem`, `*.key`): auto MAY change these when the
+        task requires it. Attach the `needs-human` label as a heads-up AND force `tier: critical`
+        (extra scrutiny), record the flagged paths — but do NOT abort and do NOT fail the gate.
+      - SCOPE (RELAXED — Override Policy) — if scope_paths was provided and changed files fall outside
+        it: record the out-of-scope files; do NOT fail the gate.
+      - RUNAWAY (RELAXED — Override Policy) — if the diff exceeds 200 lines OR 20 files: record the
+        size as a NOTE; do NOT fail the gate (the panel + CI still judge the diff on merit).
       - RE-TIER on actual diff size, taking the MAX with the current tier (tier only escalates):
           · diff LARGE (≥150 lines OR ≥8 files) → at least HARD
           · diff SMALL (≤40 lines AND ≤2 files) → does NOT lower the tier (max rule)
@@ -459,35 +491,47 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
          `feature-research/<task-id>/review-<lens>-r<round>.md` (do NOT touch plan.md or state.md).
          End your final message with exactly two lines: `VERDICT: ship|fix_first` and
          `FINDINGS: <count of blocking findings>`."
-      MODEL TIERING (where the harness supports a per-invocation model override): run the panelists on
-      a faster/cheaper tier (sonnet) and the arbiter on the reviewer default (opus/xhigh). If no
-      override is available, panelists run at the reviewer default — tiering is a cost optimization,
-      not a correctness requirement.
+      MODEL TIERING (where the harness supports a per-invocation model override): size the panelist
+      model to the tier — run TRIVIAL and NORMAL panelists on a faster/cheaper tier (sonnet), and run
+      HARD and CRITICAL panelists on the reviewer default (opus/xhigh), since a missed bug at those
+      tiers has real blast radius and a stronger reviewer earns its cost there. The arbiter ALWAYS
+      runs at the reviewer default (opus/xhigh) regardless of tier. If no override is available, all
+      panelists run at the reviewer default — model tiering is a cost optimization, not a correctness
+      requirement.
       Collect each panelist's `VERDICT` + `FINDINGS` from its reply; record one
       `- diff_vote_<lens>: <verdict> (<findings>)` line under `## Done so far`.
 
    g. Resolve the gate (CI already passed — a red build short-circuited at 7c-iv and never reaches
-      here). Count a `fix_first` as a refute. Decide whether the ARBITER runs:
-        - SPLIT — the panel is NOT unanimous (a mix of ship and fix_first) → arbiter runs.
-        - UNANIMOUS SHIP — all panelists ship → gate PASSES, NO arbiter (the token saver), EXCEPT
-          `tier: critical`, where the arbiter ALWAYS runs even on unanimous ship (the safety margin).
+      here). Count a `fix_first` as a refute. The arbiter is the opus quality gate over the panel — it
+      runs on every outcome EXCEPT a unanimous refute:
+        - SPLIT — the panel is NOT unanimous (a mix of ship and fix_first) → arbiter runs to resolve
+          the contested findings.
+        - UNANIMOUS SHIP — all panelists ship → the arbiter ALWAYS runs as a final opus sign-off over
+          the panel. It does NOT rubber-stamp: it independently re-reviews the diff and tries to find
+          the one objection the panel missed. This is the safety net for a panel that agreed too
+          easily — especially a cheaper sonnet panel on a trivial/normal tier.
         - UNANIMOUS REFUTE — all panelists fix_first → gate FAILS, no arbiter (nothing to debate) →
           rework (7h).
       When the arbiter runs: invoke ONE **reviewer** subagent as the ARBITER (read-only; reviewer
       default opus/xhigh), given the diff + `plan.md` + task + ALL panel review files. Frame it:
-        "You are the ARBITER — the panel split, or this is a critical task. Read every review file and
-         the diff. Resolve each CONTESTED finding ON MERIT, not on headcount: a lone correct reviewer
-         outranks two wrong ones. You MUST emit an `## Options considered` table BEFORE your verdict:
+        "You are the ARBITER. Either the panel split, this is a critical task, or the panel
+         unanimously shipped and you are the final opus sign-off. Read every review file and the diff.
+         If there are contested findings, resolve each ON MERIT, not on headcount: a lone correct
+         reviewer outranks two wrong ones. If the panel was unanimous, do NOT rubber-stamp —
+         independently re-review the diff and actively look for the strongest objection the panel
+         missed. You MUST emit an `## Options considered` table BEFORE your verdict:
            | Option | + (pro) | − (con) | Score | Verdict |
-         with AT LEAST two rows (e.g. `ship as-is`, `rework finding X`) — a single-row table is a
-         defect; redo it. Every rejected option must state why it is worse than the chosen one.
-         Default to reject if uncertain. End with `ARBITER: ship|fix_first`."
-      Record `arbiter: <ship|fix_first|none>`.
-      GATE PASSES if: (arbiter `ship` when it ran) OR (unanimous ship when it did not) — AND the
-      tamper guard passed AND no runaway finding. (Scope / forbidden / dependency findings only
-      attach the `needs-human` label; they do not fail the gate.)
-      GATE FAILS → rework (7h) if: arbiter `fix_first`, OR unanimous refute, OR a runaway finding.
-      Set `diff_panel: <pass | killed-by-arbiter | killed-by-vote | runaway>`.
+         with AT LEAST two rows (e.g. `ship as-is`, `rework finding X` — on a clean unanimous ship the
+         second row is the strongest objection you can construct, even if you ultimately reject it) — a
+         single-row table is a defect; redo it. Every rejected option must state why it is worse than
+         the chosen one. Default to reject if uncertain. End with `ARBITER: ship|fix_first`."
+      Record `arbiter: <ship|fix_first|none>` (`none` only on a unanimous refute, where no arbiter ran).
+      GATE PASSES if: the arbiter returned `ship` (it runs on every split and every unanimous ship) —
+      AND the tamper guard passed. (Scope / forbidden / dependency / runaway findings only attach the
+      `needs-human` label or a note in auto mode — see Override Policy — they do NOT fail the gate.)
+      GATE FAILS → rework (7h) if: the arbiter returned `fix_first`, OR the panel unanimously refuted
+      (no arbiter ran).
+      Set `diff_panel: <pass | killed-by-arbiter | killed-by-vote>`.
       Consolidate the per-lens review files (+ the arbiter's, if any) into `plan.md`'s `## 🔭 Review`
       as `### Diff review — <lens> (round <n>)` subsections — the durable PR record.
 
@@ -519,8 +563,9 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
 
    b. (BANNER RULE) Print the SHIP banner now as the last line before the ship step.
 
-   c. Determine labels: always add `auto-mode`. Add `needs-human` if forbidden/dependency paths were
-      flagged (step 7d) OR this is a multi-repo run (cross-repo is higher-risk by default).
+   c. Determine labels: always add `auto-mode`. Add `needs-human` if sensitive/dependency paths were
+      flagged (step 7d) OR planner confidence was ≤ 3 (step 3a, relaxed under the Override Policy) OR
+      this is a multi-repo run (cross-repo is higher-risk by default).
 
    d. Build the PR body — LEAD WITH THE VALIDATED PLAN, keep it tight, push the audit trail to the
       bottom. Structure, in this order:
@@ -552,8 +597,14 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
 
    e. Push + open the draft PR(s) — once per repo in `repos:` that has a non-empty diff (single-repo
       run = just the current repo). For each such repo, from its worktree (or `gh -R <owner/repo>`):
-      - Push: `git push -u origin <branch>` (idempotent — the CI veto at step 7c may have already
-        pushed the primary repo's branch; this sends any final rework commits). No remote / push
+      - Clean history (own branch only — Override Policy rule 2): squash this run's commits on
+        `<branch>` into a SINGLE well-described commit so the PR merges clean for tidy releases
+        (e.g. `git reset --soft <branch-base> && git commit -m "<subject>" -F <body-file>`). This
+        rewrites ONLY auto's own `anderson/auto/*` branch.
+      - Push: `git push --force-with-lease -u origin <branch>` (the squash rewrote the branch;
+        force-with-lease is permitted HERE — and ONLY here, on auto's own `anderson/auto/*` branch —
+        NEVER on the default / shared / human branch without explicit consent). The CI veto at step 7c
+        may have already pushed this branch; this sends the final squashed state. No remote / push
         fails → degrade gracefully: note it and print that repo's PR body as text.
       - Open: `gh pr create --draft --title "<title> [auto-mode]" --body-file <tmp> --label "auto-mode"`
         (+ `--label needs-human` per step 8c). If `gh` is unavailable, print the body and note the
