@@ -73,6 +73,7 @@ Plus:
 - **Override policy (operator opt-in).** auto pushes through the soft guardrails to *finish the task* (low planner confidence, scope/runaway caps, sensitive non-migration paths). **Two hard rules never bend:** it **never authors or applies a migration** (hard stop + hand-off) and **never force-pushes any branch but its own** `anderson/auto/*` (squash-to-clean on its own branch only).
 - **Difficulty routing.** A tier from the plan's Scorecard, re-derived from the actual diff size (escalate-only), sizes the plan gate, the panel size, the panel model, and the arbiter — so a one-line fix doesn't pay for a 3-opus panel.
 - **Verification hardening.** RED red-for-right-reason, content-hash tamper guard, full-suite-no-new-failures vs baseline, flake re-runs, and blind reviewers.
+- **Error handling & open questions.** The plan enumerates the failure paths the change touches and classes each `deduced` (handle it now) or `needs-context` (a business call the code can't make). With no human to grill, auto captures the `needs-context` ones into a **## ❓ Open questions & assumptions** PR section, flags the PR `needs-human`, and adds `open_q=<n>` to the `metrics:` line — it ships the question, never an invented answer.
 - **Safety rails.** Draft PR only; branch only (its own worktree is the sandbox); baseline-green precondition; dependency/secret-path edits flagged `needs-human`.
 - **Terminal states.** SHIP (`stage: done`, draft PR opened) or abort (`stage: aborted` + a structured `feature-research/<task-id>/report.md`).
 

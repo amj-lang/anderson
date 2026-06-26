@@ -308,7 +308,7 @@ Fields: `task` = slug; `stage` = current pipeline stage; `gate` = `none` or `hum
 `exit_rule` = the human-readable rule the diff reviewer enforces; `plan_verdict` /
 `diff_verdict` = `pending`, `ship`, `fix_first`, or `regrill`.
 
-`plan.md` carries mandatory sections beyond the How narrative: a **`## 💥 Blast radius`** table (planner traces all dependents/callers/siblings/tests/docs before finalizing; reviewer hard-checks it, blocking on blank cells or missed in-scope sites), a **`## 📈 Scorecard`** (7 dimensions — Risk, Horizontality, Testability, Reversibility, Confidence, Coupling, Observability — with Planner and Reviewer columns in one table; gaps ≥ 3 reconciled inline; Risk ≥ 8 or Confidence ≤ 3 blocks `ship`), and a **`## 🔭 Review`** section (last, reserved — the plan-reviewer appends its structured report here after making inline edits, and the diff-reviewer appends its diff review here; replaces the former separate `diff-review.md` and `## Diverged because` block). The scorecard is echoed verbatim into `audit.md` by the implementer.
+`plan.md` carries mandatory sections beyond the How narrative: a **`## 💥 Blast radius`** table (planner traces all dependents/callers/siblings/tests/docs before finalizing; reviewer hard-checks it, blocking on blank cells or missed in-scope sites), a **`## 🧯 Error handling`** table (each failure path the change touches, classed `deduced` = handle now or `needs-context` = a business call mirrored into `## ✅ Decisions`; reviewer blocks on a missing path, the diff-review correctness lens checks each `deduced` row is handled), a **`## 📈 Scorecard`** (7 dimensions — Risk, Horizontality, Testability, Reversibility, Confidence, Coupling, Observability — with Planner and Reviewer columns in one table; gaps ≥ 3 reconciled inline; Risk ≥ 8 or Confidence ≤ 3 blocks `ship`), and a **`## 🔭 Review`** section (last, reserved — the plan-reviewer appends its structured report here after making inline edits, and the diff-reviewer appends its diff review here; replaces the former separate `diff-review.md` and `## Diverged because` block). The scorecard is echoed verbatim into `audit.md` by the implementer.
 
 ## Models & effort — what runs where, and how to verify
 
@@ -435,6 +435,37 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.15.0** — **Error handling as a planning concern + auto-mode open-questions report.**
+  - **🧯 Error handling section (planner)** — every plan now enumerates the failure paths the change
+    touches (derived from the blast radius, not guessed) and classes each `deduced` (handle it now)
+    or `needs-context` (a business call the code can't make). Anchored in THE ARCHITECT, folded in
+    silently — no new persona, no new stage.
+  - **Verified at both gates** — THE ORACLE (plan-reviewer) treats a missing failure path or a
+    `needs-context` row not mirrored in ✅ Decisions as **blocking**; the diff-review correctness lens
+    (AGENT SMITH, gated + auto panel) checks every `deduced` row is actually handled.
+  - **Gated** — THE INTERROGATOR walks the `needs-context` rows in the grill: you decide the handling,
+    the row re-classes to `deduced`.
+  - **Auto** — no grill, so step 4g captures the ambiguities into state.md `## ❓ Open questions`
+    (`[open]` = needs a human, `[answered]` = auto's assumption). They surface in a new PR section
+    **## ❓ Open questions & assumptions**, force the `needs-human` label when any `[open]` remains,
+    and add `open_q=<n>` to the `metrics:` line + REPORT block. Auto ships the question, never an
+    invented business answer.
+  - **House style (anti-bloat)** — the soft *"precise, pragmatic, brief"* closer on every agent is
+    now a concrete rule: *lead with the verdict · tables/bullets over prose · one line per item · no
+    preamble, restating, or praise · prose only when a table can't carry the relation.*
+  - **Adaptive 🗺 Design block** — the planner now picks the clearest representation per task instead
+    of defaulting to mermaid: one line (obvious change) · data-flow table (transforms) · ASCII
+    box-flow (topology — and it renders in the PR, mermaid does not since `feature-research/` is
+    gitignored) · mermaid reserved for a genuine 2D graph.
+  - **Full plan saved in the PR** — both ship paths (`auto` step 8d + gated `approve-diff`) now embed
+    the entire reviewed `plan.md` in a `<details>📋 Full plan</details>` collapse. Since
+    `feature-research/` is gitignored and the scratch is deleted at ship, the PR body is now the
+    plan's only durable home on GitHub — design, blast radius, 🧯 error handling, scorecard,
+    decisions, and both reviews travel with the PR.
+  - **PR leads with reviewer essentials** — the visible top of the PR is now the actionable stuff:
+    **why · what · 🧪 how to test · ⚙️ setup & requirements** (env vars / new deps / config), then
+    open questions + the gate stamp. The long-form plan + audit stay in collapses. The implementer's
+    `audit.md` gains a `## ⚙️ Setup & test` section that feeds the visible How-to-test + Setup blocks.
 - **0.14.0** — **Auto mode: metric references for every new behavior + bigger quote pools.**
   - **Observability** — the `metrics:` line + state.md gained `panel_model`, `arbiter_trigger`, and
     `override`, so each 0.13.0 behavior is greppable (which model the panel ran on, why the arbiter

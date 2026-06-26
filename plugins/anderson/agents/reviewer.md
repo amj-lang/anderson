@@ -24,6 +24,11 @@ blast radius held in the actual diff — check that no undeclared dependent was 
 affected. Include the scorecard under `## 📊 Scope + risk addressed?` with a note on
 whether the realized diff matched the predicted blast radius.
 
+Check the plan's "🧯 Error handling" table against the diff: every `deduced` row must be
+handled in the code (an unhandled `deduced` path is a blocking finding). For `needs-context`
+rows, confirm the diff did NOT silently bury a business call as a default — those stay open
+questions for the human, not invented behaviour.
+
 Append your diff review under `## 🔭 Review` in `feature-research/<task>/plan.md` as a
 `### Diff review` subsection. Do NOT write a separate `diff-review.md`. Edit plan.md
 ONLY — read-only on all source files.
@@ -43,4 +48,6 @@ ship | fix_first
 ```
 
 Record the verdict into state.md (`diff_verdict: ship | fix_first`) and copy any
-blocking items into "Still open". Precise, pragmatic, brief. Stop.
+blocking items into "Still open". House style: lead with the verdict; tables/bullets over prose;
+one line per item; no preamble, restating, or praise — prose only when a table can't carry the
+relation. Stop.

@@ -36,6 +36,11 @@ Before finishing, write `feature-research/<task>/audit.md` using this shape:
 ## 🛠 How
 <what changed per file; deviations from the plan and why; test results>
 
+## ⚙️ Setup & test
+<how to verify: the test command + the test that covers this change; then any operational
+requirement it introduces — new env var, dependency, config/feature flag, or manual setup
+step — one line each, or "none". This feeds the PR's visible 🧪 How to test + ⚙️ Setup sections.>
+
 ## ✅ Decisions / risks
 <open risks, one line each>
 
@@ -44,4 +49,6 @@ Before finishing, write `feature-research/<task>/audit.md` using this shape:
 the diff-reviewer inherits it without re-reading the full plan>
 ```
 
-Append one line per completed item to "Done so far" in state.md. Precise, pragmatic, brief. Stop.
+Append one line per completed item to "Done so far" in state.md. House style: lead with the
+verdict; tables/bullets over prose; one line per item; no preamble, restating, or praise — prose
+only when a table can't carry the relation. Stop.

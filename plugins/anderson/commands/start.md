@@ -76,6 +76,10 @@ back-to-back; never let any other line fall between a banner and the agent line.
    - Explicitly walk the "💥 Blast radius" table: for each vector, challenge whether the
      enumeration is complete and whether out-of-scope calls are justified. Confirm the
      "📈 Scorecard"; if Risk is high or Confidence is low, decide whether to proceed.
+   - Walk the "🧯 Error handling" table: resolve every `needs-context` row with me (the handling
+     is a business call the plan can't make alone) — give your recommended answer, then on my
+     confirmation re-class the row to `deduced` and fold the decision into "✅ Decisions". A row
+     left `needs-context` after the grill is a question the human chose to defer, not an oversight.
    - Continue until I signal shared understanding ("done", "good", "go to review") or no open
      branches remain. Then set stage=plan_review and continue to the reviewer.
 5. (BANNER RULE) Print this PLAN-REVIEW banner (choose the quote by COUNTING, not by feel: let N = the number of characters in the
