@@ -12,10 +12,18 @@ each network step. NEVER force-push; never touch an existing branch destructivel
    - Read the goal, the verdict from `plan.md` `## 🔭 Review`, and "Files changed" + the
      blocking count from `audit.md`.
    - Commit subject (≤72 chars): `<goal>  (review: ship · <N> blocking resolved)`
-   - PR body (markdown): 2–4 lines on WHAT changed + WHY (from `plan.md`), the review
-     verdict + any notable points (`plan.md` `## 🔭 Review`), the files touched (`audit.md`),
-     and test/lint status. Keep it tight. For a multi-line body, write it to a temp
-     file and use `gh pr create --body-file` (cleaner than inline quoting).
+   - PR body (markdown), VISIBLE essentials first, each tight: 2–4 lines on WHAT changed + WHY
+     (from `plan.md`); a `## 🧪 How to test` block (the test command + the test that covers it,
+     from `audit.md` `## ⚙️ Setup & test`); a `## ⚙️ Setup & requirements` block (new env vars /
+     dependencies / config, or "none" — also from `audit.md` `## ⚙️ Setup & test`); the review
+     verdict + any notable points (`plan.md` `## 🔭 Review`); the files touched (`audit.md`); and
+     test/lint status. Then append a `<details><summary>📋 Full plan (as
+     reviewed)</summary>` collapse embedding the ENTIRE `plan.md` verbatim (🗺 Design, 💥 Blast
+     radius, 🧯 Error handling, 📈 Scorecard, ✅ Decisions, `## 🔭 Review`) — `feature-research/`
+     is gitignored and step 5 deletes the scratch, so this collapse is the plan's only durable home
+     on GitHub. Leave one blank line after `<summary>` so GitHub renders the inner markdown; do NOT
+     wrap the plan in a code fence (it has its own). For a multi-line body, write it to a temp file
+     and use `gh pr create --body-file` (cleaner than inline quoting).
 
 2. Pick the branch (defensive — anderson runs in any repo):
    - If `git rev-parse --is-inside-work-tree` fails → not a git repo: skip every git/PR
@@ -44,7 +52,8 @@ each network step. NEVER force-push; never touch an existing branch destructivel
    - No remote at all: skip the network; the local commit stands. Print the PR body.
 
 5. Remove the disposable scratch: `rm -rf "feature-research/$ARGUMENTS"`.
-   (Git history + the PR are the durable record; plan/audit/review were only scaffolding.)
+   (Git history + the PR are the durable record; the full plan is now embedded in the PR body at
+   step 1, so deleting the scratch loses nothing.)
 
 6. (BANNER RULE) Print this SHIP banner (choose the ending by COUNTING, not by feel: let N = the number of characters in the task slug (just its length — count every character, including hyphens); let iteration = the `iteration:` value currently in state.md (read it fresh); the ending is the 0-based item at index (N + 6 + iteration) mod M, where M is the integer printed in the "Pool (M endings):" label below — count the list from 0; mod M always yields a valid position (0 to M−1). (M is read from the label, so the label number must always equal the actual ending count.) Do NOT pick "at random" and do NOT default to the first.) as the LAST framed line before the done line:
    ```

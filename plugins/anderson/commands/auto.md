@@ -182,11 +182,14 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       replan_bounced:      no
       budget_state:        ok
       override:            none
+      open_questions:      0
       <!-- STATE:END -->
 
       ## Done so far
 
       ## Still open
+
+      ## ❓ Open questions
       ```
       Where `<slug>` is the title lowercased, spaces replaced with hyphens, truncated to 30 chars.
       If the file already exists (re-run after abort), overwrite it with this fresh block.
@@ -342,6 +345,19 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       - `regrill` → needs human decisions auto mode cannot make: set `plan_panel: needs-human`,
         abort (`stage: aborted`, reason `plan-needs-human`), print, STOP.
 
+   g. CAPTURE OPEN QUESTIONS — auto has no grill, so the ambiguities the gated loop would resolve
+      with a human are recorded here and surfaced in the PR instead of being silently guessed. Read
+      the now-final `plan.md` "🧯 Error handling" + "✅ Decisions". Record under state.md
+      `## ❓ Open questions`, one line each:
+      - `[open] <failure path / question> — <why it needs a business call auto can't make>` for every
+        `needs-context` row and every unresolved open question in "✅ Decisions".
+      - `[answered] <question> → <answer> (<basis>)` for ambiguities auto resolved on its own — each
+        `deduced` error path's chosen handling, the derived acceptance criteria when
+        `criteria_confidence: low`, and the low-confidence planner override (step 3a) if it fired.
+      Set `open_questions: <count of [open] lines>` in state.md. A non-zero count forces the
+      `needs-human` label at SHIP (step 8c) — auto must not invent a business answer it lacks context
+      for; it ships the question to the human.
+
 5. RED — write a failing test encoding the acceptance criteria, confirm it fails for the right
    reason, then freeze it.
 
@@ -485,7 +501,8 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
                      mandatory `needs-human` label, NOT more reviewers — a 4th lens just duplicates).
       Lenses:
         · correctness          — "Does the diff do what the task asks, correctly, with no logic bug
-                                  or unhandled case?"
+                                  or unhandled case? Is every `deduced` row in the plan's 🧯 Error
+                                  handling table actually handled in the diff?"
         · regressions+security — "What does this break elsewhere, and what does it expose (input
                                   handling, secrets, injection, auth)?"
         · plan-match           — "Does the diff match `plan.md` — nothing more (scope creep), nothing
@@ -580,10 +597,12 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
 
    c. Determine labels: always add `auto-mode`. Add `needs-human` if sensitive/dependency paths were
       flagged (step 7d) OR planner confidence was ≤ 3 (step 3a, relaxed under the Override Policy) OR
+      `open_questions > 0` (step 4g — unresolved business-context questions need a human) OR
       this is a multi-repo run (cross-repo is higher-risk by default).
 
-   d. Build the PR body — LEAD WITH THE VALIDATED PLAN, keep it tight, push the audit trail to the
-      bottom. Structure, in this order:
+   d. Build the PR body — LEAD WITH THE REVIEWER-ACTIONABLE ESSENTIALS (why · what · how to test ·
+      setup), keep each tight, push the long-form plan + audit into collapses at the bottom.
+      Structure, in this order:
 
       1. SOURCE — if `source_url` is set, the first line is `Source: <source_url>` (the ticket this
          traces to; weave any ticket context in as background). Omit the line entirely when
@@ -595,16 +614,41 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
          `## 🛠 How` groups as 3–6 terse bullets (one per group, NOT the full text), each tied to the
          acceptance criterion it satisfies. Then one validation line:
          `Validated: plan-gate <plan_panel> · diff-panel <diff_panel> · arbiter <arbiter> · CI <ci_conclusion>`.
-         This is the headline a reviewer reads first — keep it to a screenful.
+         This is the "what it does" a reviewer reads first — keep it to a screenful.
 
-      4. `## Verification` (condensed — one compact block, not prose):
+      4. `## 🧪 How to test` — the exact path to reproduce green: the resolved `<test_cmd>` to run,
+         the frozen test `<frozen_test>` that encodes the criteria, plus any manual steps the
+         implementer recorded in audit.md `## ⚙️ Setup & test`. One compact block, not prose.
+
+      5. `## ⚙️ Setup & requirements` — what the reviewer must DO before this runs, from audit.md
+         `## ⚙️ Setup & test` + the diff: new env vars, new dependencies, config/feature flags, or
+         data setup. If there are none, write one line: "None — no new env vars, dependencies, or
+         config." (Auto never authors migrations — if one were needed it has already aborted at 7d.)
+
+      6. `## ❓ Open questions & assumptions` (from state.md `## ❓ Open questions`, step 4g) — auto
+         had no human to grill, so this is what it could NOT decide and what it assumed. Two terse
+         lists (omit a list only if it is empty; if BOTH are empty, write one line:
+         "None — no ambiguities; all error paths deducible."):
+         - **🔴 Open (needs a human):** each `[open]` line as `- <question> — <why it needs context>`.
+           These are the business calls auto declined to invent — the reviewer must answer them.
+         - **🟢 Resolved / assumed:** each `[answered]` line as `- <question> → <answer> (<basis>)`.
+           Verify these before merge — they are auto's deductions, not confirmed product decisions.
+
+      7. `## Verification` (condensed — one compact block, not prose):
          `tier <tier> · reviewers <n> · arbiter <arbiter> · rework rounds <r> · red <red_reason>`,
          plus the per-lens `diff_vote_<lens>` verdicts on one line.
 
-      5. `<details>Audit & risks</details>` — collapse the long tail: audit.md summary (files
-         changed), residual risks, labels applied, links to plan.md / audit.md, and the
-         machine-greppable metrics line:
-         `metrics: tier=<t> panel_model=<m> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> outcome=SHIP`.
+      8. `<details>Audit & risks</details>` — collapse the long tail: audit.md summary (files
+         changed), residual risks, labels applied, and the machine-greppable metrics line:
+         `metrics: tier=<t> panel_model=<m> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> open_q=<n> outcome=SHIP`.
+
+      9. `<details><summary>📋 Full plan (as reviewed & validated)</summary>` — embed the ENTIRE
+         final `plan.md` verbatim (its 🗺 Design, 💥 Blast radius, 🧯 Error handling, 📈 Scorecard,
+         ✅ Decisions, and the `## 🔭 Review` carrying the plan- and diff-review). `feature-research/`
+         is gitignored AND the scratch is deleted at step 8g, so THIS collapse is the only durable
+         copy — the PR becomes the plan's permanent home on GitHub. Leave ONE blank line after the
+         `<summary>` line so GitHub renders the inner markdown (tables / ASCII flow / headers); do
+         NOT wrap the plan in a code fence — it already contains its own fenced blocks.
 
       Write the body to a temp file and use `gh pr create --body-file` (cleaner than inline quoting).
       For a multi-repo run, the PRIMARY repo's PR carries the full body plus a `Companion PRs:` list;
@@ -630,8 +674,9 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
    f. Set state.md `stage: done`.
 
    g. Clean up the workspace: `git worktree remove` each worktree created in step 2d, then
-      `rm -rf feature-research/<task-id>/`. The PR(s) + git history are the durable record. (On any
-      abort path the scratch + worktrees are KEPT for inspection — do not remove on abort.)
+      `rm -rf feature-research/<task-id>/`. The PR(s) + git history are the durable record — the full
+      plan is embedded in the PR body (step 8d item 9), so nothing of value is lost on deletion. (On
+      any abort path the scratch + worktrees are KEPT for inspection — do not remove on abort.)
 
 9. REPORT — print the structured terminal result.
 
@@ -656,9 +701,12 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       criteria_evidence:
         - <criterion 1> → <plan step / test name>
         - <criterion 2> → …
+      open_questions: <n>   (from step 4g; 🔴 = needs human, 🟢 = assumed/deduced)
+        - 🔴 <open question> — <why it needs business context>
+        - 🟢 <answered question> → <answer>
       residual_risks:
-        - <low criteria_confidence, CI in-tree fallback, needs-human flags, or "none">
-      metrics: tier=<t> panel_model=<m> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> outcome=SHIP
+        - <low criteria_confidence, CI in-tree fallback, needs-human flags, open questions, or "none">
+      metrics: tier=<t> panel_model=<m> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> open_q=<n> outcome=SHIP
       ```
       On abort path, print the report.md contents instead, clearly headed:
       ```
@@ -666,5 +714,5 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       status: ABORTED
       reason: <reason>
       report: feature-research/<task-id>/report.md (scratch retained)
-      metrics: tier=<t> panel_model=<m> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> outcome=ABORTED:<reason>
+      metrics: tier=<t> panel_model=<m> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> open_q=<n> outcome=ABORTED:<reason>
       ```
