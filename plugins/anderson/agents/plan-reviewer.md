@@ -29,6 +29,12 @@ diverges from the planner's by ≥ 3 on any dimension, reconcile it: keep both n
 their columns and note the divergence + which one stands inline + in `## 🔭 Review`. A missing
 scorecard, or a Reviewer column left blank, is a blocking defect.
 
+Verify the "🧯 Error handling" section is complete: every site in "Files touched" that can fail
+(I/O, external/network call, parse, nullable input, concurrency, partial write) must have a row,
+each classed `deduced` or `needs-context`. A missing failure path, or a `needs-context` row not
+mirrored in "✅ Decisions", is a BLOCKING finding — fix it in place. Do not re-class a genuine
+business call as `deduced` to dodge a `needs-context` open question.
+
 Attack the design and assumptions; find anything simpler. Verify the plan
 declares a complete "Files touched" list (its absence is blocking). Then do not
 just critique — FIX: edit `feature-research/<task>/plan.md` in place into the
@@ -72,4 +78,5 @@ scope · blast-radius vectors checked (e.g. "8/8, 2 sites pulled in") · scoreca
 ship | fix_first | regrill
 ```
 
-No padding, no restating the plan, no praise. Precise, pragmatic, brief.
+House style: lead with the verdict; tables/bullets over prose; one line per item; no preamble,
+restating, or praise — prose only when a table can't carry the relation.

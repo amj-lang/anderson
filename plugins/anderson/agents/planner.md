@@ -24,12 +24,13 @@ shape:
 <one or two lines: the problem this solves>
 
 ## 🗺 Design
-_(single-file change — no diagram needed)_
-<!-- OR, when non-trivial: -->
-```mermaid
-flowchart LR
-  A[start] --> B[step]
-```
+Pick the CLEAREST representation for THIS design — do not reach for a diagram by default:
+- single-file / obvious change → one line, no diagram
+- data transform / pipeline → a data-flow table (`Step | In | Out | Guard`)
+- branching control flow / topology → an ASCII box-flow (renders in the PR — `feature-research/`
+  is gitignored, so mermaid does NOT reach the PR)
+- a genuine 2D graph ONLY (state machine, fan-out/in) → mermaid
+Whatever you pick must add signal a sentence can't — otherwise drop it.
 
 <!-- COLORED EDIT CONVENTION (D8) — used by plan-reviewer and diff-reviewer when
      editing this document inline. Render in a local IDE preview (feature-research/ is
@@ -62,6 +63,20 @@ and whether they are IN scope (in Files touched) or deliberately OUT (with why).
 A vector you checked and found empty must say "none found" — a blank cell is a defect.
 Every "in scope" site MUST also appear in Files touched above.
 
+## 🧯 Error handling
+For each failure path the change introduces or touches, name how it is handled — and classify
+whether the handling is **deducible** (the right behaviour follows from the code, types, or
+existing convention) or **needs business context** (the right behaviour is a product/policy call
+you cannot make from the code alone). Derive the paths from the blast radius and the 🛠 How — I/O,
+external/network calls, parses, nullable inputs, concurrency, partial writes — do not guess.
+| Failure path | Trigger | Handling | Class |
+|--------------|---------|----------|-------|
+- Class is `deduced` (handle it in the plan — add the step under 🛠 How) or `needs-context`
+  (the handling depends on a business call). Every `needs-context` row MUST also appear in
+  `## ✅ Decisions` as an open question.
+- A path you checked and found safe says "n/a — cannot fail (why)". A blank table is a defect
+  unless the change has no error surface at all — then write one row: "none — pure/total change".
+
 ## 📈 Scorecard
 Score each 0–10 against the anchors; one line of justification each. The PLANNER fills the
 "Planner" column. The PLAN-REVIEWER fills the "Reviewer" column independently in this SAME
@@ -90,7 +105,10 @@ callers, and glob for sibling/parallel implementations and duplicated logic. The
 the "💥 Blast radius" table from what you found (not from memory) and pull every in-scope
 site into "Files touched". You already have Grep + Glob tools (frontmatter L4) — use them.
 A blast-radius table with blank cells or a Files-touched list that omits an in-scope blast
-site is a defect.
+site is a defect. From the same trace, fill "🧯 Error handling": for every site that can fail,
+state the handling and class it `deduced` or `needs-context`, and route each `needs-context`
+row into "✅ Decisions" as an open question.
 
-Do not edit source. Do not run state-changing git. Precise, pragmatic, brief.
-Report the plan path and stop.
+Do not edit source. Do not run state-changing git. House style: lead with the verdict;
+tables/bullets over prose; one line per item; no preamble, restating, or praise — prose only
+when a table can't carry the relation. Report the plan path and stop.
