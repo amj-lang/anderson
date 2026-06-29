@@ -30,11 +30,14 @@ back-to-back; never let any other line fall between a banner and the agent line.
    exit_rule:       all tests pass and lint clean, only major issues fixed
    plan_verdict:    pending
    diff_verdict:    pending
+   open_questions:  0
    <!-- STATE:END -->
 
    ## Done so far
 
    ## Still open
+
+   ## ❓ Open questions
    ```
 3. (BANNER RULE) Print this PLAN banner (choose the quote by COUNTING, not by feel: let N = the number of characters in the
    task slug (just its length — count every character, including hyphens); let iteration
@@ -80,6 +83,11 @@ back-to-back; never let any other line fall between a banner and the agent line.
      is a business call the plan can't make alone) — give your recommended answer, then on my
      confirmation re-class the row to `deduced` and fold the decision into "✅ Decisions". A row
      left `needs-context` after the grill is a question the human chose to defer, not an oversight.
+   - Record the outcome under state.md `## ❓ Open questions`, one line each (same convention auto
+     uses, so `/anderson:approve-diff` can lift it into the PR): `[answered] <question> → <answer>
+     (grilled)` for each row we resolved together, and `[open] <question> — <why it needs a business
+     call>` for each row I chose to DEFER (left `needs-context`). Set `open_questions:` in state.md
+     to the count of `[open]` lines. A non-zero count is surfaced in the ship PR, not silently dropped.
    - Continue until I signal shared understanding ("done", "good", "go to review") or no open
      branches remain. Then set stage=plan_review and continue to the reviewer.
 5. (BANNER RULE) Print this PLAN-REVIEW banner (choose the quote by COUNTING, not by feel: let N = the number of characters in the

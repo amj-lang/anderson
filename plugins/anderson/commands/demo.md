@@ -17,6 +17,7 @@ Print in exactly this order (sub-bullet = quote pool to pick from):
 
 ╭─ ⌐■-■  GRILL · 2/5 · THE INTERROGATOR · you
   Pool: "Every unanswered question is a bug with a delay." / "The plan you cannot defend out loud is not yet a plan." / "Pin every fork before the code picks one for you."
+  (walks the plan's 💥 blast radius, 📈 scorecard, and 🧯 error-handling `needs-context` rows with you; each row you defer is recorded under state.md `## ❓ Open questions`)
 
 ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · opus/xhigh
   Pool: "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system."
@@ -32,6 +33,7 @@ Print in exactly this order (sub-bullet = quote pool to pick from):
   Then the gate marker:
   ﾊﾐﾐ 0ｺ1  🔴 G A T E  2 · AWAITING YOU  1ｺ0 ﾐﾐﾊ
   ⌐■-■  Read plan.md ## 🔭 Review AND the diff. Ship: /anderson:approve-diff demo-task · Rework: /anderson:rework demo-task
+  (ship embeds the full reviewed plan + a 🔴/🟢 Open-questions section in the PR body, then deletes the gitignored scratch — the PR is the durable record)
 
 ╭─ ⌐■-■  SHIP ✓ · THE ONE · welcome to the real world
   Pool: "Green is not understood; read what you merged." / "The gate is not an obstacle; it is the point." / "Review is how respect for the future is spelled."

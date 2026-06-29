@@ -435,6 +435,21 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.16.0** — **Open-questions parity for the gated path.** 0.15.0 wired the 🧯 error-handling →
+  open-questions flow into `auto` but only half into the gated loop: THE INTERROGATOR *walked* the
+  `needs-context` rows in the grill, but a deferred row had nowhere to be recorded and never surfaced
+  in the ship PR (it survived only buried in the full-plan collapse). Now symmetric with auto:
+  - **`/anderson:start`** — the seeded `state.md` gains an `open_questions:` field + a
+    `## ❓ Open questions` section. The grill records each row it resolves or defers there, using
+    auto's convention (`[answered] … → … (grilled)` / `[open] … — <why>`), and sets the count.
+  - **`/anderson:approve-diff`** — the PR body now leads with a visible `## ❓ Open questions &
+    assumptions` block (🔴 deferred / 🟢 resolved) lifted from `state.md`, so a reviewer sees the
+    open business calls without unfolding the plan; the PR is labelled `needs-human` when any
+    `[open]` row remains (graceful — drops the flag if the label or `gh` is unavailable).
+  - **`/anderson:demo`** — annotated so the dry-run preview reflects the grill's 💥/📈/🧯 walk and
+    the open-questions section the ship PR now carries.
+  - Headless `bin/feature.sh` is unchanged (it has no grill stage, so it can't produce open
+    questions the same way).
 - **0.15.0** — **Error handling as a planning concern + auto-mode open-questions report.**
   - **🧯 Error handling section (planner)** — every plan now enumerates the failure paths the change
     touches (derived from the blast radius, not guessed) and classes each `deduced` (handle it now)
