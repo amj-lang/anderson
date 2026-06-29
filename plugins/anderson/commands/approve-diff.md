@@ -15,7 +15,12 @@ each network step. NEVER force-push; never touch an existing branch destructivel
    - PR body (markdown), VISIBLE essentials first, each tight: 2–4 lines on WHAT changed + WHY
      (from `plan.md`); a `## 🧪 How to test` block (the test command + the test that covers it,
      from `audit.md` `## ⚙️ Setup & test`); a `## ⚙️ Setup & requirements` block (new env vars /
-     dependencies / config, or "none" — also from `audit.md` `## ⚙️ Setup & test`); the review
+     dependencies / config, or "none" — also from `audit.md` `## ⚙️ Setup & test`); a
+     `## ❓ Open questions & assumptions` block from state.md `## ❓ Open questions` (what the grill
+     resolved or deferred — so a PR reviewer sees it without unfolding the plan), two terse lists,
+     omit a list if empty and write one line "None — all error paths resolved in the grill" if both
+     are: **🔴 Open (deferred — needs a human):** each `[open]` line as `- <question> — <why>`;
+     **🟢 Resolved / assumed:** each `[answered]` line as `- <question> → <answer>`. The review
      verdict + any notable points (`plan.md` `## 🔭 Review`); the files touched (`audit.md`); and
      test/lint status. Then append a `<details><summary>📋 Full plan (as
      reviewed)</summary>` collapse embedding the ENTIRE `plan.md` verbatim (🗺 Design, 💥 Blast
@@ -46,6 +51,9 @@ each network step. NEVER force-push; never touch an existing branch destructivel
    - Need a remote (`git remote` is non-empty) AND gh ready (`gh auth status` succeeds).
    - Both present: `git push -u origin "<branch>"`, then
      `gh pr create --base "<default>" --head "<branch>" --title "<subject>" --body-file <tmp>`.
+     If state.md `open_questions:` > 0 (the grill left deferred `[open]` rows), add
+     `--label needs-human` so the reviewer is steered to the open business calls; if the label
+     doesn't exist or `gh` rejects it, drop the flag and open the PR anyway (never fail the ship).
      Capture + print the PR URL.
    - Remote but no gh / not authed: push only, then print the PR body + a compare-URL
      hint so I can open the PR myself.
