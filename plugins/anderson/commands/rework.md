@@ -10,6 +10,14 @@ BANNER RULE: do the state.md edit FIRST, then print each banner as the LAST line
 before invoking that stage's agent — nothing between the banner and the agent
 line; never skip a banner.
 
+SEQUENCING RULE: the two stages below are STRICTLY SEQUENTIAL — the reviewer
+consumes the implementer's file outputs (it reads the diff + audit.md the
+implementer just wrote). Invoke exactly ONE subagent per message, as the LAST
+thing in that message, then STOP and let it fully finish before you do anything
+else. NEVER emit both stage agents in the same message / same tool block — that
+runs them in PARALLEL and the reviewer judges a diff and audit.md that don't exist
+yet. Step 2 begins only after step 1's implementer has stopped.
+
 1. In state.md set iteration += 1 (if iteration > max_iterations, print `■ EXIT · hit max_iterations` and STOP); set stage=implement, then (BANNER RULE) print this IMPLEMENT banner (choose the quote by COUNTING, not by feel: let N = the number of characters in the
    task slug (just its length — count every character, including hyphens); let iteration
    = the `iteration:` value currently in state.md (read it fresh — at this step it already

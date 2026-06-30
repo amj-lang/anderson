@@ -13,6 +13,17 @@ in order: (1) do the setup, (2) print the banner, (3) start the work — NOTHING
 between (2) and (3). Never skip a stage's banner; never print two banners
 back-to-back; never let any other line fall between a banner and the agent line.
 
+SEQUENCING RULE (applies to every stage below): the stages are STRICTLY
+SEQUENTIAL and each consumes the previous one's output — the GRILL hardens the
+plan.md the planner wrote, and the plan-reviewer reads that grilled plan.md.
+Invoke exactly ONE subagent per message, as the LAST thing in that message, then
+STOP and let it fully finish before moving on. NEVER emit two stage agents in the
+same message / same tool block — that runs them in PARALLEL and the plan-reviewer
+judges a plan that isn't written or grilled yet (and the human grill gets skipped
+entirely). The planner (step 3) must finish, THEN the grill (step 4, your own
+interactive step — not a subagent) must complete, and only THEN the plan-reviewer
+(step 5).
+
 1. Make sure the scratch dir is ignored by git (it's disposable):
    if `feature-research/` is not already in `.gitignore`, append it.
 2. If `feature-research/<task>/state.md` is absent, create it with this EXACT block
