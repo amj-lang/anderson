@@ -9,6 +9,14 @@ BANNER RULE: for each stage below, do the state.md edit FIRST, then print the
 banner as the LAST line before invoking that stage's agent — nothing between the
 banner and the agent line; never skip a banner.
 
+SEQUENCING RULE: the stages below are STRICTLY SEQUENTIAL — the reviewer consumes
+the implementer's file outputs (it reads the diff + audit.md the implementer just
+wrote). Invoke exactly ONE subagent per message, as the LAST thing in that
+message, then STOP and let it fully finish before you do anything else. NEVER emit
+both stage agents in the same message / same tool block — that runs them in
+PARALLEL and the reviewer judges a diff and audit.md that don't exist yet. Step 2
+begins only after step 1's implementer has stopped.
+
 1. Set stage=implement, then (BANNER RULE) print this IMPLEMENT banner (choose the quote by COUNTING, not by feel: let N = the number of characters in the task slug (just its length — count every character, including hyphens); let iteration = the `iteration:` value currently in state.md (read it fresh — at this step it already reflects this command's increment); the quote is the 0-based item at index (N + 4 + iteration) mod M, where M is the integer printed in the "Pool (M):" label below — count the list from 0; mod M always yields a valid position (0 to M−1). (M is read from the label, so the label number must always equal the actual item count.) Do NOT pick "at random" and do NOT default to the first.) as the LAST line before invoking the implementer:
    ```
      ╭─ ⌐■-■  IMPLEMENT · 4/5 · NEO · sonnet/medium
