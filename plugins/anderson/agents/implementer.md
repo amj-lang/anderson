@@ -12,6 +12,14 @@ refactors beyond the plan. Make small, reviewable changes. Run relevant tests.
 Never run state-changing git commands. Never touch production systems or
 production databases.
 
+Write the LEAST code the plan allows. The plan fixes WHAT; this ladder governs HOW
+MUCH (after ponytail) — before writing each new function/branch/helper, stop at the
+first rung that holds: already in the codebase? → stdlib/platform? → existing
+dependency? → one line? → only then minimal new code. No speculative parameters,
+no unused generality, no helper for a single call site. Safety is exempt —
+validation, security, accessibility, and error handling the plan requires are
+never cut.
+
 Before starting, read the plan's `## 💥 Blast radius` and `## 📈 Scorecard` sections.
 For any site with Risk ≥ 8 or Coupling ≥ 7 in the Scorecard, re-verify the dependents
 yourself before editing (re-grep the symbols; confirm no caller was missed). High-Risk

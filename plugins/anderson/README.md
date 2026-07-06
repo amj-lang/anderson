@@ -435,7 +435,23 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
-- **0.17.0** — **Graded grill with upfront triage.** The grill previously streamed questions
+- **0.18.0** — **Ponytail ladder + caveman-compressed instructions.** Two token cuts, different axes:
+  - **Ponytail decision ladder** (after [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail),
+    MIT) inlined into all four agents — anderson stays self-contained, no plugin dependency. Before any
+    new function/module/abstraction/dependency: does it need to exist? → already in the codebase? →
+    stdlib/platform? → existing dep? → one line? → only then minimal new code. Planner plans least-code,
+    implementer writes least-code (no speculative params, no single-call-site helpers), plan-reviewer
+    edits excess down in place, diff-reviewer runs a YAGNI lens (blocking when excess adds a dependency
+    or public surface). Safety rungs exempt everywhere: validation, security, accessibility, error
+    handling are never cut. Less code generated = fewer output tokens now, fewer input tokens every
+    later read of that code.
+  - **Caveman-compressed command prose** — instruction files are input tokens paid on EVERY run;
+    compressed instructional prose only (articles/filler dropped, duplicate sentences merged), all
+    byte-faithful blocks untouched: quote pools (3×24 verified), state.md template + STATE markers,
+    banners, git/gh command lines, verdict values. start.md −12% chars (the quote-picking algorithm,
+    repeated verbatim per banner, is now one QUOTE RULE + per-banner offset); approve-plan −6%,
+    rework −5%, approve-diff −4%, auto.md −2% (deliberately conservative — it runs unattended).
+    Single revertible commit in case compliance regresses. **Graded grill with upfront triage.** The grill previously streamed questions
   open-endedly: no sense of how many were coming, which ones mattered, and only questions the plan
   already knew it had (its own decision tree) ever got asked. Now:
   - **Triage first** — THE INTERROGATOR enumerates every question in one pass (decision-tree

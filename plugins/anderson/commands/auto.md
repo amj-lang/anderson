@@ -3,48 +3,48 @@ description: "Run the full plan → implement → review pipeline non-halting to
 argument-hint: <task-id> <title> [body|@taskspec-file]
 allowed-tools: Bash, Read, Edit, Write
 ---
-Parse $ARGUMENTS: first word = task-id (the run-lock key and state dir name); second word = title;
-remainder = body (or @path to read a TaskSpec file from disk). task-id and title are required;
-body is optional (acceptance_criteria will be derived if absent).
+Parse $ARGUMENTS: first word = task-id (run-lock key + state dir name); second word = title;
+remainder = body (or @path to TaskSpec file on disk). task-id and title required;
+body optional (acceptance_criteria derived if absent).
 
-BANNER RULE (applies to every stage below): finish ALL setup and state.md edits for a stage FIRST,
-then print that stage's banner as the LAST line before the stage's work begins (i.e. immediately
-above the agent invocation or the action). Nothing falls between the banner and the work. Never
-skip a banner; never print two banners back-to-back. Unlike the gated commands, this command
-NEVER prints a GATE line and NEVER halts for a human — it self-sequences all 9 steps in one turn.
-Terminal states: SHIP (stage: done, draft PR) or abort (stage: aborted with a structured report).
+BANNER RULE (every stage below): finish ALL setup and state.md edits for stage FIRST,
+then print stage's banner as LAST line before stage's work begins (immediately
+above agent invocation or action). Nothing between banner and work. Never
+skip banner; never print two banners back-to-back. Unlike gated commands, this command
+NEVER prints a GATE line and NEVER halts for a human — self-sequences all 9 steps in one turn.
+Terminal states: SHIP (stage: done, draft PR) or abort (stage: aborted with structured report).
 
-AUTO-MODE OVERRIDE POLICY (operator opt-in — GOVERNS the steps below; where a later step conflicts,
-THIS section wins). auto mode runs unattended and is expected to FINISH the task, not bail to a human
-for soft guardrails. Its own branch + draft PR are its SANDBOX: inside that PR it may create the
-draft, push to it, update its description, and squash its own commits. It must not reach outside it.
+AUTO-MODE OVERRIDE POLICY (operator opt-in — GOVERNS steps below; where later step conflicts,
+THIS section wins). auto mode runs unattended, expected to FINISH task, not bail to human
+for soft guardrails. Own branch + draft PR are its SANDBOX: inside that PR it may create
+draft, push to it, update description, squash own commits. Must not reach outside it.
 
-RELAX (do NOT abort or stop the run for these — push through, complete the task, and just NOTE the
-condition under `## Done so far` + in the PR body so the reviewer sees it):
-- Planner confidence ≤ 3 (step 3a) — proceed; record low confidence and add the `needs-human` label
+RELAX (do NOT abort or stop run for these — push through, complete task, NOTE
+condition under `## Done so far` + in PR body so reviewer sees it):
+- Planner confidence ≤ 3 (step 3a) — proceed; record low confidence, add `needs-human` label
   at SHIP instead of aborting.
-- Runaway-refactor cap >200 lines / >20 files (step 7d) — proceed; record the size; do NOT fail the gate.
-- scope_paths violations (step 7d) — proceed; note the out-of-scope files; do NOT fail the gate.
+- Runaway-refactor cap >200 lines / >20 files (step 7d) — proceed; record size; do NOT fail gate.
+- scope_paths violations (step 7d) — proceed; note out-of-scope files; do NOT fail gate.
 - Sensitive NON-migration paths — `.github/`, CI config, `*.lock`/lockfiles, dependency manifests,
-  `.env`, `*.pem`, `*.key` (step 7d) — auto MAY change these when the task requires it; attach the
-  `needs-human` label as a heads-up but do NOT abort and do NOT fail the gate.
+  `.env`, `*.pem`, `*.key` (step 7d) — auto MAY change these when task requires; attach
+  `needs-human` label as heads-up but do NOT abort, do NOT fail gate.
 
-KEEP unchanged (these are the verification engine + cost backstops, NOT blockers — they stay exactly
-as written): baseline-green precondition (step 2); test_cmd resolution incl. needs-spec when it is
-truly un-inferable (verification needs a test command); RED + red-for-right-reason (step 5);
-test-tamper guard (7b); CI veto (7c); blind panel + arbiter (7f/7g); and the thrash breaker / replan
+KEEP unchanged (verification engine + cost backstops, NOT blockers — stay exactly
+as written): baseline-green precondition (step 2); test_cmd resolution incl. needs-spec when
+truly un-inferable (verification needs test command); RED + red-for-right-reason (step 5);
+test-tamper guard (7b); CI veto (7c); blind panel + arbiter (7f/7g); thrash breaker / replan
 bounce / max_iterations budget (7h).
 
 NON-NEGOTIABLE HARD RULES (no override, ever):
-1. NEVER author or apply a database migration. If the task requires a schema/data migration, STOP:
-   write NO migration file, write a hand-off report (reason `needs-migration`), set `stage: aborted`,
-   print it, and STOP. This is the one forbidden path that stays a HARD STOP.
-2. NEVER force-push any branch EXCEPT auto's own `anderson/auto/<task-id>-<slug>` branch. A force-push
-   (use `--force-with-lease`) is allowed ONLY on that own branch — e.g. to squash this run's commits
-   into one clean commit for a tidy release history. Force-pushing the default branch, a shared
-   branch, or a human-authored branch requires explicit human consent.
+1. NEVER author or apply a database migration. If task requires schema/data migration, STOP:
+   write NO migration file, write hand-off report (reason `needs-migration`), set `stage: aborted`,
+   print it, STOP. The one forbidden path that stays a HARD STOP.
+2. NEVER force-push any branch EXCEPT auto's own `anderson/auto/<task-id>-<slug>` branch. Force-push
+   (use `--force-with-lease`) allowed ONLY on that own branch — e.g. to squash run's commits
+   into one clean commit for tidy release history. Force-pushing default branch, shared
+   branch, or human-authored branch requires explicit human consent.
 
-BANNER POOL — auto stages use these Matrix-flavoured banners in the framed `╭─ ⌐■-■` format:
+BANNER POOL — auto stages use these Matrix-flavoured banners in framed `╭─ ⌐■-■` format:
 
 INGEST banner (stage offset 1):
 ```
@@ -118,20 +118,20 @@ REPORT banner (stage offset 9):
 ```
 REPORT pool (14): "The result is only as good as the evidence behind it." / "State the outcome; show your work." / "A structured report is a gift to the next person in the chain." / "Name the blockers before the blockers name you." / "The human needs the map, not just the destination." / "Criteria in; evidence out." / "If you can't report it clearly, you don't understand it yet." / "The PR is the answer; the report is the reasoning." / "Leave breadcrumbs: someone will need to retrace this." / "End with the truth, whatever it is." / "A metric unrecorded is a lesson unlearned." / "Say what shipped, what slipped, and why." / "The next operator reads what you leave behind." / "End with evidence, not optimism."
 
-Quote selection rule (same deterministic formula as other commands): let N = number of characters in
-task-id; let stageOffset = the stage offset printed in the banner above (1–9); let rework_round =
-`rework_round:` value in state.md (0 at first pass); the quote is the 0-based item at index
-(N + stageOffset + rework_round) mod M, where M = pool size (count the list from 0). Read fresh
-from state.md each time. Do NOT pick at random; do NOT default to the first.
+Quote selection rule (same deterministic formula as other commands): N = number of characters in
+task-id; stageOffset = stage offset printed in banner above (1–9); rework_round =
+`rework_round:` value in state.md (0 at first pass); quote = 0-based item at index
+(N + stageOffset + rework_round) mod M, where M = pool size (count list from 0). Read fresh
+from state.md each time. Do NOT pick at random; do NOT default to first.
 
 ---
 
-1. INGEST — set up the run. Do all setup before printing the INGEST banner.
+1. INGEST — set up the run. All setup before printing the INGEST banner.
 
-   a. Ensure `feature-research/` is in `.gitignore`: if the line `feature-research/` is absent,
-      append it. (Same guard as `start.md` step 1 — scratch must not land in the PR diff.)
+   a. Ensure `feature-research/` is in `.gitignore`: if line `feature-research/` absent,
+      append it. (Same guard as `start.md` step 1 — scratch must not land in PR diff.)
 
-   b. Derive the task directory path: `feature-research/<task-id>/`.
+   b. Derive task directory path: `feature-research/<task-id>/`.
 
    c. Run lock check: if `feature-research/<task-id>/state.md` already exists and contains
       `mode: auto` AND stage is not `done` or `aborted`, print:
@@ -139,7 +139,7 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       ■ LOCKED · a run for task-id '<task-id>' is already active (stage: <stage>).
         Abort the existing run first (set stage: aborted in state.md) or wait for it to complete.
       ```
-      Then STOP. A re-trigger after done/aborted is allowed to start fresh.
+      Then STOP. Re-trigger after done/aborted may start fresh.
 
    d. Create `feature-research/<task-id>/` directory if absent.
 
@@ -191,57 +191,57 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
 
       ## ❓ Open questions
       ```
-      Where `<slug>` is the title lowercased, spaces replaced with hyphens, truncated to 30 chars.
-      If the file already exists (re-run after abort), overwrite it with this fresh block.
+      Where `<slug>` = title lowercased, spaces replaced with hyphens, truncated to 30 chars.
+      If file already exists (re-run after abort), overwrite with this fresh block.
 
-   f. Parse body/acceptance_criteria: if body is present, scan for an "acceptance criteria",
+   f. Parse body/acceptance_criteria: if body present, scan for an "acceptance criteria",
       "acceptance_criteria", or "criteria" section; extract criteria if found; set
-      `criteria_confidence: high` in state.md. If body is absent or no criteria section is found,
-      derive criteria from the title + body using your best judgement and set
+      `criteria_confidence: high` in state.md. If body absent or no criteria section found,
+      derive criteria from title + body by best judgement and set
       `criteria_confidence: low` in state.md. Record derived criteria under `## Done so far` in
-      state.md as a bullet list prefixed `[criteria]`.
+      state.md as bullet list prefixed `[criteria]`.
 
-   g. Parse the SOURCE LINK and REPO scope from the TaskSpec (body or @file):
-      - `source_url:` — if the TaskSpec carries a source-task URL (a Linear/GitHub/Jira/etc. ticket
-        link) or a bare id you can resolve to one, record it as `source_url:` in state.md. This is
-        rendered at the TOP of the PR body so a reviewer can trace the work to its ticket. If absent,
-        leave `source_url: none` (the PR body simply omits the link — never invent one).
-      - `repos:` — the set of repos this task must change. Default `current` (the repo you are in).
-        Set it to a comma-list when the work spans repos: the TaskSpec names additional `repos:`, OR
-        scope_paths / the plan point outside this repo, OR project memory / `CLAUDE.md` records a
+   g. Parse SOURCE LINK and REPO scope from the TaskSpec (body or @file):
+      - `source_url:` — if TaskSpec carries a source-task URL (Linear/GitHub/Jira/etc. ticket
+        link) or a bare id you can resolve to one, record as `source_url:` in state.md. Rendered
+        at TOP of PR body so reviewer can trace work to its ticket. If absent,
+        leave `source_url: none` (PR body omits the link — never invent one).
+      - `repos:` — set of repos this task must change. Default `current` (repo you are in).
+        Set to comma-list when work spans repos: TaskSpec names additional `repos:`, OR
+        scope_paths / plan point outside this repo, OR project memory / `CLAUDE.md` records a
         sibling repo this task must touch. Record as `repos: <current>[,<repo2>,...]`. Multi-repo
-        runs are handled in BASELINE (isolation) + SHIP (one branch + PR per repo).
+        runs handled in BASELINE (isolation) + SHIP (one branch + PR per repo).
 
-   h. (BANNER RULE) Print the INGEST banner now as the last line before any further action.
+   h. (BANNER RULE) Print the INGEST banner now, last line before any further action.
 
    i. Report INGEST complete in state.md `## Done so far`.
 
-2. BASELINE — verify the repo is in a green state before any change.
+2. BASELINE — verify repo is green before any change.
 
    a. Update state.md: set `stage: baseline`.
 
-   b. Run `git fetch` to get the latest refs.
+   b. Run `git fetch` for latest refs.
 
-   c. Determine the default branch name: `git symbolic-ref refs/remotes/origin/HEAD` or inspect
+   c. Determine default branch name: `git symbolic-ref refs/remotes/origin/HEAD` or inspect
       `git branch -r` for `origin/HEAD`.
 
-   d. Workspace isolation — set up a clean, isolated checkout per repo so this run never disturbs
-      in-flight work, and concurrent runs can't collide. Branch name (each repo): `anderson/auto/<task-id>-<slug>`.
-      - SINGLE repo (`repos: current`): if the working tree is DIRTY, do NOT branch in place (you
-        would entangle someone's uncommitted work) — instead create an isolated **git worktree** off
-        the latest default and operate there:
+   d. Workspace isolation — clean, isolated checkout per repo so this run never disturbs
+      in-flight work and concurrent runs can't collide. Branch name (each repo): `anderson/auto/<task-id>-<slug>`.
+      - SINGLE repo (`repos: current`): if working tree DIRTY, do NOT branch in place (would
+        entangle someone's uncommitted work) — instead create isolated **git worktree** off
+        latest default and operate there:
         `git worktree add -b anderson/auto/<task-id>-<slug> ../.anderson-auto/<task-id> origin/<default-branch>`,
-        then run all subsequent steps from that worktree path. If the tree is CLEAN, a normal
+        then run all subsequent steps from that worktree path. If tree CLEAN, normal
         `git checkout -b anderson/auto/<task-id>-<slug> origin/<default-branch>` is fine.
-      - MULTI repo (`repos:` lists more than `current`): for EACH repo in the list, create an isolated
-        worktree (preferred — fast, shares the object store) or a fresh clone if no local checkout
-        exists, branch off that repo's latest default, and record its path. NEVER edit another repo's
-        primary checkout in place. Record the per-repo branch + worktree path under `## Done so far`.
-      - Clean up worktrees on the terminal path: after SHIP/abort, `git worktree remove` each one
-        (the branch + PR are the durable record). Update `branch:` in state.md with the resolved name.
+      - MULTI repo (`repos:` lists more than `current`): for EACH repo in list, create isolated
+        worktree (preferred — fast, shares object store) or fresh clone if no local checkout
+        exists, branch off that repo's latest default, record its path. NEVER edit another repo's
+        primary checkout in place. Record per-repo branch + worktree path under `## Done so far`.
+      - Clean up worktrees on terminal path: after SHIP/abort, `git worktree remove` each one
+        (branch + PR are the durable record). Update `branch:` in state.md with resolved name.
 
    e. Resolve `test_cmd`:
-      - If the TaskSpec body or @file contains a `test_cmd:` field, use it directly and set
+      - If TaskSpec body or @file contains a `test_cmd:` field, use it directly and set
         `test_cmd_confidence: high`.
       - Otherwise infer from repo conventions: check for `pytest.ini`, `setup.cfg [tool:pytest]`,
         `pyproject.toml [tool.pytest.ini_options]` → infer `python -m pytest`; check for
@@ -249,7 +249,7 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
         `test` target → infer `make test`; check for `go.mod` → infer `go test ./...`.
       - Set `test_cmd_confidence: high` if one clear match, `low` if ambiguous (multiple matches
         or partial signals), `none` if nothing found.
-      - If `test_cmd_confidence: none` (completely un-inferable): write a structured report to
+      - If `test_cmd_confidence: none` (completely un-inferable): write structured report to
         `feature-research/<task-id>/report.md`:
         ```
         ## Auto-mode abort: needs-spec
@@ -262,8 +262,8 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
 
    f. (BANNER RULE) Print the BASELINE banner now.
 
-   g. Run the resolved `test_cmd`. Capture output. If the suite is RED (non-zero exit):
-      Write a structured report to `feature-research/<task-id>/report.md`:
+   g. Run resolved `test_cmd`. Capture output. If suite RED (non-zero exit):
+      write structured report to `feature-research/<task-id>/report.md`:
       ```
       ## Auto-mode abort: baseline-broken
       reason: baseline test suite is red — cannot fix on a broken tree
@@ -279,32 +279,32 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
 
    a. Update state.md: set `stage: plan`.
 
-   b. (BANNER RULE) Print the PLAN banner now as the last line before invoking the planner.
+   b. (BANNER RULE) Print the PLAN banner now, last line before invoking the planner.
 
    c. Invoke the **planner** subagent, seeded with:
       - task title and body
       - derived acceptance_criteria (from state.md `## Done so far` `[criteria]` bullets)
-      - criteria_confidence (so the planner notes low-confidence derivations)
+      - criteria_confidence (so planner notes low-confidence derivations)
       - scope_paths if present in the TaskSpec
-      The planner writes `feature-research/<task-id>/plan.md`.
+      Planner writes `feature-research/<task-id>/plan.md`.
 
    d. Update state.md: set `stage: confidence_gate`. Record in `## Done so far`.
 
    3a. CONFIDENCE GATE — assess planner's confidence in the task.
 
    e. Read `feature-research/<task-id>/plan.md`. Read the `## 📈 Scorecard` section.
-      Find the Confidence row. If the planner's Confidence score is ≤ 3 (ambiguous,
+      Find the Confidence row. If planner's Confidence score ≤ 3 (ambiguous,
       underspecified, or out-of-scope):
       RELAXED in auto mode (Override Policy) — do NOT abort. Record
       `low planner confidence (<score>) — proceeding under override` under `## Done so far`, append
-      `low-confidence` to the `override:` field in state.md (the metric reference for this relaxation;
-      it is comma-joined if more relaxations fire later), set a flag to add the `needs-human` label at
-      SHIP (step 8c), and CONTINUE. The diff gate's RED test + CI veto + blind panel remain the safety
+      `low-confidence` to the `override:` field in state.md (metric reference for this relaxation;
+      comma-joined if more relaxations fire later), set flag to add the `needs-human` label at
+      SHIP (step 8c), and CONTINUE. Diff gate's RED test + CI veto + blind panel remain the safety
       net for an under-specified task.
       (Previously: this aborted with a needs-spec report when Confidence ≤ 3.)
       If Confidence > 3: continue normally.
 
-   3b. ROUTE — compute the difficulty tier (drives plan-gate depth, diff panel size, and arbiter
+   3b. ROUTE — compute difficulty tier (drives plan-gate depth, diff panel size, and arbiter
        policy). Difficulty routing means a one-line fix does not pay for a four-agent panel.
 
    f. Read the `## 📈 Scorecard` Planner column: Risk, Coupling, Confidence, Testability. Compute
@@ -315,10 +315,10 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
         - TRIVIAL  — Risk ≤ 2 AND Coupling ≤ 3 AND Confidence ≥ 8.
         - NORMAL   — anything else (default).
       Record `tier: <trivial|normal|hard|critical>` in state.md. This tier is PROVISIONAL — step 7d
-      re-tiers it against the actual diff size and takes the MAX (tier can only escalate, never drop).
+      re-tiers against actual diff size and takes the MAX (tier can only escalate, never drop).
 
 4. PLAN GATE — criteria-coverage check + ONE plan-reviewer (skipped for a TRIVIAL tier). Plan errors
-   are cheap to fix (you rework; nothing ships), so this side stays light — the rigor budget is
+   are cheap to fix (rework; nothing ships), so this side stays light — rigor budget is
    spent at the diff gate.
 
    a. Update state.md: set `stage: plan_gate`, `plan_panel: pending`.
@@ -330,7 +330,7 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
    c. TRIVIAL shortcut: if `tier: trivial` AND no unmapped criteria → set `plan_panel: clear` (a
       trivial plan does not earn a reviewer) and continue to step 5.
 
-   d. (BANNER RULE) Print the PLAN GATE banner now as the last line before invoking the plan-reviewer.
+   d. (BANNER RULE) Print the PLAN GATE banner now, last line before invoking the plan-reviewer.
 
    e. Invoke ONE **plan-reviewer** subagent with a refute posture: "Refute this plan — find why it
       fails, misses an acceptance criterion, or under-counts the blast radius; default to reject
@@ -345,25 +345,25 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       - `regrill` → needs human decisions auto mode cannot make: set `plan_panel: needs-human`,
         abort (`stage: aborted`, reason `plan-needs-human`), print, STOP.
 
-   g. CAPTURE OPEN QUESTIONS — auto has no grill, so the ambiguities the gated loop would resolve
-      with a human are recorded here and surfaced in the PR instead of being silently guessed. Read
+   g. CAPTURE OPEN QUESTIONS — auto has no grill, so ambiguities the gated loop would resolve
+      with a human are recorded here and surfaced in the PR instead of silently guessed. Read
       the now-final `plan.md` "🧯 Error handling" + "✅ Decisions". Record under state.md
       `## ❓ Open questions`, one line each:
       - `[open] <failure path / question> — <why it needs a business call auto can't make>` for every
         `needs-context` row and every unresolved open question in "✅ Decisions".
       - `[answered] <question> → <answer> (<basis>)` for ambiguities auto resolved on its own — each
-        `deduced` error path's chosen handling, the derived acceptance criteria when
+        `deduced` error path's chosen handling, derived acceptance criteria when
         `criteria_confidence: low`, and the low-confidence planner override (step 3a) if it fired.
-      Set `open_questions: <count of [open] lines>` in state.md. A non-zero count forces the
+      Set `open_questions: <count of [open] lines>` in state.md. Non-zero count forces the
       `needs-human` label at SHIP (step 8c) — auto must not invent a business answer it lacks context
       for; it ships the question to the human.
 
-5. RED — write a failing test encoding the acceptance criteria, confirm it fails for the right
+5. RED — write failing test encoding the acceptance criteria, confirm it fails for the right
    reason, then freeze it.
 
    a. Update state.md: set `stage: red`.
 
-   b. (BANNER RULE) Print the RED banner now as the last line before the RED step begins.
+   b. (BANNER RULE) Print the RED banner now, last line before the RED step begins.
 
    c. Using your Write tool, write a failing test file under the repo's test directory that:
       - Encodes the acceptance criteria from step 1
@@ -371,20 +371,20 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       - Is a single self-contained test file
       Record the test file path as `<frozen_test_path>`.
 
-   d. Run the test to confirm it is RED: `<test_cmd> <frozen_test_path>` (or the equivalent
-      single-file filter). Capture BOTH the exit code and the output, then classify the failure
+   d. Run the test to confirm RED: `<test_cmd> <frozen_test_path>` (or equivalent
+      single-file filter). Capture BOTH exit code and output, then classify the failure
       (red-for-right-reason auto-check):
-      - GENUINE RED — non-zero exit AND the output shows a real ASSERTION failure for the new test
+      - GENUINE RED — non-zero exit AND output shows a real ASSERTION failure for the new test
         (`AssertionError`, a pytest `assert` diff, `Error: expect(...)`, JUnit
         `AssertionFailedError`, a Go `--- FAIL` with a checked condition, etc.). Set
         `red_reason: genuine` in state.md and proceed to 5e.
-      - HOLLOW RED — non-zero exit but the failure is a LOAD/COLLECTION error, not an assertion:
-        scan the output for `SyntaxError`, `ImportError`, `ModuleNotFoundError`, `NameError` at
+      - HOLLOW RED — non-zero exit but failure is a LOAD/COLLECTION error, not an assertion:
+        scan output for `SyntaxError`, `ImportError`, `ModuleNotFoundError`, `NameError` at
         collection, pytest `errors` / `collected 0 items` / `INTERNALERROR`, `cannot find module`,
         or a build/compile error, with NO assertion failure present. A test that errors is not a
-        red test. Set `red_reason: hollow`, then do ONE bounded rewrite: fix only the
-        import/syntax/collection fault (keep the SAME assertion intent) and re-run.
-        - If GENUINE RED on the retry → set `red_reason: genuine` and proceed.
+        red test. Set `red_reason: hollow`, then ONE bounded rewrite: fix only the
+        import/syntax/collection fault (keep SAME assertion intent) and re-run.
+        - If GENUINE RED on retry → set `red_reason: genuine` and proceed.
         - If still HOLLOW → abort. Write `feature-research/<task-id>/report.md`:
           ```
           ## Auto-mode abort: hollow-red
@@ -394,11 +394,11 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
           last_error: <the key error line from the output>
           ```
           Set `stage: aborted`, print the report, and STOP.
-      - UNEXPECTED GREEN — exit 0: the criteria may already be met. Record the anomaly in
-        `## Done so far`, set `red_reason: green`, and proceed anyway (the diff gate confirms).
+      - UNEXPECTED GREEN — exit 0: criteria may already be met. Record anomaly in
+        `## Done so far`, set `red_reason: green`, proceed anyway (diff gate confirms).
 
    e. Freeze the test: record `frozen_test: <frozen_test_path>` in state.md.
-      Capture the content hash: run `git hash-object <frozen_test_path>` and record the output
+      Capture content hash: run `git hash-object <frozen_test_path>`, record output
       as `frozen_test_hash: <hash>` in state.md. This snapshot is the tamper baseline.
 
    f. Record in `## Done so far`.
@@ -407,23 +407,23 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
 
    a. Update state.md: set `stage: implement`.
 
-   b. (BANNER RULE) Print the IMPLEMENT banner now as the last line before invoking the implementer.
+   b. (BANNER RULE) Print the IMPLEMENT banner now, last line before invoking the implementer.
 
    c. Invoke the **implementer** subagent: execute `feature-research/<task-id>/plan.md`;
       make the frozen test pass; write `feature-research/<task-id>/audit.md`.
-      The implementer also runs a self-review pass before the diff gate (cheap; cuts panel rounds).
+      Implementer also runs a self-review pass before the diff gate (cheap; cuts panel rounds).
       Set stage=diff_gate after invocation.
 
-7. DIFF GATE — CI veto + a tier-sized blind reviewer panel + arbiter-on-split.
-   Order is deliberate: the free objective gate (CI) runs FIRST and short-circuits a red build before
-   any reviewer tokens are spent; the panel size scales with `tier`; the arbiter runs only when the
-   panel splits (or the tier is critical).
+7. DIFF GATE — CI veto + tier-sized blind reviewer panel + arbiter-on-split.
+   Order is deliberate: free objective gate (CI) runs FIRST and short-circuits a red build before
+   any reviewer tokens are spent; panel size scales with `tier`; arbiter runs only when the
+   panel splits (or tier is critical).
 
    a. Update state.md: set `stage: diff_gate`, `diff_panel: pending`, `arbiter: none`.
 
-   b. Test-tamper guard: run `git hash-object <frozen_test>` (the path from state.md).
+   b. Test-tamper guard: run `git hash-object <frozen_test>` (path from state.md).
       Compare to `frozen_test_hash:` from state.md.
-      If the hashes differ OR the file no longer exists: this is a tamper event — immediately
+      If hashes differ OR file no longer exists: tamper event — immediately
       abort with a `needs-human` report:
       ```
       ## Auto-mode abort: needs-human (test tamper detected)
@@ -436,61 +436,61 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       Set `stage: aborted`, print the report, and STOP.
 
    c. CI / suite veto. CI is a VETO, not a vote — a red build or suite fails the gate regardless
-      of how the reviewers vote. It is the one gate the model cannot talk its way past.
+      of reviewer votes. The one gate the model cannot talk its way past.
 
       i. Baseline-comparison run (ALWAYS): run the full suite in-tree `<test_cmd>`; capture exit
-         code and output. The baseline was GREEN at step 2, so any failure here is new. Before
+         code and output. Baseline was GREEN at step 2, so any failure here is new. Before
          trusting a red, re-run a single suspected-flaky failing test once — a test that then
-         passes is a flake, not a regression; note it and do not count it.
+         passes is a flake, not a regression; note it, do not count it.
 
-      ii. Authoritative CI veto (WHEN AVAILABLE): if the repo has GitHub Actions CI
+      ii. Authoritative CI veto (WHEN AVAILABLE): if repo has GitHub Actions CI
           (a `.github/workflows/*.yml` triggered on `push` or `pull_request`) AND a remote exists
           (`git remote` is non-empty) AND `gh auth status` succeeds:
-            - Push the run branch to trigger CI: `git push -u origin <branch>` (branch-only and
-              safe; SHIP re-pushes the final state — see step 8e).
+            - Push run branch to trigger CI: `git push -u origin <branch>` (branch-only and
+              safe; SHIP re-pushes final state — see step 8e).
             - Await the run for the pushed head SHA: poll
               `gh run list --branch <branch> --limit 1 --json status,conclusion,headSha,databaseId`
               until `status` is `completed` (or `gh run watch <databaseId> --exit-status`). Bound
-              the wait by the per-run time budget — if it blows, set `budget_state: blown` and
-              treat as a CI fail.
+              the wait by the per-run time budget — if it blows, set `budget_state: blown`,
+              treat as CI fail.
             - Set `ci_status: gh-actions` and `ci_conclusion: <success|failure|cancelled|timed_out>`.
               Anything other than `success` fires the CI VETO (gate FAILS → rework, step 7h).
-      iii. Fallback: if GH Actions / a remote / `gh` are unavailable, the in-tree run from (i) IS
-           the veto. Set `ci_status: in-tree (fallback)` and `ci_conclusion: pass|fail`, and note
-           the fallback under `## Done so far` (it surfaces in the PR body + final report).
+      iii. Fallback: if GH Actions / remote / `gh` unavailable, the in-tree run from (i) IS
+           the veto. Set `ci_status: in-tree (fallback)` and `ci_conclusion: pass|fail`, note
+           the fallback under `## Done so far` (surfaces in PR body + final report).
 
-      iv. SHORT-CIRCUIT: if the CI/suite veto FAILED (`ci_conclusion` not `success`/`pass`), a red
+      iv. SHORT-CIRCUIT: if CI/suite veto FAILED (`ci_conclusion` not `success`/`pass`), a red
           build is dispositive — do NOT run the reviewer panel (no tokens on a known-bad diff). Set
           `diff_panel: ci-veto` and go straight to the rework loop (step 7h).
 
-   d. Scope / forbidden-path guard + RE-TIER. Measure the diff against the branch base with
+   d. Scope / forbidden-path guard + RE-TIER. Measure diff against branch base with
       `git diff --name-only` and `git diff --stat`; record files-changed and lines-changed
-      (added+deleted). Each RELAXED guard below that actually fires appends its tag to the `override:`
+      (added+deleted). Each RELAXED guard below that fires appends its tag to the `override:`
       field in state.md (comma-joined) — that field is this step's metric reference, surfaced in the
       `metrics:` line so a relaxed run is greppable.
       - MIGRATIONS (HARD STOP — Override Policy rule 1) — if any changed file is a DB migration
         (`*/migrations/*`, or the repo's migration directory/format), auto has violated a
         non-negotiable rule: it must NEVER author a migration. Discard the change, write a
         `needs-migration` hand-off report to `feature-research/<task-id>/report.md`, set
-        `stage: aborted` (the abort surfaces as `outcome=ABORTED:needs-migration` in the metrics
+        `stage: aborted` (abort surfaces as `outcome=ABORTED:needs-migration` in the metrics
         line — the metric reference for the migration guard), print it, and STOP.
       - OTHER SENSITIVE / DEPENDENCY paths (RELAXED — Override Policy) — `.github/`, `*.yml` in
         `.github/`, CI config, `*.lock`, `package-lock.json`, `yarn.lock`, `Pipfile.lock`, dependency
         manifests, or secrets-like paths (`.env`, `*.pem`, `*.key`): auto MAY change these when the
-        task requires it. Attach the `needs-human` label as a heads-up AND force `tier: critical`
-        (extra scrutiny), record the flagged paths, append `sensitive-paths` to `override:` — but do
+        task requires it. Attach `needs-human` label as heads-up AND force `tier: critical`
+        (extra scrutiny), record flagged paths, append `sensitive-paths` to `override:` — but do
         NOT abort and do NOT fail the gate.
       - SCOPE (RELAXED — Override Policy) — if scope_paths was provided and changed files fall outside
-        it: record the out-of-scope files, append `scope` to `override:`; do NOT fail the gate.
-      - RUNAWAY (RELAXED — Override Policy) — if the diff exceeds 200 lines OR 20 files: record the
-        size as a NOTE, append `runaway` to `override:`; do NOT fail the gate (the panel + CI still
+        it: record out-of-scope files, append `scope` to `override:`; do NOT fail the gate.
+      - RUNAWAY (RELAXED — Override Policy) — if diff exceeds 200 lines OR 20 files: record
+        size as NOTE, append `runaway` to `override:`; do NOT fail the gate (panel + CI still
         judge the diff on merit).
       - RE-TIER on actual diff size, taking the MAX with the current tier (tier only escalates):
           · diff LARGE (≥150 lines OR ≥8 files) → at least HARD
           · diff SMALL (≤40 lines AND ≤2 files) → does NOT lower the tier (max rule)
         Set `tier:` = max(current tier, diff-derived tier); a forbidden/dep hit pins it to CRITICAL.
 
-   e. (BANNER RULE) Print the DIFF GATE banner now as the last line before the panel runs.
+   e. (BANNER RULE) Print the DIFF GATE banner now, last line before the panel runs.
       Print it ONCE for the whole panel — not per reviewer.
 
    f. Run the blind reviewer panel — SIZE IT BY `tier`:
@@ -507,10 +507,10 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
                                   handling, secrets, injection, auth)?"
         · plan-match           — "Does the diff match `plan.md` — nothing more (scope creep), nothing
                                   less (a missed step)?"
-      Record `reviewers: <n>`. Run the panelists IN PARALLEL — emit all N **reviewer** invocations in
+      Record `reviewers: <n>`. Run panelists IN PARALLEL — emit all N **reviewer** invocations in
       a SINGLE message (one Agent call each). Parallel is safe here ONLY because each panelist writes
       to its OWN file and returns its verdict in its reply — no shared `plan.md` / `diff_verdict`
-      writes to collide (that is why the plan gate stays sequential and this one does not). Frame each:
+      writes to collide (why the plan gate stays sequential and this one does not). Frame each:
         "You are reviewer <i>/<n> on the auto-mode diff panel. Lens: <lens>. You are BLIND: judge from
          the scoped diff + `plan.md` + the task ONLY. Do NOT read `audit.md` and do NOT read any other
          review file — independence is the point. Refute the diff through your lens; default to reject
@@ -518,33 +518,33 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
          `feature-research/<task-id>/review-<lens>-r<round>.md` (do NOT touch plan.md or state.md).
          End your final message with exactly two lines: `VERDICT: ship|fix_first` and
          `FINDINGS: <count of blocking findings>`."
-      MODEL TIERING (where the harness supports a per-invocation model override): size the panelist
-      model to the tier — run TRIVIAL and NORMAL panelists on a faster/cheaper tier (sonnet), and run
+      MODEL TIERING (where the harness supports a per-invocation model override): size panelist
+      model to tier — run TRIVIAL and NORMAL panelists on a faster/cheaper tier (sonnet), run
       HARD and CRITICAL panelists on the reviewer default (opus/xhigh), since a missed bug at those
-      tiers has real blast radius and a stronger reviewer earns its cost there. The arbiter ALWAYS
-      runs at the reviewer default (opus/xhigh) regardless of tier. If no override is available, all
+      tiers has real blast radius and a stronger reviewer earns its cost there. Arbiter ALWAYS
+      runs at the reviewer default (opus/xhigh) regardless of tier. If no override available, all
       panelists run at the reviewer default — model tiering is a cost optimization, not a correctness
       requirement. Record the model the panel actually ran on as `panel_model: <sonnet|opus>` in
-      state.md (`opus` when no override is available and all panelists fell back to the default) — this
+      state.md (`opus` when no override available and all panelists fell back to the default) — this
       is step 7f's metric reference, surfaced in the `metrics:` line.
       Collect each panelist's `VERDICT` + `FINDINGS` from its reply; record one
       `- diff_vote_<lens>: <verdict> (<findings>)` line under `## Done so far`.
 
    g. Resolve the gate (CI already passed — a red build short-circuited at 7c-iv and never reaches
-      here). Count a `fix_first` as a refute. The arbiter is the opus quality gate over the panel — it
+      here). Count a `fix_first` as a refute. Arbiter is the opus quality gate over the panel —
       runs on every outcome EXCEPT a unanimous refute:
-        - SPLIT — the panel is NOT unanimous (a mix of ship and fix_first) → arbiter runs to resolve
-          the contested findings. Set `arbiter_trigger: split` in state.md.
-        - UNANIMOUS SHIP — all panelists ship → the arbiter ALWAYS runs as a final opus sign-off over
-          the panel. It does NOT rubber-stamp: it independently re-reviews the diff and tries to find
-          the one objection the panel missed. This is the safety net for a panel that agreed too
+        - SPLIT — panel NOT unanimous (mix of ship and fix_first) → arbiter runs to resolve
+          contested findings. Set `arbiter_trigger: split` in state.md.
+        - UNANIMOUS SHIP — all panelists ship → arbiter ALWAYS runs as final opus sign-off over
+          the panel. It does NOT rubber-stamp: independently re-reviews the diff and tries to find
+          the one objection the panel missed. Safety net for a panel that agreed too
           easily — especially a cheaper sonnet panel on a trivial/normal tier. Set
-          `arbiter_trigger: unanimous-ship` (or `critical` when the tier is critical) in state.md.
+          `arbiter_trigger: unanimous-ship` (or `critical` when tier is critical) in state.md.
         - UNANIMOUS REFUTE — all panelists fix_first → gate FAILS, no arbiter runs (nothing to debate)
           → set `arbiter_trigger: none` and go to rework (7h).
-      (`arbiter_trigger` is step 7g's metric reference — it records WHY the arbiter ran, surfaced in
+      (`arbiter_trigger` is step 7g's metric reference — records WHY the arbiter ran, surfaced in
       the `metrics:` line — distinct from `arbiter`, which records its verdict.)
-      When the arbiter runs: invoke ONE **reviewer** subagent as the ARBITER (read-only; reviewer
+      When arbiter runs: invoke ONE **reviewer** subagent as the ARBITER (read-only; reviewer
       default opus/xhigh), given the diff + `plan.md` + task + ALL panel review files. Frame it:
         "You are the ARBITER. Either the panel split, this is a critical task, or the panel
          unanimously shipped and you are the final opus sign-off. Read every review file and the diff.
@@ -558,54 +558,54 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
          single-row table is a defect; redo it. Every rejected option must state why it is worse than
          the chosen one. Default to reject if uncertain. End with `ARBITER: ship|fix_first`."
       Record `arbiter: <ship|fix_first|none>` (`none` only on a unanimous refute, where no arbiter ran).
-      GATE PASSES if: the arbiter returned `ship` (it runs on every split and every unanimous ship) —
-      AND the tamper guard passed. (Scope / forbidden / dependency / runaway findings only attach the
+      GATE PASSES if: arbiter returned `ship` (it runs on every split and every unanimous ship) —
+      AND tamper guard passed. (Scope / forbidden / dependency / runaway findings only attach the
       `needs-human` label or a note in auto mode — see Override Policy — they do NOT fail the gate.)
-      GATE FAILS → rework (7h) if: the arbiter returned `fix_first`, OR the panel unanimously refuted
+      GATE FAILS → rework (7h) if: arbiter returned `fix_first`, OR panel unanimously refuted
       (no arbiter ran).
       Set `diff_panel: <pass | killed-by-arbiter | killed-by-vote>`.
-      Consolidate the per-lens review files (+ the arbiter's, if any) into `plan.md`'s `## 🔭 Review`
+      Consolidate per-lens review files (+ arbiter's, if any) into `plan.md`'s `## 🔭 Review`
       as `### Diff review — <lens> (round <n>)` subsections — the durable PR record.
 
    h. On GATE FAIL — rework. CLEAN UP the round, then re-enter at the PANEL (NOT step 1):
-      i. Per-round reset: set `diff_verdict`/`arbiter` back to pending (the per-lens review files are
+      i. Per-round reset: set `diff_verdict`/`arbiter` back to pending (per-lens review files
          already round-stamped `-r<round>`); prune "Still open" to ONLY the unresolved blocking
-         findings — those are the implementer's instructions for this round.
-      ii. Increment `rework_round:`. Read the prior `open_findings:`. Count this round's blocking
+         findings — the implementer's instructions for this round.
+      ii. Increment `rework_round:`. Read prior `open_findings:`. Count this round's blocking
           findings (panel + arbiter).
-      iii. NON-CONVERGENCE check — if findings did NOT shrink vs the prior round
+      iii. NON-CONVERGENCE check — if findings did NOT shrink vs prior round
            (count >= previous AND `rework_round > 1`) OR a finding RECURS identically across rounds,
-           the implementer is not converging → this is an APPROACH problem, not a local bug:
+           implementer is not converging → APPROACH problem, not a local bug:
            - REPLAN BOUNCE (once): if `replan_bounced: no`, set it `yes`, route back to PLAN — invoke
              the **planner** with the panel/arbiter's standing objection to choose a DIFFERENT
-             approach (the planner MUST emit an `## Options considered` table — ≥2 approaches with
+             approach (planner MUST emit an `## Options considered` table — ≥2 approaches with
              +/− and a justified pick over the rejected ones), then resume at step 6 (IMPLEMENT) with
-             the fresh plan. Re-freezing the RED test is not needed (criteria unchanged).
+             the fresh plan. Re-freezing the RED test not needed (criteria unchanged).
            - If `replan_bounced: yes` already: give up cleanly — abort with a `needs-human` report
              (`stage: aborted`, reason `no-convergence`, list the recurring findings), print, STOP.
-           Otherwise (findings are shrinking normally): continue to iv.
+           Otherwise (findings shrinking normally): continue to iv.
       iv. Budget: if `rework_round > max_iterations` → abort (`stage: aborted`, reason `budget`).
       v. Otherwise: update `open_findings:`, invoke the **implementer** again (fix ONLY "Still open"),
-         then re-enter the diff gate at step 7b — tamper guard + CI veto (re-push → re-await) + the
+         then re-enter the diff gate at step 7b — tamper guard + CI veto (re-push → re-await) +
          tier-sized panel all re-run on the new diff. Bounded by max_iterations.
 
 8. SHIP — push branch and open a draft PR.
 
    a. Update state.md: set `stage: ship`.
 
-   b. (BANNER RULE) Print the SHIP banner now as the last line before the ship step.
+   b. (BANNER RULE) Print the SHIP banner now, last line before the ship step.
 
-   c. Determine labels: always add `auto-mode`. Add `needs-human` if sensitive/dependency paths were
+   c. Determine labels: always add `auto-mode`. Add `needs-human` if sensitive/dependency paths
       flagged (step 7d) OR planner confidence was ≤ 3 (step 3a, relaxed under the Override Policy) OR
       `open_questions > 0` (step 4g — unresolved business-context questions need a human) OR
-      this is a multi-repo run (cross-repo is higher-risk by default).
+      multi-repo run (cross-repo is higher-risk by default).
 
    d. Build the PR body — LEAD WITH THE REVIEWER-ACTIONABLE ESSENTIALS (why · what · how to test ·
-      setup), keep each tight, push the long-form plan + audit into collapses at the bottom.
+      setup), keep each tight, push long-form plan + audit into collapses at the bottom.
       Structure, in this order:
 
       1. SOURCE — if `source_url` is set, the first line is `Source: <source_url>` (the ticket this
-         traces to; weave any ticket context in as background). Omit the line entirely when
+         traces to; weave any ticket context in as background). Omit the line when
          `source_url: none` — never fabricate one.
 
       2. SUMMARY (2–4 lines) — what changed + why, lifted from plan.md `## 🎯 What` / `## 🤔 Why`.
@@ -645,37 +645,37 @@ from state.md each time. Do NOT pick at random; do NOT default to the first.
       9. `<details><summary>📋 Full plan (as reviewed & validated)</summary>` — embed the ENTIRE
          final `plan.md` verbatim (its 🗺 Design, 💥 Blast radius, 🧯 Error handling, 📈 Scorecard,
          ✅ Decisions, and the `## 🔭 Review` carrying the plan- and diff-review). `feature-research/`
-         is gitignored AND the scratch is deleted at step 8g, so THIS collapse is the only durable
+         is gitignored AND scratch is deleted at step 8g, so THIS collapse is the only durable
          copy — the PR becomes the plan's permanent home on GitHub. Leave ONE blank line after the
          `<summary>` line so GitHub renders the inner markdown (tables / ASCII flow / headers); do
          NOT wrap the plan in a code fence — it already contains its own fenced blocks.
 
-      Write the body to a temp file and use `gh pr create --body-file` (cleaner than inline quoting).
+      Write the body to a temp file, use `gh pr create --body-file` (cleaner than inline quoting).
       For a multi-repo run, the PRIMARY repo's PR carries the full body plus a `Companion PRs:` list;
       each companion PR gets the same Source + Summary + Plan, plus a `Part of <task-id>` back-link.
 
-   e. Push + open the draft PR(s) — once per repo in `repos:` that has a non-empty diff (single-repo
+   e. Push + open the draft PR(s) — once per repo in `repos:` with a non-empty diff (single-repo
       run = just the current repo). For each such repo, from its worktree (or `gh -R <owner/repo>`):
       - Clean history (own branch only — Override Policy rule 2): squash this run's commits on
         `<branch>` into a SINGLE well-described commit so the PR merges clean for tidy releases
         (e.g. `git reset --soft <branch-base> && git commit -m "<subject>" -F <body-file>`). This
         rewrites ONLY auto's own `anderson/auto/*` branch.
-      - Push: `git push --force-with-lease -u origin <branch>` (the squash rewrote the branch;
-        force-with-lease is permitted HERE — and ONLY here, on auto's own `anderson/auto/*` branch —
-        NEVER on the default / shared / human branch without explicit consent). The CI veto at step 7c
+      - Push: `git push --force-with-lease -u origin <branch>` (squash rewrote the branch;
+        force-with-lease permitted HERE — and ONLY here, on auto's own `anderson/auto/*` branch —
+        NEVER on the default / shared / human branch without explicit consent). CI veto at step 7c
         may have already pushed this branch; this sends the final squashed state. No remote / push
-        fails → degrade gracefully: note it and print that repo's PR body as text.
+        fails → degrade gracefully: note it, print that repo's PR body as text.
       - Open: `gh pr create --draft --title "<title> [auto-mode]" --body-file <tmp> --label "auto-mode"`
-        (+ `--label needs-human` per step 8c). If `gh` is unavailable, print the body and note the
+        (+ `--label needs-human` per step 8c). If `gh` unavailable, print the body and note the
         human should open it. Capture each PR URL.
-      - After all PRs are open, edit the PRIMARY PR's body to fill its `Companion PRs:` list with the
+      - After all PRs open, edit the PRIMARY PR's body to fill its `Companion PRs:` list with the
         other URLs, and each companion's `Part of` back-link.
 
    f. Set state.md `stage: done`.
 
-   g. Clean up the workspace: `git worktree remove` each worktree created in step 2d, then
-      `rm -rf feature-research/<task-id>/`. The PR(s) + git history are the durable record — the full
-      plan is embedded in the PR body (step 8d item 9), so nothing of value is lost on deletion. (On
+   g. Clean up workspace: `git worktree remove` each worktree created in step 2d, then
+      `rm -rf feature-research/<task-id>/`. PR(s) + git history are the durable record — full
+      plan is embedded in the PR body (step 8d item 9), so nothing of value lost on deletion. (On
       any abort path the scratch + worktrees are KEPT for inspection — do not remove on abort.)
 
 9. REPORT — print the structured terminal result.
