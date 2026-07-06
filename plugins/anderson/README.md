@@ -446,6 +446,11 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
     codebase can answer is answered there, never asked.
   - **Calibration (question 0)** — one line, "wrote it / know it / new to it", tunes question
     depth to your familiarity with the touched area; never more than this one meta-question.
+  - **Token economy** — the sweep is scoped to the plan's touched files/symbols (grep/git-log
+    one-liners, excerpts, no repo-wide scans), preferably delegated to one cheap read-only
+    search subagent so the greps never enter the main session's context; trivial plans collapse
+    it to a single grep + git-log pass. Turn count cut too: independent 🟡 pair 2–3 per message,
+    each question capped at 4 lines (header + question + recommendation, no plan restating).
   - **Grades** — every question is classed 🔴 ARCH (answer changes architecture/data model/scope),
     🟡 BEHAVIOR (edge cases, error handling, UX semantics), or 🟢 PREF (safe to default).
   - **🔥 Manifest** — printed before question 1, so you see the grilling level upfront: total count,

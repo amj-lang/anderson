@@ -92,7 +92,14 @@ interactive step — not a subagent) must complete, and only THEN the plan-revie
        · config, migrations, feature flags touching the same surface
        · git history — was this tried, reverted, or worked around before?
        · repo conventions the plan silently diverges from
-     Any triaged question you can answer by exploring the codebase,
+     TOKEN ECONOMY of the sweep: scope every vector to the files/symbols plan.md touches —
+     targeted grep / `git log --oneline -- <files>` one-liners and excerpts, never
+     whole-file reads or repo-wide scans. PREFER delegating the whole sweep to ONE cheap
+     read-only search subagent (e.g. Explore) that returns one verdict line per vector
+     plus candidate questions — keeps the greps out of this session's context. If the
+     plan is trivial (≤2 files, no interface change), collapse the sweep to one grep +
+     one git-log pass inline; thoroughness stays proportional to the blast radius.
+     Any triaged question you can answer from what the sweep already returned,
      answer now and drop from the list — never ask me what the code already says.
    - Grade every remaining question:
        🔴 ARCH — the answer changes the architecture, data model, or scope
@@ -112,9 +119,12 @@ interactive step — not a subagent) must complete, and only THEN the plan-revie
      "new to it" → one sentence of context per question on why it matters, lean harder on
      your recommendations. No answer / "skip" = "know it". Never more than this one
      meta-question — calibration must not become its own interrogation.
-   - Ask ONE question at a time; wait for my answer before the next. Order strictly
-     🔴 → 🟡 → 🟢: early answers constrain later ones. For EACH question give your
-     recommended answer, so I can just confirm.
+   - Order strictly 🔴 → 🟡 → 🟢: early answers constrain later ones. Ask 🔴 ONE at a
+     time (their answers cascade); independent 🟡 MAY be paired 2–3 per message when no
+     answer can affect another; 🟢 all in one batch. Always wait for my answer before the
+     next message. For EACH question give your recommended answer, so I can just confirm.
+     Keep each question ≤4 lines — progress header + question + recommendation; never
+     restate plan.md content I can read myself.
    - Prefix every question with a progress header. If an answer spawns a new question,
      grow the total honestly (`5/12`) and slot it by grade — never hide the drift:
      ```
