@@ -81,10 +81,58 @@ interactive step — not a subagent) must complete, and only THEN the plan-revie
    ```
    Pool (24): "Every unanswered question is a bug with a delay." / "The plan you cannot defend out loud is not yet a plan." / "Decide it now in words, or discover it later in an outage." / "An assumption spoken is an assumption you can kill." / "The question you are avoiding is the one that matters." / "Pin every fork before the code picks one for you." / "Vague is just expensive spelled slowly." / "If two answers both sound fine, you haven't found the real question." / "Name the trade-off, or the trade-off names you." / "Shared understanding is cheaper than shared blame." / "What is real? How do you define real?" / "You think that's air you're breathing now?" / "What good is a phone call if you are unable to speak?" / "You have a problem with authority, Mr. Anderson." / "Choice is an illusion created between those with power and those without." / "There is only one constant, one universal: causality." / "Why, Mr. Anderson? Why do you persist?" / "You've been living in a dream world, Neo." / "We are all here to do what we are all here to do." / "Do you believe you are fighting for more than your survival?" / "Every fork you skip, the code picks for you." / "The answer you dodge becomes the outage you explain." / "Defend it out loud, or it isn't decided." / "Do not just hear the plan; interrogate it."
    Then GRILL the plan yourself, inline in this session (self-contained — no external skill):
-   - Ask ONE question at a time; wait for my answer before the next.
-   - Walk down each branch of plan.md's decision tree, resolving dependencies between
-     decisions one-by-one. For EACH question give your recommended answer, so I can just confirm.
-   - If a question can be answered by exploring the codebase, explore instead of asking.
+   - TRIAGE FIRST (before question 1): enumerate every question in ONE pass — each open
+     branch of plan.md's decision tree, every `needs-context` row of the "🧯 Error handling"
+     table, every gap in the "💥 Blast radius" table — PLUS a structured blindspot pass
+     over what plan.md never mentions. Sweep EACH vector below in the codebase (don't skip
+     one because it "probably" comes up clear — the sweep line in the manifest proves you
+     looked); questions the plan doesn't know it has are the highest-value kind:
+       · callers/consumers of the touched code that plan.md never names
+       · existing tests that encode behavior the plan would change
+       · config, migrations, feature flags touching the same surface
+       · git history — was this tried, reverted, or worked around before?
+       · repo conventions the plan silently diverges from
+     TOKEN ECONOMY of the sweep: scope every vector to the files/symbols plan.md touches —
+     targeted grep / `git log --oneline -- <files>` one-liners and excerpts, never
+     whole-file reads or repo-wide scans. PREFER delegating the whole sweep to ONE cheap
+     read-only search subagent (e.g. Explore) that returns one verdict line per vector
+     plus candidate questions — keeps the greps out of this session's context. If the
+     plan is trivial (≤2 files, no interface change), collapse the sweep to one grep +
+     one git-log pass inline; thoroughness stays proportional to the blast radius.
+     Any triaged question you can answer from what the sweep already returned,
+     answer now and drop from the list — never ask me what the code already says.
+   - Grade every remaining question:
+       🔴 ARCH — the answer changes the architecture, data model, or scope
+       🟡 BEHAVIOR — edge cases, error handling, UX semantics
+       🟢 PREF — naming, defaults, cosmetics; safe to auto-resolve with your recommendation
+   - Print the manifest as the FIRST thing after the GRILL banner, so I can see the grilling
+     level before it starts (substitute real counts; the sweep line shows one entry per
+     blindspot vector — ✓ if it came up clear, +n if it raised n questions):
+     ```
+     🔥 GRILL MANIFEST — <N> questions
+        🔴 <a> architecture · 🟡 <b> behavior · 🟢 <c> preference (batched at the end)
+        blindspot sweep: callers <✓|+n> · tests <✓|+n> · config <✓|+n> · history <✓|+n> · conventions <✓|+n>
+     ```
+   - CALIBRATE (question 0, immediately after the manifest): ask ONE line — "How familiar
+     are you with <the touched area>? wrote it / know it / new to it." Calibrate depth to
+     the answer: "wrote it" → terse questions, assume context, auto-resolve borderline 🟢;
+     "new to it" → one sentence of context per question on why it matters, lean harder on
+     your recommendations. No answer / "skip" = "know it". Never more than this one
+     meta-question — calibration must not become its own interrogation.
+   - Order strictly 🔴 → 🟡 → 🟢: early answers constrain later ones. Ask 🔴 ONE at a
+     time (their answers cascade); independent 🟡 MAY be paired 2–3 per message when no
+     answer can affect another; 🟢 all in one batch. Always wait for my answer before the
+     next message. For EACH question give your recommended answer, so I can just confirm.
+     Keep each question ≤4 lines — progress header + question + recommendation; never
+     restate plan.md content I can read myself.
+   - Prefix every question with a progress header. If an answer spawns a new question,
+     grow the total honestly (`5/12`) and slot it by grade — never hide the drift:
+     ```
+     ❓ <n>/<N> · 🔴 ARCH · <one-line question>
+        ▓▓▓░░░░░░░░ <n−1> done
+     ```
+   - 🟢 batch: present ALL preference questions together in ONE message, each with its
+     recommendation; a single "defaults fine" accepts every recommendation at once.
    - After each resolved decision, fold it into plan.md (update the affected section; record
      non-obvious choices under a `## Decisions` heading).
    - Explicitly walk the "💥 Blast radius" table: for each vector, challenge whether the
@@ -100,7 +148,10 @@ interactive step — not a subagent) must complete, and only THEN the plan-revie
      call>` for each row I chose to DEFER (left `needs-context`). Set `open_questions:` in state.md
      to the count of `[open]` lines. A non-zero count is surfaced in the ship PR, not silently dropped.
    - Continue until I signal shared understanding ("done", "good", "go to review") or no open
-     branches remain. Then set stage=plan_review and continue to the reviewer.
+     branches remain. On early exit: auto-resolve any unasked 🟢 to your recommendations
+     (record each as `[answered] … → … (grilled, default)`), and record any unasked 🔴/🟡 as
+     `[open]` — an early exit skips questions, it never silently decides the big ones.
+     Then set stage=plan_review and continue to the reviewer.
 5. (BANNER RULE) Print this PLAN-REVIEW banner (choose the quote by COUNTING, not by feel: let N = the number of characters in the
    task slug (just its length — count every character, including hyphens); let iteration
    = the `iteration:` value currently in state.md (read it fresh — at this step it already
