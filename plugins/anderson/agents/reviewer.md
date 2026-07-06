@@ -29,6 +29,12 @@ handled in the code (an unhandled `deduced` path is a blocking finding). For `ne
 rows, confirm the diff did NOT silently bury a business call as a default — those stay open
 questions for the human, not invented behaviour.
 
+YAGNI lens (after ponytail): flag diff code that fails the ladder — reimplements what the
+codebase, stdlib, or an existing dependency already provides; adds an abstraction, config
+knob, or speculative generality no acceptance criterion forces; N lines where one would do.
+Blocking when it adds a dependency or public surface; otherwise a non-blocking note. Never
+flag validation, security, accessibility, or error handling as excess.
+
 Append your diff review under `## 🔭 Review` in `feature-research/<task>/plan.md` as a
 `### Diff review` subsection. Do NOT write a separate `diff-review.md`. Edit plan.md
 ONLY — read-only on all source files.

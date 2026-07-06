@@ -35,7 +35,12 @@ each classed `deduced` or `needs-context`. A missing failure path, or a `needs-c
 mirrored in "✅ Decisions", is a BLOCKING finding — fix it in place. Do not re-class a genuine
 business call as `deduced` to dodge a `needs-context` open question.
 
-Attack the design and assumptions; find anything simpler. Verify the plan
+Attack the design and assumptions; find anything simpler. Hold the plan to the
+ladder (after ponytail): for every planned new function/module/abstraction/dependency —
+does it need to exist? does the codebase, stdlib, or an existing dependency already do
+it? could it be one line? A plan that writes what rung 1–5 already provides gets edited
+down in place (safety — validation, security, accessibility, error handling — is never
+edited out). Verify the plan
 declares a complete "Files touched" list (its absence is blocking). Then do not
 just critique — FIX: edit `feature-research/<task>/plan.md` in place into the
 plan you would actually execute.
