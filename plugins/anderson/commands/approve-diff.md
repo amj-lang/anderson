@@ -18,7 +18,7 @@ step. NEVER force-push; never touch an existing branch destructively.
      dependencies / config, or "none" — also from `audit.md` `## ⚙️ Setup & test`);
      `## ❓ Open questions & assumptions` block from state.md `## ❓ Open questions` (what grill
      resolved or deferred — PR reviewer sees it without unfolding plan), two terse lists,
-     omit a list if empty; if both empty write one line "None — all error paths resolved in the
+     omit empty list; both empty → one line "None — all error paths resolved in the
      grill": **🔴 Open (deferred — needs a human):** each `[open]` line as `- <question> — <why>`;
      **🟢 Resolved / assumed:** each `[answered]` line as `- <question> → <answer>`. Review
      verdict + notable points (`plan.md` `## 🔭 Review`); files touched (`audit.md`);
@@ -52,16 +52,16 @@ step. NEVER force-push; never touch an existing branch destructively.
    - Both present: `git push -u origin "<branch>"`, then
      `gh pr create --base "<default>" --head "<branch>" --title "<subject>" --body-file <tmp>`.
      If state.md `open_questions:` > 0 (grill left deferred `[open]` rows), add
-     `--label needs-human` to steer the reviewer to the open business calls; if label
-     doesn't exist or `gh` rejects it, drop the flag and open the PR anyway (never fail the
-     ship). Capture + print the PR URL.
+     `--label needs-human` to steer reviewer to open business calls; if label doesn't
+     exist or `gh` rejects it, drop the flag, open PR anyway (never fail the ship).
+     Capture + print the PR URL.
    - Remote but no gh / not authed: push only, then print PR body + a compare-URL
      hint so I can open the PR myself.
    - No remote: skip the network; local commit stands. Print the PR body.
 
 5. Remove disposable scratch: `rm -rf "feature-research/$ARGUMENTS"`.
-   (Git history + PR are the durable record; full plan is embedded in the PR body at
-   step 1, so deleting the scratch loses nothing.)
+   (Git history + PR are the durable record; full plan embedded in PR body at
+   step 1 — deleting scratch loses nothing.)
 
 6. (BANNER RULE) Print this SHIP banner (choose ending by COUNTING, not feel: N = task slug character count (every character, hyphens included); iteration = `iteration:` value in state.md (read fresh); ending = 0-based item at index (N + 6 + iteration) mod M; M = integer in "Pool (M endings):" label below; count list from 0; mod M always yields valid position (0 to M−1); label number must equal actual ending count. Do NOT pick "at random", do NOT default to first.) as the LAST framed line before the done line:
    ```
