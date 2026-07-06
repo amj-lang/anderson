@@ -112,7 +112,7 @@ Living spec: `plugins/anderson/docs/auto-mode.md`. Design context: `plugins/ande
 | Persona          | Stage         | Role                                   | Model / effort |
 |------------------|---------------|----------------------------------------|----------------|
 | THE ARCHITECT    | `plan`        | writes the plan                        | opus / high    |
-| THE INTERROGATOR | `grill`       | you — relentless one-at-a-time Q&A     | — (human)      |
+| THE INTERROGATOR | `grill`       | you — triaged, graded Q&A (🔴🟡🟢)     | — (human)      |
 | THE ORACLE       | `plan_review` | edits the plan inline + appends review to `## 🔭 Review` | opus / xhigh   |
 | NEO              | `implement`   | executes the approved plan             | sonnet / medium|
 | AGENT SMITH      | `diff_review` | read-only diff review                  | opus / xhigh   |
@@ -130,7 +130,7 @@ high   [ YOU ]   xhigh (edits)            medium        xhigh (read-only)
 | Stage        | Agent          | Model  | Effort | Gate  | Does                                  |
 |--------------|----------------|--------|--------|-------|---------------------------------------|
 | plan         | `planner`      | opus   | high   | —     | writes `plan.md` + blast radius + scorecard |
-| grill        | *(you)*        | —      | —      | human | relentless one-at-a-time Q&A on the plan, folds decisions into `plan.md` — no subagent |
+| grill        | *(you)*        | —      | —      | human | triages ALL questions upfront (incl. a blindspot pass), grades 🔴 ARCH/🟡 BEHAVIOR/🟢 PREF, prints a 🔥 manifest, asks one at a time 🔴→🟡 with a `❓ n/N` progress header, batches 🟢; folds decisions into `plan.md` — no subagent |
 | plan_review  | `plan-reviewer`| opus   | xhigh  | human | **edits** `plan.md` inline + appends review to `## 🔭 Review`; re-scores + checks blast radius; verdict `ship`/`fix_first`/`regrill` |
 | implement    | `implementer`  | sonnet | medium | —     | writes `audit.md`                     |
 | diff_review  | `reviewer`     | opus   | xhigh  | human | diff review appended to `plan.md` `## 🔭 Review` |
@@ -435,6 +435,25 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.17.0** — **Graded grill with upfront triage.** The grill previously streamed questions
+  open-endedly: no sense of how many were coming, which ones mattered, and only questions the plan
+  already knew it had (its own decision tree) ever got asked. Now:
+  - **Triage first** — THE INTERROGATOR enumerates every question in one pass (decision-tree
+    branches + 🧯 `needs-context` rows + 💥 blast-radius gaps) **plus a blindspot pass**: what does
+    plan.md not mention at all that the codebase or goal will force a decision on? Anything the
+    codebase can answer is answered there, never asked.
+  - **Grades** — every question is classed 🔴 ARCH (answer changes architecture/data model/scope),
+    🟡 BEHAVIOR (edge cases, error handling, UX semantics), or 🟢 PREF (safe to default).
+  - **🔥 Manifest** — printed before question 1, so you see the grilling level upfront: total count,
+    per-grade split, and how many came from the blindspot pass.
+  - **Progress header** — each question carries `❓ n/N · grade` + a bar; follow-up questions grow
+    N honestly instead of hiding the drift. Order is strictly 🔴→🟡→🟢 (early answers constrain
+    later ones); all 🟢 are batched into one message a single "defaults fine" accepts.
+  - **Early exit is now safe** — "good, go to review" auto-resolves remaining 🟢 to recommendations
+    (`[answered] … (grilled, default)`) and records remaining 🔴/🟡 as `[open]`; skipping never
+    silently decides the big ones.
+  - `/anderson:demo` annotated to match. (Same triage/grade/manifest model also backported to the
+    standalone `grill-me` / `grill-with-docs` user skills, minus state.md bookkeeping.)
 - **0.16.0** — **Open-questions parity for the gated path.** 0.15.0 wired the 🧯 error-handling →
   open-questions flow into `auto` but only half into the gated loop: THE INTERROGATOR *walked* the
   `needs-context` rows in the grill, but a deferred row had nowhere to be recorded and never surfaced

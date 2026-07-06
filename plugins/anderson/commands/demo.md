@@ -17,7 +17,7 @@ Print in exactly this order (sub-bullet = quote pool to pick from):
 
 ╭─ ⌐■-■  GRILL · 2/5 · THE INTERROGATOR · you
   Pool: "Every unanswered question is a bug with a delay." / "The plan you cannot defend out loud is not yet a plan." / "Pin every fork before the code picks one for you."
-  (walks the plan's 💥 blast radius, 📈 scorecard, and 🧯 error-handling `needs-context` rows with you; each row you defer is recorded under state.md `## ❓ Open questions`)
+  (opens with a 🔥 GRILL MANIFEST — all questions triaged upfront and graded 🔴 ARCH / 🟡 BEHAVIOR / 🟢 PREF, plus a blindspot pass for what plan.md never mentions; asks 🔴 → 🟡 first with a `❓ n/N` progress header, batches 🟢 at the end; walks the plan's 💥 blast radius, 📈 scorecard, and 🧯 error-handling `needs-context` rows with you; each row you defer is recorded under state.md `## ❓ Open questions`)
 
 ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · opus/xhigh
   Pool: "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system."
