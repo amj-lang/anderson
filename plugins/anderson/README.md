@@ -439,13 +439,17 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
   open-endedly: no sense of how many were coming, which ones mattered, and only questions the plan
   already knew it had (its own decision tree) ever got asked. Now:
   - **Triage first** — THE INTERROGATOR enumerates every question in one pass (decision-tree
-    branches + 🧯 `needs-context` rows + 💥 blast-radius gaps) **plus a blindspot pass**: what does
-    plan.md not mention at all that the codebase or goal will force a decision on? Anything the
+    branches + 🧯 `needs-context` rows + 💥 blast-radius gaps) **plus a structured blindspot
+    pass** over what plan.md never mentions, sweeping five concrete vectors (callers, tests,
+    config/flags, git history, repo conventions) rather than one free-form look — the manifest's
+    sweep line (`callers ✓ · tests +2 · …`) proves each vector was checked. Anything the
     codebase can answer is answered there, never asked.
+  - **Calibration (question 0)** — one line, "wrote it / know it / new to it", tunes question
+    depth to your familiarity with the touched area; never more than this one meta-question.
   - **Grades** — every question is classed 🔴 ARCH (answer changes architecture/data model/scope),
     🟡 BEHAVIOR (edge cases, error handling, UX semantics), or 🟢 PREF (safe to default).
   - **🔥 Manifest** — printed before question 1, so you see the grilling level upfront: total count,
-    per-grade split, and how many came from the blindspot pass.
+    per-grade split, and the per-vector blindspot sweep line.
   - **Progress header** — each question carries `❓ n/N · grade` + a bar; follow-up questions grow
     N honestly instead of hiding the drift. Order is strictly 🔴→🟡→🟢 (early answers constrain
     later ones); all 🟢 are batched into one message a single "defaults fine" accepts.

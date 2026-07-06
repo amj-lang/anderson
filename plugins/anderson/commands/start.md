@@ -83,22 +83,35 @@ interactive step — not a subagent) must complete, and only THEN the plan-revie
    Then GRILL the plan yourself, inline in this session (self-contained — no external skill):
    - TRIAGE FIRST (before question 1): enumerate every question in ONE pass — each open
      branch of plan.md's decision tree, every `needs-context` row of the "🧯 Error handling"
-     table, every gap in the "💥 Blast radius" table — PLUS one blindspot pass: what does
-     plan.md not mention at all that the codebase or the goal will force a decision on?
-     Explore the codebase to find these; questions the plan doesn't know it has are the
-     highest-value kind. Any triaged question you can answer by exploring the codebase,
+     table, every gap in the "💥 Blast radius" table — PLUS a structured blindspot pass
+     over what plan.md never mentions. Sweep EACH vector below in the codebase (don't skip
+     one because it "probably" comes up clear — the sweep line in the manifest proves you
+     looked); questions the plan doesn't know it has are the highest-value kind:
+       · callers/consumers of the touched code that plan.md never names
+       · existing tests that encode behavior the plan would change
+       · config, migrations, feature flags touching the same surface
+       · git history — was this tried, reverted, or worked around before?
+       · repo conventions the plan silently diverges from
+     Any triaged question you can answer by exploring the codebase,
      answer now and drop from the list — never ask me what the code already says.
    - Grade every remaining question:
        🔴 ARCH — the answer changes the architecture, data model, or scope
        🟡 BEHAVIOR — edge cases, error handling, UX semantics
        🟢 PREF — naming, defaults, cosmetics; safe to auto-resolve with your recommendation
    - Print the manifest as the FIRST thing after the GRILL banner, so I can see the grilling
-     level before it starts (substitute real counts):
+     level before it starts (substitute real counts; the sweep line shows one entry per
+     blindspot vector — ✓ if it came up clear, +n if it raised n questions):
      ```
      🔥 GRILL MANIFEST — <N> questions
         🔴 <a> architecture · 🟡 <b> behavior · 🟢 <c> preference (batched at the end)
-        +<k> from the blindspot pass (not in plan.md)
+        blindspot sweep: callers <✓|+n> · tests <✓|+n> · config <✓|+n> · history <✓|+n> · conventions <✓|+n>
      ```
+   - CALIBRATE (question 0, immediately after the manifest): ask ONE line — "How familiar
+     are you with <the touched area>? wrote it / know it / new to it." Calibrate depth to
+     the answer: "wrote it" → terse questions, assume context, auto-resolve borderline 🟢;
+     "new to it" → one sentence of context per question on why it matters, lean harder on
+     your recommendations. No answer / "skip" = "know it". Never more than this one
+     meta-question — calibration must not become its own interrogation.
    - Ask ONE question at a time; wait for my answer before the next. Order strictly
      🔴 → 🟡 → 🟢: early answers constrain later ones. For EACH question give your
      recommended answer, so I can just confirm.
