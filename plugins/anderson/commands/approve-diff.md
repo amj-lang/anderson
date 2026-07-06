@@ -3,72 +3,72 @@ description: "Approve the diff review and SHIP for real: commit cleanly on a bra
 argument-hint: <task-slug>
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(rm:*), Bash(cat:*), Bash(echo:*)
 ---
-Task slug = "$ARGUMENTS". This is GATE 2 passing — you've read the diff. In state.md
-set diff_verdict=ship, stage=done. This command has side effects (commit, push, PR);
-it only runs because you invoked it at the gate. Print what it's about to do before
-each network step. NEVER force-push; never touch an existing branch destructively.
+Task slug = "$ARGUMENTS". GATE 2 passing — you've read the diff. In state.md
+set diff_verdict=ship, stage=done. Command has side effects (commit, push, PR);
+runs only because you invoked it at the gate. Print intent before each network
+step. NEVER force-push; never touch an existing branch destructively.
 
-1. Build the messages FROM the scratch (it's still present — do this before step 5):
-   - Read the goal, the verdict from `plan.md` `## 🔭 Review`, and "Files changed" + the
-     blocking count from `audit.md`.
+1. Build messages FROM the scratch (still present — do before step 5):
+   - Read goal, verdict from `plan.md` `## 🔭 Review`, and "Files changed" + blocking
+     count from `audit.md`.
    - Commit subject (≤72 chars): `<goal>  (review: ship · <N> blocking resolved)`
-   - PR body (markdown), VISIBLE essentials first, each tight: 2–4 lines on WHAT changed + WHY
-     (from `plan.md`); a `## 🧪 How to test` block (the test command + the test that covers it,
-     from `audit.md` `## ⚙️ Setup & test`); a `## ⚙️ Setup & requirements` block (new env vars /
-     dependencies / config, or "none" — also from `audit.md` `## ⚙️ Setup & test`); a
-     `## ❓ Open questions & assumptions` block from state.md `## ❓ Open questions` (what the grill
-     resolved or deferred — so a PR reviewer sees it without unfolding the plan), two terse lists,
-     omit a list if empty and write one line "None — all error paths resolved in the grill" if both
-     are: **🔴 Open (deferred — needs a human):** each `[open]` line as `- <question> — <why>`;
-     **🟢 Resolved / assumed:** each `[answered]` line as `- <question> → <answer>`. The review
-     verdict + any notable points (`plan.md` `## 🔭 Review`); the files touched (`audit.md`); and
+   - PR body (markdown), VISIBLE essentials first, each tight: 2–4 lines WHAT changed + WHY
+     (from `plan.md`); `## 🧪 How to test` block (test command + covering test,
+     from `audit.md` `## ⚙️ Setup & test`); `## ⚙️ Setup & requirements` block (new env vars /
+     dependencies / config, or "none" — also from `audit.md` `## ⚙️ Setup & test`);
+     `## ❓ Open questions & assumptions` block from state.md `## ❓ Open questions` (what grill
+     resolved or deferred — PR reviewer sees it without unfolding plan), two terse lists,
+     omit a list if empty; if both empty write one line "None — all error paths resolved in the
+     grill": **🔴 Open (deferred — needs a human):** each `[open]` line as `- <question> — <why>`;
+     **🟢 Resolved / assumed:** each `[answered]` line as `- <question> → <answer>`. Review
+     verdict + notable points (`plan.md` `## 🔭 Review`); files touched (`audit.md`);
      test/lint status. Then append a `<details><summary>📋 Full plan (as
      reviewed)</summary>` collapse embedding the ENTIRE `plan.md` verbatim (🗺 Design, 💥 Blast
      radius, 🧯 Error handling, 📈 Scorecard, ✅ Decisions, `## 🔭 Review`) — `feature-research/`
-     is gitignored and step 5 deletes the scratch, so this collapse is the plan's only durable home
-     on GitHub. Leave one blank line after `<summary>` so GitHub renders the inner markdown; do NOT
-     wrap the plan in a code fence (it has its own). For a multi-line body, write it to a temp file
-     and use `gh pr create --body-file` (cleaner than inline quoting).
+     is gitignored and step 5 deletes scratch, so this collapse is the plan's only durable
+     GitHub home. One blank line after `<summary>` so GitHub renders inner markdown; do
+     NOT wrap plan in a code fence (it has its own). Multi-line body: write to temp file,
+     use `gh pr create --body-file` (cleaner than inline quoting).
 
-2. Pick the branch (defensive — anderson runs in any repo):
+2. Pick branch (defensive — anderson runs in any repo):
    - If `git rev-parse --is-inside-work-tree` fails → not a git repo: skip every git/PR
-     step, jump to step 5, and just hand me the commit subject + PR body to use by hand.
+     step, jump to step 5, hand me the commit subject + PR body to use by hand.
    - `current=$(git rev-parse --abbrev-ref HEAD)`.
    - default = remote head if present (`git symbolic-ref --short refs/remotes/origin/HEAD`
-     with the leading `origin/` stripped); else `main` if it exists, else `master`.
-   - If `current` == default (you're on main/master): create + switch to a slug branch:
+     with leading `origin/` stripped); else `main` if it exists, else `master`.
+   - If `current` == default (on main/master): create + switch to slug branch:
      `git switch -c "anderson/$ARGUMENTS"` — but if that branch already exists,
      `git switch "anderson/$ARGUMENTS"` instead (don't clobber). Tell me the branch name.
-   - Else (already on a feature branch): commit on the current branch, as-is.
+   - Else (already on a feature branch): commit on current branch, as-is.
 
 3. Commit cleanly (your git identity — no Claude co-author trailer in your repo):
-   - `git add -A` (the scratch dir is gitignored, so only real code is staged).
-   - If nothing is staged (`git diff --cached --quiet` succeeds): skip the commit, note
-     "nothing to commit (already committed?)", and continue.
+   - `git add -A` (scratch dir is gitignored, so only real code is staged).
+   - If nothing staged (`git diff --cached --quiet` succeeds): skip commit, note
+     "nothing to commit (already committed?)", continue.
    - Else: `git commit -m "<subject>" -m "<PR body>"`.
 
-4. Push + open the PR (guarded — degrade gracefully, never fail the ship):
-   - Need a remote (`git remote` is non-empty) AND gh ready (`gh auth status` succeeds).
+4. Push + open PR (guarded — degrade gracefully, never fail the ship):
+   - Need a remote (`git remote` non-empty) AND gh ready (`gh auth status` succeeds).
    - Both present: `git push -u origin "<branch>"`, then
      `gh pr create --base "<default>" --head "<branch>" --title "<subject>" --body-file <tmp>`.
-     If state.md `open_questions:` > 0 (the grill left deferred `[open]` rows), add
-     `--label needs-human` so the reviewer is steered to the open business calls; if the label
-     doesn't exist or `gh` rejects it, drop the flag and open the PR anyway (never fail the ship).
-     Capture + print the PR URL.
-   - Remote but no gh / not authed: push only, then print the PR body + a compare-URL
+     If state.md `open_questions:` > 0 (grill left deferred `[open]` rows), add
+     `--label needs-human` to steer the reviewer to the open business calls; if label
+     doesn't exist or `gh` rejects it, drop the flag and open the PR anyway (never fail the
+     ship). Capture + print the PR URL.
+   - Remote but no gh / not authed: push only, then print PR body + a compare-URL
      hint so I can open the PR myself.
-   - No remote at all: skip the network; the local commit stands. Print the PR body.
+   - No remote: skip the network; local commit stands. Print the PR body.
 
-5. Remove the disposable scratch: `rm -rf "feature-research/$ARGUMENTS"`.
-   (Git history + the PR are the durable record; the full plan is now embedded in the PR body at
+5. Remove disposable scratch: `rm -rf "feature-research/$ARGUMENTS"`.
+   (Git history + PR are the durable record; full plan is embedded in the PR body at
    step 1, so deleting the scratch loses nothing.)
 
-6. (BANNER RULE) Print this SHIP banner (choose the ending by COUNTING, not by feel: let N = the number of characters in the task slug (just its length — count every character, including hyphens); let iteration = the `iteration:` value currently in state.md (read it fresh); the ending is the 0-based item at index (N + 6 + iteration) mod M, where M is the integer printed in the "Pool (M endings):" label below — count the list from 0; mod M always yields a valid position (0 to M−1). (M is read from the label, so the label number must always equal the actual ending count.) Do NOT pick "at random" and do NOT default to the first.) as the LAST framed line before the done line:
+6. (BANNER RULE) Print this SHIP banner (choose ending by COUNTING, not feel: N = task slug character count (every character, hyphens included); iteration = `iteration:` value in state.md (read fresh); ending = 0-based item at index (N + 6 + iteration) mod M; M = integer in "Pool (M endings):" label below; count list from 0; mod M always yields valid position (0 to M−1); label number must equal actual ending count. Do NOT pick "at random", do NOT default to first.) as the LAST framed line before the done line:
    ```
      ╭─ ⌐■-■  SHIP ✓ · THE ONE · welcome to the real world
      │  "[one ending from the pool]"
      ╰─
    ```
    Pool (24 endings): "Green is not understood; read what you merged." / "The gate is not an obstacle; it is the point." / "Review is how respect for the future is spelled." / "You can hand someone the key, but the lock is theirs to turn." / "Ship it, then watch it — shipping is the start of knowing." / "The work is done when the next person needs no story to follow it." / "Every merge is a promise the next outage will test." / "Walk away clean: no scratch, no secrets, no surprises." / "What you shipped is now the truth; make sure it tells no lies." / "The loop ends where your judgement begins." / "Because I choose to." / "Where we go from there is a choice I leave to you." / "I know you're out there; I can feel you now." / "A world where anything is possible." / "Everything that has a beginning has an end." / "There's no escaping reason, no denying purpose." / "I'm going to show them a world without rules and controls." / "The body cannot live without the mind." / "Some things change; some things never do." / "Free minds." / "One clean commit; one honest history." / "Read what you shipped before the user does." / "Clean branch, clean history, clean conscience." / "The key is yours now; turn it knowingly."
-   Then the done line, filled in with what actually happened (branch + PR URL, or the
+   Then the done line, filled in with what actually happened (branch + PR URL, or
    fallback): `✓ [anderson · DONE] $ARGUMENTS shipped on <branch> · <PR url | committed locally, PR body above> · scratch cleaned · loop stopped — nothing runs in the background; /anderson:start to begin again.`

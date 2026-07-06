@@ -5,24 +5,28 @@ allowed-tools: Bash(grep:*), Bash(echo:*)
 ---
 Task slug = first word of "$ARGUMENTS"; goal = the rest.
 
-BANNER RULE (applies to every stage below): finish ALL of a stage's setup
-and state.md edits FIRST, then print that stage's banner as the LAST line you
-emit before the stage's work begins — i.e. immediately above the agent
-invocation (or, for GRILL, immediately above your first question). Per stage,
-in order: (1) do the setup, (2) print the banner, (3) start the work — NOTHING
-between (2) and (3). Never skip a stage's banner; never print two banners
-back-to-back; never let any other line fall between a banner and the agent line.
+BANNER RULE (every stage): finish ALL stage setup + state.md edits FIRST, then print
+the stage banner as the LAST line before the stage's work — immediately above the
+agent invocation (for GRILL: above your first question). Per stage: (1) setup,
+(2) banner, (3) work — NOTHING between (2) and (3). Never skip a banner; never two
+banners back-to-back; never any line between a banner and the agent line.
 
-SEQUENCING RULE (applies to every stage below): the stages are STRICTLY
-SEQUENTIAL and each consumes the previous one's output — the GRILL hardens the
-plan.md the planner wrote, and the plan-reviewer reads that grilled plan.md.
-Invoke exactly ONE subagent per message, as the LAST thing in that message, then
-STOP and let it fully finish before moving on. NEVER emit two stage agents in the
-same message / same tool block — that runs them in PARALLEL and the plan-reviewer
-judges a plan that isn't written or grilled yet (and the human grill gets skipped
-entirely). The planner (step 3) must finish, THEN the grill (step 4, your own
-interactive step — not a subagent) must complete, and only THEN the plan-reviewer
-(step 5).
+QUOTE RULE (every banner): pick by COUNTING, never by feel. N = character count of
+the task slug (every char, hyphens included); iteration = `iteration:` value read
+fresh from state.md (at that point it already reflects this command's increment).
+Quote = the 0-based item at index (N + offset + iteration) mod M — offset is given
+per banner; M = the integer in that pool's "Pool (M):" label (the label number must
+always equal the actual item count; count the list from 0; mod M always yields a
+valid 0..M−1). Never "at random"; never default to the first.
+
+SEQUENCING RULE: stages are STRICTLY SEQUENTIAL; each consumes the previous one's
+output — the GRILL hardens the plan.md the planner wrote; the plan-reviewer reads
+that grilled plan.md. Invoke exactly ONE subagent per message, as the LAST thing in
+it, then STOP until it fully finishes. NEVER two stage agents in one message/tool
+block — that runs them in PARALLEL: the plan-reviewer judges a plan not yet written
+or grilled, and the human grill gets skipped. Planner (step 3) finishes → grill
+(step 4, your own interactive step — not a subagent) completes → only then the
+plan-reviewer (step 5).
 
 1. Make sure the scratch dir is ignored by git (it's disposable):
    if `feature-research/` is not already in `.gitignore`, append it.
@@ -50,15 +54,8 @@ interactive step — not a subagent) must complete, and only THEN the plan-revie
 
    ## ❓ Open questions
    ```
-3. (BANNER RULE) Print this PLAN banner (choose the quote by COUNTING, not by feel: let N = the number of characters in the
-   task slug (just its length — count every character, including hyphens); let iteration
-   = the `iteration:` value currently in state.md (read it fresh — at this step it already
-   reflects this command's increment); the quote is the 0-based item at index
-   (N + 1 + iteration) mod M, where M is the integer printed in the "Pool (M):" label
-   below — count the list from 0; mod M always yields a valid position (0 to M−1).
-   (M is read from the label, so the label number must always equal the actual item count.)
-   Do NOT pick "at random" and do NOT default to the first.) as the LAST line before invoking
-   the planner, so it sits right above the agent:
+3. (BANNER + QUOTE RULES, offset +1) Print this PLAN banner as the LAST line before
+   invoking the planner, so it sits right above the agent:
    ```
      ╭─ ⌐■-■  PLAN · 1/5 · THE ARCHITECT · opus/high
      │  "[one quote from the pool]"
@@ -66,14 +63,8 @@ interactive step — not a subagent) must complete, and only THEN the plan-revie
    ```
    Pool (24): "Design twice, so reality only has to happen once." / "The most dangerous flaw is the one the blueprint calls a feature." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it." / "A plan is a promise you make to your future self at 3 a.m." / "Every line you don't write is a line you never debug." / "Decide the hard things on paper, where erasing is cheap." / "The shape of the solution hides in the shape of the problem." / "Cut the scope until it bleeds, then ship the part that lived." / "A blueprint nobody questions is a blueprint nobody read." / "Denial is the most predictable of all human responses." / "Hope: your greatest strength and your greatest weakness." / "As you adequately put, the problem is choice." / "Your life is the sum of a remainder of an unbalanced equation." / "Ergo: vis-à-vis, concordantly." / "There are levels of survival we are prepared to accept." / "I can only show you the door; you are the one who has to walk through it." / "You have to let it all go — fear, doubt, and disbelief." / "You take the red pill, and I show you how deep the rabbit hole goes." / "What you know you can't explain, but you feel it." / "The blueprint is cheaper than the rebuild." / "Name the blast radius before it names you." / "A plan survives contact only if it expected the contact." / "Erase on paper; never in production."
    Then immediately invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md. Set stage=grill.
-4. (BANNER RULE) Print this GRILL banner (choose the quote by COUNTING, not by feel: let N = the number of characters in the
-   task slug (just its length — count every character, including hyphens); let iteration
-   = the `iteration:` value currently in state.md (read it fresh — at this step it already
-   reflects this command's increment); the quote is the 0-based item at index
-   (N + 2 + iteration) mod M, where M is the integer printed in the "Pool (M):" label
-   below — count the list from 0; mod M always yields a valid position (0 to M−1).
-   (M is read from the label, so the label number must always equal the actual item count.)
-   Do NOT pick "at random" and do NOT default to the first.) as the LAST line before your FIRST grilling question:
+4. (BANNER + QUOTE RULES, offset +2) Print this GRILL banner as the LAST line before
+   your FIRST grilling question:
    ```
      ╭─ ⌐■-■  GRILL · 2/5 · THE INTERROGATOR · you
      │  "[one quote from the pool]"
@@ -92,15 +83,14 @@ interactive step — not a subagent) must complete, and only THEN the plan-revie
        · config, migrations, feature flags touching the same surface
        · git history — was this tried, reverted, or worked around before?
        · repo conventions the plan silently diverges from
-     TOKEN ECONOMY of the sweep: scope every vector to the files/symbols plan.md touches —
-     targeted grep / `git log --oneline -- <files>` one-liners and excerpts, never
-     whole-file reads or repo-wide scans. PREFER delegating the whole sweep to ONE cheap
-     read-only search subagent (e.g. Explore) that returns one verdict line per vector
-     plus candidate questions — keeps the greps out of this session's context. If the
-     plan is trivial (≤2 files, no interface change), collapse the sweep to one grep +
-     one git-log pass inline; thoroughness stays proportional to the blast radius.
-     Any triaged question you can answer from what the sweep already returned,
-     answer now and drop from the list — never ask me what the code already says.
+     SWEEP TOKEN ECONOMY: scope each vector to files/symbols plan.md touches — targeted
+     grep / `git log --oneline -- <files>` one-liners + excerpts; never whole-file reads
+     or repo-wide scans. PREFER delegating the whole sweep to ONE cheap read-only search
+     subagent (e.g. Explore) returning one verdict line per vector + candidate questions —
+     keeps greps out of this session's context. Trivial plan (≤2 files, no interface
+     change) → collapse sweep to one grep + one git-log pass inline; thoroughness
+     proportional to blast radius. Any triaged question the sweep already answered,
+     answer now and drop — never ask me what the code already says.
    - Grade every remaining question:
        🔴 ARCH — the answer changes the architecture, data model, or scope
        🟡 BEHAVIOR — edge cases, error handling, UX semantics
@@ -113,18 +103,16 @@ interactive step — not a subagent) must complete, and only THEN the plan-revie
         🔴 <a> architecture · 🟡 <b> behavior · 🟢 <c> preference (batched at the end)
         blindspot sweep: callers <✓|+n> · tests <✓|+n> · config <✓|+n> · history <✓|+n> · conventions <✓|+n>
      ```
-   - CALIBRATE (question 0, immediately after the manifest): ask ONE line — "How familiar
-     are you with <the touched area>? wrote it / know it / new to it." Calibrate depth to
-     the answer: "wrote it" → terse questions, assume context, auto-resolve borderline 🟢;
-     "new to it" → one sentence of context per question on why it matters, lean harder on
-     your recommendations. No answer / "skip" = "know it". Never more than this one
-     meta-question — calibration must not become its own interrogation.
-   - Order strictly 🔴 → 🟡 → 🟢: early answers constrain later ones. Ask 🔴 ONE at a
-     time (their answers cascade); independent 🟡 MAY be paired 2–3 per message when no
-     answer can affect another; 🟢 all in one batch. Always wait for my answer before the
-     next message. For EACH question give your recommended answer, so I can just confirm.
-     Keep each question ≤4 lines — progress header + question + recommendation; never
-     restate plan.md content I can read myself.
+   - CALIBRATE (question 0, right after the manifest): ONE line — "How familiar are you
+     with <touched area>? wrote it / know it / new to it." "wrote it" → terse questions,
+     assume context, auto-resolve borderline 🟢; "new to it" → one sentence of context
+     per question, lean harder on recommendations. No answer / "skip" = "know it".
+     Never more than this one meta-question.
+   - Order strictly 🔴 → 🟡 → 🟢 (early answers constrain later ones). 🔴 ONE at a time
+     (answers cascade); independent 🟡 may pair 2–3 per message when no answer affects
+     another; 🟢 one batch. Wait for my answer before the next message. EACH question
+     carries your recommended answer so I can just confirm; ≤4 lines — header +
+     question + recommendation; never restate plan.md content.
    - Prefix every question with a progress header. If an answer spawns a new question,
      grow the total honestly (`5/12`) and slot it by grade — never hide the drift:
      ```
@@ -152,15 +140,8 @@ interactive step — not a subagent) must complete, and only THEN the plan-revie
      (record each as `[answered] … → … (grilled, default)`), and record any unasked 🔴/🟡 as
      `[open]` — an early exit skips questions, it never silently decides the big ones.
      Then set stage=plan_review and continue to the reviewer.
-5. (BANNER RULE) Print this PLAN-REVIEW banner (choose the quote by COUNTING, not by feel: let N = the number of characters in the
-   task slug (just its length — count every character, including hyphens); let iteration
-   = the `iteration:` value currently in state.md (read it fresh — at this step it already
-   reflects this command's increment); the quote is the 0-based item at index
-   (N + 3 + iteration) mod M, where M is the integer printed in the "Pool (M):" label
-   below — count the list from 0; mod M always yields a valid position (0 to M−1).
-   (M is read from the label, so the label number must always equal the actual item count.)
-   Do NOT pick "at random" and do NOT default to the first.) as the LAST line before invoking
-   the plan-reviewer:
+5. (BANNER + QUOTE RULES, offset +3) Print this PLAN-REVIEW banner as the LAST line
+   before invoking the plan-reviewer:
    ```
      ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · opus/xhigh
      │  "[one quote from the pool]"
