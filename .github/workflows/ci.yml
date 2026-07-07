@@ -28,7 +28,7 @@ jobs:
         continue-on-error: true
         run: shellcheck -S warning plugins/anderson/bin/*.sh
 
-      - name: Version sync (plugin.json == marketplace.json)
+      - name: Version sync (plugin.json == marketplace.json == README badges)
         run: |
           P=$(jq -r .version plugins/anderson/.claude-plugin/plugin.json)
           M=$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)
@@ -37,6 +37,14 @@ jobs:
             echo "::error::version mismatch — bump both in sync (plugin.json=$P, marketplace.json=$M)"
             exit 1
           fi
+          for R in README.md plugins/anderson/README.md; do
+            B=$(grep -oE 'version-[0-9]+\.[0-9]+\.[0-9]+-blue' "$R" | head -1 | sed -E 's/version-(.*)-blue/\1/')
+            echo "$R badge=$B"
+            if [ "$B" != "$P" ]; then
+              echo "::error::$R version badge ($B) != plugin.json ($P) — update the badge"
+              exit 1
+            fi
+          done
 
       - name: Require a version bump when the plugin changes (PRs only)
         if: github.event_name == 'pull_request'
