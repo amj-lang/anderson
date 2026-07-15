@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.18.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.19.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -435,6 +435,14 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.19.0** — **`--fable` opt-in for the review gates.** New state field `review_model` (default `opus`)
+  runs the two critique stages — PLAN GATE plan-reviewer, DIFF GATE reviewer panel + arbiter — on Fable
+  instead of Opus when a pipeline is started with `--fable`. Fable is the stronger critical analyst; the
+  generative stages (planner, implementer) stay on Opus/Sonnet and the flag never touches them. Effort
+  stays xhigh. The choice is seeded once at pipeline init and persists in `state.md`, so it carries across
+  the resumed `approve-plan`/`rework` sub-commands; `feature.sh start … --fable` and `/anderson:auto …
+  --fable` both honor it. In auto mode the panel's HARD/CRITICAL tier + arbiter follow `review_model`
+  (`panel_model` metric gains a `fable` value); TRIVIAL/NORMAL panelists stay on the cheap tier.
 - **0.18.0** — **Ponytail ladder + caveman-compressed instructions.** Two token cuts, different axes:
   - **Ponytail decision ladder** (after [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail),
     MIT) inlined into all four agents — anderson stays self-contained, no plugin dependency. Before any

@@ -3,9 +3,18 @@ description: "Run the full plan → implement → review pipeline non-halting to
 argument-hint: <task-id> <title> [body|@taskspec-file]
 allowed-tools: Bash, Read, Edit, Write
 ---
-Parse $ARGUMENTS: first word = task-id (run-lock key + state dir name); second word = title;
+Parse $ARGUMENTS: FIRST strip an optional `--fable` token from anywhere in $ARGUMENTS
+(it is a flag, not content) — if present, the two review gates run on Fable instead of
+Opus (see REVIEW MODEL below); record it for the state seed. THEN from the remaining
+words: first word = task-id (run-lock key + state dir name); second word = title;
 remainder = body (or @path to TaskSpec file on disk). task-id and title required;
 body optional (acceptance_criteria derived if absent).
+
+REVIEW MODEL: the two critique gates (PLAN GATE plan-reviewer, DIFF GATE reviewer panel
++ arbiter) run on the model in state.md `review_model:` — `opus` by default, `fable` when
+`--fable` was passed. Fable is the stronger critical analyst; Opus stays the default for the
+generative stages (planner, implementer), which `--fable` never touches. Effort stays xhigh
+either way. Every banner and invocation below reads `review_model` from state.md.
 
 BANNER RULE (every stage below): finish ALL setup and state.md edits for stage FIRST,
 then print stage's banner as LAST line before stage's work begins (immediately
@@ -44,7 +53,9 @@ NON-NEGOTIABLE HARD RULES (no override, ever):
    into one clean commit for tidy release history. Force-pushing default branch, shared
    branch, or human-authored branch requires explicit human consent.
 
-BANNER POOL — auto stages use these Matrix-flavoured banners in framed `╭─ ⌐■-■` format:
+BANNER POOL — auto stages use these Matrix-flavoured banners in framed `╭─ ⌐■-■` format.
+In the two review banners (PLAN GATE, DIFF GATE) `<review_model>` is a placeholder: substitute
+the state.md `review_model:` value (`opus` or `fable`) when printing.
 
 INGEST banner (stage offset 1):
 ```
@@ -72,7 +83,7 @@ PLAN pool (14): "Design twice, so reality only has to happen once." / "The most 
 
 PLAN GATE banner (stage offset 4):
 ```
-  ╭─ ⌐■-■  PLAN GATE · 4/9 · THE ORACLE · opus/xhigh
+  ╭─ ⌐■-■  PLAN GATE · 4/9 · THE ORACLE · <review_model>/xhigh
   │  "[quote from PLAN GATE pool]"
   ╰─
 ```
@@ -96,7 +107,7 @@ IMPLEMENT pool (14): "Make it small enough to be wrong cheaply." / "Touch only w
 
 DIFF GATE banner (stage offset 7):
 ```
-  ╭─ ⌐■-■  DIFF GATE · 7/9 · AGENT SMITH · opus/xhigh
+  ╭─ ⌐■-■  DIFF GATE · 7/9 · AGENT SMITH · <review_model>/xhigh
   │  "[quote from DIFF GATE pool]"
   ╰─
 ```
@@ -175,6 +186,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       ci_conclusion:       none
       red_reason:          none
       tier:                pending
+      review_model:        opus
       panel_model:         pending
       reviewers:           0
       arbiter:             none
@@ -192,6 +204,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       ## ❓ Open questions
       ```
       Where `<slug>` = title lowercased, spaces replaced with hyphens, truncated to 30 chars.
+      Set `review_model:` to `fable` if the `--fable` flag was parsed from $ARGUMENTS, else `opus`.
       If file already exists (re-run after abort), overwrite with this fresh block.
 
    f. Parse body/acceptance_criteria: if body present, scan for an "acceptance criteria",
@@ -332,7 +345,8 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
 
    d. (BANNER RULE) Print the PLAN GATE banner now, last line before invoking the plan-reviewer.
 
-   e. Invoke ONE **plan-reviewer** subagent with a refute posture: "Refute this plan — find why it
+   e. Invoke ONE **plan-reviewer** subagent (model override = state.md `review_model`, effort xhigh)
+      with a refute posture: "Refute this plan — find why it
       fails, misses an acceptance criterion, or under-counts the blast radius; default to reject
       (`fix_first`) if uncertain. Make inline fixes (your normal mode). Append your report under
       `## 🔭 Review`. Set `plan_verdict` in state.md." Seed it with the unmapped criteria from 4b.
@@ -520,22 +534,23 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
          `FINDINGS: <count of blocking findings>`."
       MODEL TIERING (where the harness supports a per-invocation model override): size panelist
       model to tier — run TRIVIAL and NORMAL panelists on a faster/cheaper tier (sonnet), run
-      HARD and CRITICAL panelists on the reviewer default (opus/xhigh), since a missed bug at those
-      tiers has real blast radius and a stronger reviewer earns its cost there. Arbiter ALWAYS
-      runs at the reviewer default (opus/xhigh) regardless of tier. If no override available, all
-      panelists run at the reviewer default — model tiering is a cost optimization, not a correctness
-      requirement. Record the model the panel actually ran on as `panel_model: <sonnet|opus>` in
-      state.md (`opus` when no override available and all panelists fell back to the default) — this
-      is step 7f's metric reference, surfaced in the `metrics:` line.
+      HARD and CRITICAL panelists on the reviewer default (state.md `review_model`/xhigh — `opus`,
+      or `fable` under `--fable`), since a missed bug at those tiers has real blast radius and a
+      stronger reviewer earns its cost there. Arbiter ALWAYS runs at the reviewer default
+      (`review_model`/xhigh) regardless of tier. If no override available, all panelists run at the
+      reviewer default — model tiering is a cost optimization, not a correctness requirement. Record
+      the model the panel actually ran on as `panel_model: <sonnet|opus|fable>` in state.md
+      (the reviewer-default value when no override available and all panelists fell back to it) —
+      this is step 7f's metric reference, surfaced in the `metrics:` line.
       Collect each panelist's `VERDICT` + `FINDINGS` from its reply; record one
       `- diff_vote_<lens>: <verdict> (<findings>)` line under `## Done so far`.
 
    g. Resolve the gate (CI already passed — a red build short-circuited at 7c-iv and never reaches
-      here). Count a `fix_first` as a refute. Arbiter is the opus quality gate over the panel —
-      runs on every outcome EXCEPT a unanimous refute:
+      here). Count a `fix_first` as a refute. Arbiter is the reviewer-default quality gate over the
+      panel (runs at `review_model`/xhigh) — runs on every outcome EXCEPT a unanimous refute:
         - SPLIT — panel NOT unanimous (mix of ship and fix_first) → arbiter runs to resolve
           contested findings. Set `arbiter_trigger: split` in state.md.
-        - UNANIMOUS SHIP — all panelists ship → arbiter ALWAYS runs as final opus sign-off over
+        - UNANIMOUS SHIP — all panelists ship → arbiter ALWAYS runs as final sign-off over
           the panel. It does NOT rubber-stamp: independently re-reviews the diff and tries to find
           the one objection the panel missed. Safety net for a panel that agreed too
           easily — especially a cheaper sonnet panel on a trivial/normal tier. Set
@@ -544,10 +559,11 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
           → set `arbiter_trigger: none` and go to rework (7h).
       (`arbiter_trigger` is step 7g's metric reference — records WHY the arbiter ran, surfaced in
       the `metrics:` line — distinct from `arbiter`, which records its verdict.)
-      When arbiter runs: invoke ONE **reviewer** subagent as the ARBITER (read-only; reviewer
-      default opus/xhigh), given the diff + `plan.md` + task + ALL panel review files. Frame it:
+      When arbiter runs: invoke ONE **reviewer** subagent as the ARBITER (read-only; model override
+      = state.md `review_model`, effort xhigh), given the diff + `plan.md` + task + ALL panel review
+      files. Frame it:
         "You are the ARBITER. Either the panel split, this is a critical task, or the panel
-         unanimously shipped and you are the final opus sign-off. Read every review file and the diff.
+         unanimously shipped and you are the final sign-off. Read every review file and the diff.
          If there are contested findings, resolve each ON MERIT, not on headcount: a lone correct
          reviewer outranks two wrong ones. If the panel was unanimous, do NOT rubber-stamp —
          independently re-review the diff and actively look for the strongest objection the panel

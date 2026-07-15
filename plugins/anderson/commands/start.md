@@ -3,7 +3,14 @@ description: "Start the gated build loop: plan, grill the plan with you, then pl
 argument-hint: <task-slug> <one-line goal>
 allowed-tools: Bash(grep:*), Bash(echo:*)
 ---
-Task slug = first word of "$ARGUMENTS"; goal = the rest.
+Parse "$ARGUMENTS": FIRST strip an optional `--fable` token from anywhere in it (it is a flag,
+not content). THEN task slug = first word of what remains; goal = the rest.
+
+REVIEW MODEL: the plan-reviewer critique gate (PLAN_REVIEW) runs on the model in state.md
+`review_model:` — `opus` by default, `fable` when `--fable` was passed. Fable is the stronger
+critical analyst; Opus stays the default for the planner (generative), which `--fable` never
+touches. Effort stays xhigh either way. The field persists in state.md, so the diff-review gate
+in `/anderson:approve-plan` and `/anderson:rework` reads the same choice for this pipeline.
 
 BANNER RULE (every stage): finish ALL stage setup + state.md edits FIRST, then print
 the stage banner as the LAST line before the stage's work — immediately above the
@@ -31,7 +38,8 @@ plan-reviewer (step 5).
 1. Make sure the scratch dir is ignored by git (it's disposable):
    if `feature-research/` is not already in `.gitignore`, append it.
 2. If `feature-research/<task>/state.md` is absent, create it with this EXACT block
-   (substitute `<task>` with the task slug). This block is machine-read by
+   (substitute `<task>` with the task slug; set `review_model:` to `fable` if `--fable` was
+   parsed from $ARGUMENTS, else leave `opus`). This block is machine-read by
    `hooks/scheduler.py`, `commands/status.md`, and `bin/feature.sh` — byte-faithful:
    column-0 `key:`, the two STATE comments, no markdown bullets or bold:
    ```
@@ -43,6 +51,7 @@ plan-reviewer (step 5).
    iteration:       0
    max_iterations:  2
    exit_rule:       all tests pass and lint clean, only major issues fixed
+   review_model:    opus
    plan_verdict:    pending
    diff_verdict:    pending
    open_questions:  0
@@ -141,15 +150,16 @@ plan-reviewer (step 5).
      `[open]` — an early exit skips questions, it never silently decides the big ones.
      Then set stage=plan_review and continue to the reviewer.
 5. (BANNER + QUOTE RULES, offset +3) Print this PLAN-REVIEW banner as the LAST line
-   before invoking the plan-reviewer:
+   before invoking the plan-reviewer (substitute `<review_model>` with the state.md value):
    ```
-     ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · opus/xhigh
+     ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · <review_model>/xhigh
      │  "[one quote from the pool]"
      ╰─
    ```
    Pool (24): "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does." / "The second pair of eyes sees the assumption the first pair made." / "Improve the plan, not the planner's feelings." / "A good review changes the plan; a great one changes the question." / "Disagree on paper now, or apologize in the incident channel later." / "The cheapest place to be wrong is before the first commit." / "Trust the plan less than the reasons behind it." / "You've already made the choice; now you have to understand it." / "What's really going to bake your noodle is, would you still have broken it if I hadn't said anything?" / "We can never see past the choices we don't understand." / "You have a good soul — and I'm tough on souls." / "I hate giving good people bad news." / "Being the One is like being in love: no one can tell you, you just know it." / "I'd ask you to sit down, but you're not going to anyway." / "Candy?" / "You have the gift, but it looks like you're waiting for something." / "I only ever tell you what you need to hear." / "The assumption nobody stated is the one that breaks." / "Improve the plan, not the planner's mood." / "A second pair of eyes is the cheapest insurance you'll buy." / "I can't make the choice for you; I can make you see it."
-   Then immediately invoke the **plan-reviewer** subagent → makes inline strike-through
-   edits and appends its review under `## 🔭 Review` in plan.md; sets plan_verdict.
+   Then immediately invoke the **plan-reviewer** subagent (model override = state.md
+   `review_model`, effort xhigh) → makes inline strike-through edits and appends its review
+   under `## 🔭 Review` in plan.md; sets plan_verdict.
 6. Print and STOP — fill in the real task slug for every `<task>` and the real
    verdict for `<plan_verdict>` so the command + path are copy-pasteable (e.g.
    `/anderson:approve-plan brief-views`, NOT a literal `<task>`):

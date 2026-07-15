@@ -5,12 +5,15 @@
 # /anderson:* slash commands instead. Requires the anderson plugin installed and the
 # `claude` CLI on PATH. Run from your repo root.
 #
-#   ./feature.sh start <task> "<goal>"      # plan -> plan_review, halt
+#   ./feature.sh start <task> "<goal>" [--fable]  # plan -> plan_review, halt
 #   ./feature.sh --approve-plan <task>      # implement -> diff_review, halt
 #   ./feature.sh --approve-diff <task>      # ship: branch + commit + push + PR (guarded)
 #   ./feature.sh --rework <task>            # loop implement on checker findings
+# --fable (on `start`, at the end) runs the two review gates on Fable instead of Opus;
+# the choice persists in state.md, so the review model carries across the resumed sub-commands.
 set -euo pipefail
 ROOT="feature-research"; task="${2:-}"; dir="$ROOT/$task"; state="$dir/state.md"
+RM_SEED=opus; for _a in "$@"; do [ "$_a" = "--fable" ] && RM_SEED=fable; done
 
 seed_state() {
   mkdir -p "$dir"
@@ -24,6 +27,7 @@ gate:            none
 iteration:       0
 max_iterations:  2
 exit_rule:       all tests pass and lint clean, only major issues fixed
+review_model:    $RM_SEED
 plan_verdict:    pending
 diff_verdict:    pending
 <!-- STATE:END -->
@@ -35,6 +39,7 @@ TPL
 }
 get() { grep -E "^$1:" "$state" | head -1 | sed -E "s/^$1:[[:space:]]*//; s/[[:space:]]*#.*//" || true; }
 set_field() { sed -i.bak -E "s|^($1:[[:space:]]*).*|\1$2|" "$state" && rm -f "$state.bak"; }
+rmodel() { local m; m="$(get review_model)"; echo "${m:-opus}"; }  # review-gate model; opus if unset (older state)
 run() { claude -p "$3" --model "$1" --permission-mode "$2" --output-format json | tee -a "$dir/run.log"; }
 
 _tty=1; [ -t 1 ] || _tty=0; case "${TERM:-}" in dumb|"") _tty=0 ;; esac
@@ -44,7 +49,7 @@ red(){ if [ "$_color" -eq 1 ]; then printf '\033[31m'; fi; }
 rst(){ if [ "$_color" -eq 1 ]; then printf '\033[0m';  fi; }
 
 plan()        { run opus   acceptEdits "Use the planner subagent on task '$task'. Goal: $goal. Write feature-research/$task/plan.md."; set_field stage plan_review; }
-plan_review() { run opus   acceptEdits "Use the plan-reviewer subagent on task '$task'. stage=plan_review. Make inline strike-through edits in plan.md, append review under ## 🔭 Review, set plan_verdict."
+plan_review() { run "$(rmodel)" acceptEdits "Use the plan-reviewer subagent on task '$task'. stage=plan_review. Make inline strike-through edits in plan.md, append review under ## 🔭 Review, set plan_verdict."
                 set_field gate human
                 red; printf '>>> PLAN GATE. Read %s/plan.md (## 🔭 Review, verdict %s).\n' "$dir" "$(get plan_verdict)"; rst
                 printf '>>> Approve: ./feature.sh --approve-plan %s\n' "$task"; exit 10; }
@@ -53,7 +58,7 @@ implement()   { it=$(( $(get iteration) + 1 )); set_field iteration "$it"
                 set_field stage implement; set_field gate none
                 run sonnet acceptEdits "Use the implementer subagent on task '$task'. Execute plan.md (iteration $it); on rework fix only 'Still open'. Write audit.md."
                 set_field stage diff_review; }
-diff_review() { run opus   acceptEdits "Use the reviewer subagent on task '$task'. stage=diff_review. Diff-review the union scope; append diff review under ## 🔭 Review in plan.md; set diff_verdict."
+diff_review() { run "$(rmodel)" acceptEdits "Use the reviewer subagent on task '$task'. stage=diff_review. Diff-review the union scope; append diff review under ## 🔭 Review in plan.md; set diff_verdict."
                 set_field gate human
                 red; printf '>>> DIFF GATE. Read %s/plan.md (## 🔭 Review, verdict %s) AND the diff.\n' "$dir" "$(get diff_verdict)"; rst
                 printf '>>> Ship: ./feature.sh --approve-diff %s | Loop: ./feature.sh --rework %s\n' "$task" "$task"; exit 20; }
