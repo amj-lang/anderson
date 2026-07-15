@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.20.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.20.2-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -450,6 +450,10 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.20.2** — **Grill instruction cleanup.** Removed the now-redundant "assume I know the code"
+  instruction bullet: the 3-line question card already enforces terse, context-free questions and
+  the 🟢 batch handles preferences, so it was saying twice what the format already guarantees.
+  Behavior is unchanged; the grill still never asks about code familiarity.
 - **0.20.1** — **Grill drops the familiarity question.** The grill no longer opens with the
   "How familiar are you with <touched area>? wrote it / know it / new to it" calibration line. It
   now assumes you know the touched code: terse questions, no per-question context sentences,

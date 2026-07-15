@@ -100,9 +100,6 @@ plan-reviewer (step 5).
      grill · <N> questions · <a>🔴  <b>🟡  <c>🟢
      ──────────────────────────
      ```
-   - ASSUME I KNOW THE TOUCHED CODE: keep questions terse, no per-question context or
-     explanation sentences, auto-resolve borderline 🟢 to your recommendation. NEVER ask how
-     familiar I am with the code — no calibration/meta question of any kind, ever.
    - Order strictly 🔴 → 🟡 → 🟢 (early answers constrain later ones). 🔴 ONE at a time
      (answers cascade); independent 🟡 may pair 2–3 per message when no answer affects
      another; 🟢 one batch. Wait for my answer before the next message. EACH question
