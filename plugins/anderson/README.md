@@ -250,13 +250,13 @@ then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` 
 
 | Command | What it does | What to expect |
 |---------|--------------|----------------|
-| `/anderson:start <slug> <goal>` | **Entry point** (gated mode). Seeds `state.md`, plans, **grills you** one question at a time, then plan-reviews (edits the plan inline). | Halts at 🛑 **Gate 1**. Read `plan.md` → `## 🔭 Review` + `## 💥 Blast radius` + `## 📈 Scorecard`. |
+| `/anderson:start <slug> <goal> [--fable]` | **Entry point** (gated mode). Seeds `state.md`, plans, **grills you** one question at a time, then plan-reviews (edits the plan inline). `--fable` (at the end) runs the review gates on Fable instead of Opus. | Halts at 🛑 **Gate 1**. Read `plan.md` → `## 🔭 Review` + `## 💥 Blast radius` + `## 📈 Scorecard`. |
 | `/anderson:approve-plan <slug>` | Pass **Gate 1**: implement + independent diff-review. | Code + `audit.md` written, review appended. Halts at 🛑 **Gate 2**. Read `## 🔭 Review` AND the diff. |
 | `/anderson:approve-diff <slug>` | Pass **Gate 2** = **SHIP for real**: branch `anderson/<slug>` + commit + push + open PR (all guarded), then clean scratch. | Branch + PR URL, or a local-commit fallback if no remote/`gh`. **Never force-pushes.** |
 | `/anderson:rework <slug>` | Diff review said `fix_first` — loop the implementer on the "Still open" blockers only, then re-review. | Back to 🛑 **Gate 2**. Bounded by `max_iterations`. |
 | `/anderson:status <slug>` | Dashboard / sanity check. | Current stage, next agent + model/effort, both verdicts, iteration vs max, and the `CLAUDE_CODE_SUBAGENT_MODEL` override check. Read-only. |
 | `/anderson:demo` | Zero-token dry-run of the whole pipeline. | All stage banners + both gate lines + ship banner. No agents, no files, no tokens. |
-| `/anderson:auto <id> <title> [body\|@file]` | **Autonomous mode** — no gates: plan → plan-gate → RED test → implement → CI-veto + panel diff-gate → **draft PR**. | Terminal SHIP (draft PR) or abort + `report.md`. Review the PR — auto mode is experimental. |
+| `/anderson:auto <id> <title> [body\|@file] [--fable]` | **Autonomous mode** — no gates: plan → plan-gate → RED test → implement → CI-veto + panel diff-gate → **draft PR**. `--fable` runs the plan-gate + diff-gate/arbiter on Fable. | Terminal SHIP (draft PR) or abort + `report.md`. Review the PR — auto mode is experimental. |
 
 All commands are **namespaced** `/anderson:<command>` — `/anderson:start`,
 `/anderson:approve-plan`, `:approve-diff`, `:rework`, `:status`. Bare plugin-name
@@ -317,6 +317,17 @@ automatically per stage (planner opus/high, plan-reviewer opus/xhigh, implemente
 sonnet/medium, reviewer opus/xhigh). Resolution order is: `CLAUDE_CODE_SUBAGENT_MODEL`
 env var → per-invocation override → **agent frontmatter** → main session.
 
+**`--fable` — Fable for the critique gates.** Start a pipeline with `--fable`
+(`/anderson:start … --fable`, `/anderson:auto … --fable`, or `bin/feature.sh start … --fable`)
+and the two review stages — plan-review and diff-review (panel + arbiter) — run on **Fable**
+instead of Opus, via the per-invocation override in the resolution order above. Fable is the
+stronger critical analyst; the generative stages (planner opus, implementer sonnet) are never
+touched. Effort stays `xhigh`. The choice is seeded once into `state.md` as `review_model:`
+(`opus` default, `fable` with the flag) and every gate reads it fresh, so it persists across the
+resumed `approve-plan` / `rework` commands. In auto mode the tiered panel's HARD/CRITICAL slots
+and the arbiter follow `review_model` (`panel_model` metric can read `fable`); the cheap
+TRIVIAL/NORMAL panel tier stays on sonnet.
+
 **The gotcha:** if `CLAUDE_CODE_SUBAGENT_MODEL` is set, it overrides every agent's
 frontmatter — your implementer would silently run on whatever that env says, not
 Sonnet. `/anderson:status` prints this for you; or check directly:
@@ -355,9 +366,13 @@ PATH or call directly:
 
 ```
 ./bin/feature.sh start brief-views "normalize views[] into brief_views_table"
+./bin/feature.sh start brief-views "normalize views[] into brief_views_table" --fable  # review gates on Fable
 ./bin/feature.sh --approve-plan brief-views
 ./bin/feature.sh --approve-diff brief-views   # ship: branch + commit + push + PR (guarded);  or --rework
 ```
+
+`--fable` on `start` (at the end) persists into `state.md`, so the resumed `--approve-plan` /
+`--rework` sub-commands run their diff-review on Fable too — no need to repeat the flag.
 
 ## Optional — autonomous between-gate chaining
 
