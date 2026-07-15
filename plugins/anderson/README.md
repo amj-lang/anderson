@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.20.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.20.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -450,6 +450,10 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.20.1** — **Grill drops the familiarity question.** The grill no longer opens with the
+  "How familiar are you with <touched area>? wrote it / know it / new to it" calibration line. It
+  now assumes you know the touched code: terse questions, no per-question context sentences,
+  borderline 🟢 auto-resolved to the recommendation. One less meta-question before the real ones.
 - **0.20.0** — **Slimmer, calmer grill.** The interrogation step was too busy — a 3-line manifest
   with a per-vector "blindspot sweep" line, two-line question headers, and eight competing emoji.
   Now: a **one-line manifest** (`grill · N questions · a🔴 b🟡 c🟢` + a rule), and each question is
