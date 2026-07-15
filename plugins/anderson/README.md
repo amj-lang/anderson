@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.19.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.20.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -130,7 +130,7 @@ high   [ YOU ]   xhigh (edits)            medium        xhigh (read-only)
 | Stage        | Agent          | Model  | Effort | Gate  | Does                                  |
 |--------------|----------------|--------|--------|-------|---------------------------------------|
 | plan         | `planner`      | opus   | high   | —     | writes `plan.md` + blast radius + scorecard |
-| grill        | *(you)*        | —      | —      | human | triages ALL questions upfront (incl. a blindspot pass), grades 🔴 ARCH/🟡 BEHAVIOR/🟢 PREF, prints a 🔥 manifest, asks one at a time 🔴→🟡 with a `❓ n/N` progress header, batches 🟢; folds decisions into `plan.md` — no subagent |
+| grill        | *(you)*        | —      | —      | human | triages questions from the plan's own decision tree + 💥 blast radius + 🧯 error rows, grades 🔴 ARCH/🟡 BEHAVIOR/🟢 PREF, prints a one-line manifest, asks 🔴→🟡 as 3-line cards (`🔴 n/N ▰▰▱▱…` + question + recommendation) with an adaptive progress bar, batches 🟢; folds decisions into `plan.md` — no subagent |
 | plan_review  | `plan-reviewer`| opus   | xhigh  | human | **edits** `plan.md` inline + appends review to `## 🔭 Review`; re-scores + checks blast radius; verdict `ship`/`fix_first`/`regrill` |
 | implement    | `implementer`  | sonnet | medium | —     | writes `audit.md`                     |
 | diff_review  | `reviewer`     | opus   | xhigh  | human | diff review appended to `plan.md` `## 🔭 Review` |
@@ -435,6 +435,16 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.20.0** — **Slimmer, calmer grill.** The interrogation step was too busy — a 3-line manifest
+  with a per-vector "blindspot sweep" line, two-line question headers, and eight competing emoji.
+  Now: a **one-line manifest** (`grill · N questions · a🔴 b🟡 c🟢` + a rule), and each question is
+  a **3-line card** — `🔴 n/N ▰▰▱▱▱▱▱▱▱▱` (the grade dot is the only emoji; the bar is 10 cells,
+  filled = round((n−1)/N × 10) so it grows as answers land), the question, then `→ recommendation`.
+  When an answer spawns a new question the total grows in place with a dim `+1 from your last
+  answer` note — no manifest reprint. **The standalone blindspot sweep is gone**: the planner
+  already maps blast radius at plan time, so the grill now challenges that table's completeness
+  directly (grepping a specific caller only when it doubts a row) instead of re-sweeping five
+  vectors on every run. Less ceremony, same catch, a screen you can think in.
 - **0.19.0** — **`--fable` opt-in for the review gates.** New state field `review_model` (default `opus`)
   runs the two critique stages — PLAN GATE plan-reviewer, DIFF GATE reviewer panel + arbiter — on Fable
   instead of Opus when a pipeline is started with `--fable`. Fable is the stronger critical analyst; the

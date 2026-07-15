@@ -81,36 +81,24 @@ plan-reviewer (step 5).
    ```
    Pool (24): "Every unanswered question is a bug with a delay." / "The plan you cannot defend out loud is not yet a plan." / "Decide it now in words, or discover it later in an outage." / "An assumption spoken is an assumption you can kill." / "The question you are avoiding is the one that matters." / "Pin every fork before the code picks one for you." / "Vague is just expensive spelled slowly." / "If two answers both sound fine, you haven't found the real question." / "Name the trade-off, or the trade-off names you." / "Shared understanding is cheaper than shared blame." / "What is real? How do you define real?" / "You think that's air you're breathing now?" / "What good is a phone call if you are unable to speak?" / "You have a problem with authority, Mr. Anderson." / "Choice is an illusion created between those with power and those without." / "There is only one constant, one universal: causality." / "Why, Mr. Anderson? Why do you persist?" / "You've been living in a dream world, Neo." / "We are all here to do what we are all here to do." / "Do you believe you are fighting for more than your survival?" / "Every fork you skip, the code picks for you." / "The answer you dodge becomes the outage you explain." / "Defend it out loud, or it isn't decided." / "Do not just hear the plan; interrogate it."
    Then GRILL the plan yourself, inline in this session (self-contained — no external skill):
-   - TRIAGE FIRST (before question 1): enumerate every question in ONE pass — each open
-     branch of plan.md's decision tree, every `needs-context` row of the "🧯 Error handling"
-     table, every gap in the "💥 Blast radius" table — PLUS a structured blindspot pass
-     over what plan.md never mentions. Sweep EACH vector below in the codebase (don't skip
-     one because it "probably" comes up clear — the sweep line in the manifest proves you
-     looked); questions the plan doesn't know it has are the highest-value kind:
-       · callers/consumers of the touched code that plan.md never names
-       · existing tests that encode behavior the plan would change
-       · config, migrations, feature flags touching the same surface
-       · git history — was this tried, reverted, or worked around before?
-       · repo conventions the plan silently diverges from
-     SWEEP TOKEN ECONOMY: scope each vector to files/symbols plan.md touches — targeted
-     grep / `git log --oneline -- <files>` one-liners + excerpts; never whole-file reads
-     or repo-wide scans. PREFER delegating the whole sweep to ONE cheap read-only search
-     subagent (e.g. Explore) returning one verdict line per vector + candidate questions —
-     keeps greps out of this session's context. Trivial plan (≤2 files, no interface
-     change) → collapse sweep to one grep + one git-log pass inline; thoroughness
-     proportional to blast radius. Any triaged question the sweep already answered,
-     answer now and drop — never ask me what the code already says.
+   - TRIAGE FIRST (before question 1): enumerate every question in ONE pass, drawn ONLY from
+     what plan.md already puts on the table — each open branch of its decision tree, every
+     `needs-context` row of the "🧯 Error handling" table, and every gap or unjustified entry in
+     the "💥 Blast radius" table. The planner already mapped blast radius at plan time; do NOT
+     re-sweep the codebase for blindspots here — challenge that table's completeness directly
+     (see the blast-radius walk below), and grep a specific caller/test/config ONLY when you
+     actually doubt a row. Any question the plan already answers, answer yourself and drop —
+     never ask me what the code or the plan already says.
    - Grade every remaining question:
        🔴 ARCH — the answer changes the architecture, data model, or scope
        🟡 BEHAVIOR — edge cases, error handling, UX semantics
        🟢 PREF — naming, defaults, cosmetics; safe to auto-resolve with your recommendation
-   - Print the manifest as the FIRST thing after the GRILL banner, so I can see the grilling
-     level before it starts (substitute real counts; the sweep line shows one entry per
-     blindspot vector — ✓ if it came up clear, +n if it raised n questions):
+   - Print the manifest as the FIRST thing after the GRILL banner — ONE header line + a rule,
+     nothing else, so I see the grilling level at a glance (substitute real counts; omit a
+     grade from the tally when its count is 0):
      ```
-     🔥 GRILL MANIFEST — <N> questions
-        🔴 <a> architecture · 🟡 <b> behavior · 🟢 <c> preference (batched at the end)
-        blindspot sweep: callers <✓|+n> · tests <✓|+n> · config <✓|+n> · history <✓|+n> · conventions <✓|+n>
+     grill · <N> questions · <a>🔴  <b>🟡  <c>🟢
+     ──────────────────────────
      ```
    - CALIBRATE (question 0, right after the manifest): ONE line — "How familiar are you
      with <touched area>? wrote it / know it / new to it." "wrote it" → terse questions,
@@ -120,14 +108,18 @@ plan-reviewer (step 5).
    - Order strictly 🔴 → 🟡 → 🟢 (early answers constrain later ones). 🔴 ONE at a time
      (answers cascade); independent 🟡 may pair 2–3 per message when no answer affects
      another; 🟢 one batch. Wait for my answer before the next message. EACH question
-     carries your recommended answer so I can just confirm; ≤4 lines — header +
-     question + recommendation; never restate plan.md content.
-   - Prefix every question with a progress header. If an answer spawns a new question,
-     grow the total honestly (`5/12`) and slot it by grade — never hide the drift:
+     carries your recommended answer so I can just confirm; never restate plan.md content.
+   - Print each question in EXACTLY this shape — three lines, the grade dot (🔴/🟡/🟢) the ONLY
+     emoji, the bar 10 cells (▰ filled / ▱ empty) with filled = round((n−1)/N × 10) so it grows
+     as answers land (empty at the first question), the recommendation the only follow-on line:
      ```
-     ❓ <n>/<N> · 🔴 ARCH · <one-line question>
-        ▓▓▓░░░░░░░░ <n−1> done
+     🔴 <n>/<N>  ▰▰▱▱▱▱▱▱▱▱
+        <one-line question>
+        → <your recommended answer>
      ```
+     If an answer spawns a new question, grow <N> honestly and slot the new one by grade; do
+     NOT reprint the manifest — the only drift signal is a dim trailing note on the next
+     header line: `🔴 <n>/<N>  <bar>   +1 from your last answer`.
    - 🟢 batch: present ALL preference questions together in ONE message, each with its
      recommendation; a single "defaults fine" accepts every recommendation at once.
    - After each resolved decision, fold it into plan.md (update the affected section; record
