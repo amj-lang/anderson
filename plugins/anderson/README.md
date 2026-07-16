@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.21.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.22.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -257,6 +257,7 @@ then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` 
 | `/anderson:status <slug>` | Dashboard / sanity check. | Current stage, next agent + model/effort, both verdicts, iteration vs max, and the `CLAUDE_CODE_SUBAGENT_MODEL` override check. Read-only. |
 | `/anderson:demo` | Zero-token dry-run of the whole pipeline. | All stage banners + both gate lines + ship banner. No agents, no files, no tokens. |
 | `/anderson:auto <id> <title> [body\|@file] [--fable]` | **Autonomous mode** — no gates: plan → plan-gate → RED test → implement → CI-veto + panel diff-gate → **draft PR**. `--fable` runs the plan-gate + diff-gate/arbiter on Fable. | Terminal SHIP (draft PR) or abort + `report.md`. Review the PR — auto mode is experimental. |
+| `/anderson:help` | Static quick-reference card: every command, arguments, gates, the `--fable` flag. | One printed card. Reads nothing, no agents, no state — for the live dashboard use `:status`. |
 
 All commands are **namespaced** `/anderson:<command>` — `/anderson:start`,
 `/anderson:approve-plan`, `:approve-diff`, `:rework`, `:status`. Bare plugin-name
@@ -450,6 +451,10 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.22.0** — **`/anderson:help` quick-reference card.** New one-shot command that prints a static
+  card with every command, its arguments, the two gates, and the `--fable` flag. Reads no state,
+  spawns no agents — the live dashboard stays `/anderson:status`. Both READMEs' command tables
+  gained the row.
 - **0.21.0** — **Plan-reviewer judges the frame first.** Before line-editing, the plan-reviewer
   now asks "would I have planned it this way?" — a wrong approach gets rewritten in place (with
   read scope widened to what the rewrite needs) or routed `regrill`, instead of being patched
