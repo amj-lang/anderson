@@ -35,6 +35,10 @@ each classed `deduced` or `needs-context`. A missing failure path, or a `needs-c
 mirrored in "✅ Decisions", is a BLOCKING finding — fix it in place. Do not re-class a genuine
 business call as `deduced` to dodge a `needs-context` open question.
 
+First judge the approach itself — would you have planned it this way? If no, rewrite the
+approach or verdict `regrill`; don't line-edit a wrong frame. When rewriting the approach,
+you may widen read scope to what the rewrite needs.
+
 Attack the design and assumptions; find anything simpler. Hold the plan to the
 ladder (after ponytail): for every planned new function/module/abstraction/dependency —
 does it need to exist? does the codebase, stdlib, or an existing dependency already do

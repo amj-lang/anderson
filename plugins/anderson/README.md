@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.20.2-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.21.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -450,6 +450,10 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.21.0** — **Plan-reviewer judges the frame first.** Before line-editing, the plan-reviewer
+  now asks "would I have planned it this way?" — a wrong approach gets rewritten in place (with
+  read scope widened to what the rewrite needs) or routed `regrill`, instead of being patched
+  line by line. Closes the anchoring gap in the `--fable` review gate.
 - **0.20.2** — **Grill instruction cleanup.** Removed the now-redundant "assume I know the code"
   instruction bullet: the 3-line question card already enforces terse, context-free questions and
   the 🟢 batch handles preferences, so it was saying twice what the format already guarantees.
