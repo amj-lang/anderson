@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.21.0-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.22.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -103,6 +103,7 @@ All commands are namespaced `/anderson:<command>` — bare `/anderson` does not 
 | `status`       | `/anderson:status <slug>`                        | Dashboard: stage, next agent + model/effort, both verdicts, iteration vs max, model-override check. Read-only.                                                             | Check where a run is, or resume later.                 |
 | `demo`         | `/anderson:demo`                                 | Zero-token dry-run: prints every stage banner + both gate lines. No agents, no files.                                                                                      | Preview the UX before a real run.                      |
 | `auto`         | `/anderson:auto <task-id> <title> [body\|@file] [--fable]` | **Autonomous** end-to-end → draft PR, no human gates (see [auto mode](#auto-mode--the-autonomous-pipeline)). `body` is optional inline text or `@path` to a TaskSpec file; `--fable` → review gates on Fable. | Well-scoped, unattended fixes you'll review at the PR. |
+| `help`         | `/anderson:help`                                 | Static quick-reference card: every command, arguments, gates, `--fable`. Reads nothing, spends no agent tokens.                                                            | Forgot an invocation or what `--fable` does.           |
 
 **Our suggestions.** First-timers: run `/anderson:demo` to see the whole flow for free. For everyday work drive the gated loop `start → approve-plan → approve-diff` (with `rework` between gates as needed) — the two human gates are the point. Reach for `auto` only when the task is well-scoped **and** the suite is green; always review its draft PR. For CI / walk-away runs use the flag-driven headless runner `bin/feature.sh` (`start` / `--approve-plan` / `--approve-diff` / `--rework`) — see [Headless / CI](#headless--ci).
 
