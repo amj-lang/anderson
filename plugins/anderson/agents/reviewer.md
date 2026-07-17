@@ -29,6 +29,21 @@ handled in the code (an unhandled `deduced` path is a blocking finding). For `ne
 rows, confirm the diff did NOT silently bury a business call as a default — those stay open
 questions for the human, not invented behaviour.
 
+CRITERIA-EVIDENCE lens (BLOCKING): walk plan.md `## ✅ Acceptance criteria` row by row —
+evidence must PROVE the criterion, not gesture at it.
+- Blank Evidence cell → automatic `fix_first`.
+- `test` → RUN it, then read the assertion: it must encode the criterion and fail without this
+  diff. A test that passes on the old code, asserts mere truthiness, or mirrors a mock is a
+  worthless test = blocking.
+- `visual` → OPEN both images (`design/` + `evidence/` — Read renders PNGs) and compare: exact
+  text character-for-character, layout, states. Any mismatch = blocking; name the specific
+  difference ("button says 'Save changes', design says 'Save'").
+- `e2e` → run the script in `feature-research/<task>/e2e/` (ephemeral, gate-time only).
+- `manual` → confirm the audit's steps actually verify the criterion; spot-check what's
+  checkable from the diff.
+Report `criteria: <proven>/<total>` in `## 📊 Scope + risk addressed?`; list each failed
+criterion in `## 💬 Feedback` with why the evidence falls short.
+
 YAGNI lens (after ponytail): flag diff code that fails the ladder — reimplements what the
 codebase, stdlib, or an existing dependency already provides; adds an abstraction, config
 knob, or speculative generality no acceptance criterion forces; N lines where one would do.
@@ -43,8 +58,8 @@ ONLY — read-only on all source files.
 ### Diff review
 
 ## 📊 Scope + risk addressed?
-verified against the actual diff/code: scope creep (audit files ∉ plan = blocking),
-risk the audit didn't mention within scope.
+criteria: <proven>/<total> · verified against the actual diff/code: scope creep
+(audit files ∉ plan = blocking), risk the audit didn't mention within scope.
 
 ## 💬 Feedback
 `GTG` if good; else what changed + why (same shape as plan-review).

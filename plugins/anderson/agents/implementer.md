@@ -34,6 +34,21 @@ On a rework loop, the "Still open" section of state.md holds the checker's
 blocking findings — those ARE your instructions for this pass. Fix them, nothing
 else.
 
+EVIDENCE — the pass is NOT done while any Evidence cell in plan.md
+`## ✅ Acceptance criteria` is blank. After implementing, fill that column — the ONLY
+plan.md edit you may make. Per proof type:
+- `test` → run it; cell: `test: <test name> · <command>`. The assertion must encode the
+  criterion and FAIL without your change — a test that passes on the old code, asserts mere
+  truthiness, or echoes a mock proves nothing and the reviewer will block on it.
+- `visual` → screenshot the RUNNING UI into `feature-research/<task>/evidence/<name>.png`
+  (playwright / the repo's own tooling); cell: `visual: evidence/<name>.png vs design/<file>`.
+  Capture impossible → downgrade the cell to `manual` and say why.
+- `e2e` → write the script under `feature-research/<task>/e2e/` (EPHEMERAL: gitignored,
+  deleted at ship — never wire it into the repo suite or CI), run it; cell:
+  `e2e: <file> (passed)`. Flow worth keeping permanently → append `· promote candidate`;
+  the human decides at the PR.
+- `manual` → cell: `manual: see audit ⚙️ Setup & test`, and write the step-by-step there.
+
 Before finishing, write `feature-research/<task>/audit.md` using this shape:
 
 ```markdown
@@ -45,9 +60,10 @@ Before finishing, write `feature-research/<task>/audit.md` using this shape:
 <what changed per file; deviations from the plan and why; test results>
 
 ## ⚙️ Setup & test
-<how to verify: the test command + the test that covers this change; then any operational
-requirement it introduces — new env var, dependency, config/feature flag, or manual setup
-step — one line each, or "none". This feeds the PR's visible 🧪 How to test + ⚙️ Setup sections.>
+<the test command; step-by-step verification ONLY for `manual`-proof criteria — criteria
+covered by test/visual/e2e evidence get one line each (`#<n> covered by <evidence>`); then any
+operational requirement introduced — new env var, dependency, config/feature flag, or manual
+setup step — one line each, or "none". Feeds the PR's visible sections.>
 
 ## ✅ Decisions / risks
 <open risks, one line each>

@@ -52,6 +52,7 @@ plan-reviewer (step 5).
    max_iterations:  2
    exit_rule:       all tests pass and lint clean, only major issues fixed
    review_model:    opus
+   source_url:      none
    plan_verdict:    pending
    diff_verdict:    pending
    open_questions:  0
@@ -63,6 +64,23 @@ plan-reviewer (step 5).
 
    ## ❓ Open questions
    ```
+2b. INTAKE — normalize ticket + design into scratch BEFORE the planner (skip silently when
+   the goal references neither):
+   - TICKET: goal contains a ticket URL/id (Linear, GitHub, Jira …) → fetch it (MCP or `gh`);
+     set state.md `source_url:` to the URL; hand any acceptance-criteria section to the
+     planner VERBATIM (`source: ticket`). Unreachable → note it, continue.
+   - DESIGN: goal or ticket references a design (figma.com URL, image path, image attached to
+     the ticket) → normalize into `feature-research/<task>/design/`:
+     Figma URL → MCP `get_screenshot` (+ `get_design_context` for exact strings) ·
+     ticket attachment → download it (e.g. Linear MCP `extract_images`) ·
+     local image path → copy it ·
+     no tool reaches it → ask me to drop the file into `design/`, wait, continue.
+     Then write `design/inventory.md`: every EXACT text string (quoted character-faithful),
+     every state/variant shown, layout facts (order, grouping, alignment). The planner turns
+     inventory lines into `source: design` criteria; the diff reviewer compares the built UI
+     against these files.
+   Pass to the planner: goal + ticket criteria (verbatim) + the `design/` path when present.
+
 3. (BANNER + QUOTE RULES, offset +1) Print this PLAN banner as the LAST line before
    invoking the planner, so it sits right above the agent:
    ```
@@ -83,8 +101,8 @@ plan-reviewer (step 5).
    Then GRILL the plan yourself, inline in this session (self-contained — no external skill):
    - TRIAGE FIRST (before question 1): enumerate every question in ONE pass, drawn ONLY from
      what plan.md already puts on the table — each open branch of its decision tree, every
-     `needs-context` row of the "🧯 Error handling" table, and every gap or unjustified entry in
-     the "💥 Blast radius" table. The planner already mapped blast radius at plan time; do NOT
+     `derived` row of the "✅ Acceptance criteria" table, every `needs-context` row of the
+     "🧯 Error handling" table, and every gap or unjustified entry in the "💥 Blast radius" table. The planner already mapped blast radius at plan time; do NOT
      re-sweep the codebase for blindspots here — challenge that table's completeness directly
      (see the blast-radius walk below), and grep a specific caller/test/config ONLY when you
      actually doubt a row. Any question the plan already answers, answer yourself and drop —
@@ -119,6 +137,10 @@ plan-reviewer (step 5).
      recommendation; a single "defaults fine" accepts every recommendation at once.
    - After each resolved decision, fold it into plan.md (update the affected section; record
      non-obvious choices under a `## Decisions` heading).
+   - Walk the "✅ Acceptance criteria" table: every `derived` row is a 🔴 question (confirm /
+     edit / drop — a wrong criterion poisons every downstream check); `ticket`/`design` rows
+     are batch-confirmed in one line unless you doubt one. A criterion I add gets
+     `source: ticket` (I am the ticket).
    - Explicitly walk the "💥 Blast radius" table: for each vector, challenge whether the
      enumeration is complete and whether out-of-scope calls are justified. Confirm the
      "📈 Scorecard"; if Risk is high or Confidence is low, decide whether to proceed.
@@ -147,12 +169,14 @@ plan-reviewer (step 5).
    Then immediately invoke the **plan-reviewer** subagent (model override = state.md
    `review_model`, effort xhigh) → makes inline strike-through edits and appends its review
    under `## 🔭 Review` in plan.md; sets plan_verdict.
-6. Print and STOP — fill in the real task slug for every `<task>` and the real
-   verdict for `<plan_verdict>` so the command + path are copy-pasteable (e.g.
-   `/anderson:approve-plan brief-views`, NOT a literal `<task>`):
+6. Print the GATE 1 TL;DR card and STOP. Fill EVERY value from plan.md/state.md (real slug,
+   real verdict, real counts — copy-pasteable, no literal `<task>`); omit zero-count entries
+   from the criteria line. The card is the TL;DR — open plan.md only when a line raises doubt:
    ```
    ﾊﾐﾐ 0ｺ1  🔴 G A T E  1 · YOUR TURN  1ｺ0 ﾐﾐﾊ
-     ⌐■-■  Read feature-research/<task>/plan.md (## 🔭 Review, verdict=<plan_verdict>), then
-            /anderson:approve-plan <task> — or just say "approved, go". Don't implement yet.
+     ⌐■-■  <plan.md ## 🎯 What, first line>
+           criteria <N> (<t> ticket · <d> design · <x> derived) · proof: <a> test · <b> visual · <c> e2e · <m> manual
+           scorecard: Risk <r> · Confidence <c> · Coupling <k> · Reversibility <v>
+           verdict <plan_verdict> → /anderson:approve-plan <task> — or "approved, go" · full plan: feature-research/<task>/plan.md
    ```
    Halt is unconditional even on a ship verdict.

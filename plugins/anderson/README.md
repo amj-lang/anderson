@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.22.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.23.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -78,9 +78,10 @@ gate). They are the executable ground truth the panel reasons against.
   reviewers · arbiter · arbiter_trigger · rounds · ci · replan · red · override · outcome` — to the PR
   + report, so each new behavior is greppable (which model the panel ran on, why the arbiter fired,
   which soft guardrails were relaxed) and the thresholds can be tuned from real outcomes.
-- **PR body leads with the validated plan.** The draft PR opens with the source-ticket link (from
-  the TaskSpec `source_url`, when present) + a short reviewed-and-validated plan summary; the audit
-  trail and metrics collapse to the bottom.
+- **PR body leads with criteria + evidence.** The draft PR opens with the source-ticket link (from
+  the TaskSpec `source_url`, when present), What & why, the acceptance-criteria table with its
+  Evidence column filled, and the scorecard; Setup / Open-questions print only when non-empty; the
+  audit trail and metrics collapse to the bottom.
 - **Multi-repo.** When the task must change other repos (TaskSpec `repos:`, scope spilling outside the
   repo, or a sibling repo in project memory / `CLAUDE.md`), each repo gets an isolated **git worktree**,
   its own branch, and its own cross-linked draft PR (labeled `needs-human`). A dirty tree is isolated
@@ -130,7 +131,7 @@ high   [ YOU ]   xhigh (edits)            medium        xhigh (read-only)
 | Stage        | Agent          | Model  | Effort | Gate  | Does                                  |
 |--------------|----------------|--------|--------|-------|---------------------------------------|
 | plan         | `planner`      | opus   | high   | —     | writes `plan.md` + blast radius + scorecard |
-| grill        | *(you)*        | —      | —      | human | triages questions from the plan's own decision tree + 💥 blast radius + 🧯 error rows, grades 🔴 ARCH/🟡 BEHAVIOR/🟢 PREF, prints a one-line manifest, asks 🔴→🟡 as 3-line cards (`🔴 n/N ▰▰▱▱…` + question + recommendation) with an adaptive progress bar, batches 🟢; folds decisions into `plan.md` — no subagent |
+| grill        | *(you)*        | —      | —      | human | triages questions from the plan's own decision tree + ✅ criteria (`derived` rows are 🔴) + 💥 blast radius + 🧯 error rows, grades 🔴 ARCH/🟡 BEHAVIOR/🟢 PREF, prints a one-line manifest, asks 🔴→🟡 as 3-line cards (`🔴 n/N ▰▰▱▱…` + question + recommendation) with an adaptive progress bar, batches 🟢; folds decisions into `plan.md` — no subagent |
 | plan_review  | `plan-reviewer`| opus   | xhigh  | human | **edits** `plan.md` inline + appends review to `## 🔭 Review`; re-scores + checks blast radius; verdict `ship`/`fix_first`/`regrill` |
 | implement    | `implementer`  | sonnet | medium | —     | writes `audit.md`                     |
 | diff_review  | `reviewer`     | opus   | xhigh  | human | diff review appended to `plan.md` `## 🔭 Review` |
@@ -250,7 +251,7 @@ then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` 
 
 | Command | What it does | What to expect |
 |---------|--------------|----------------|
-| `/anderson:start <slug> <goal> [--fable]` | **Entry point** (gated mode). Seeds `state.md`, plans, **grills you** one question at a time, then plan-reviews (edits the plan inline). `--fable` (at the end) runs the review gates on Fable instead of Opus. | Halts at 🛑 **Gate 1**. Read `plan.md` → `## 🔭 Review` + `## 💥 Blast radius` + `## 📈 Scorecard`. |
+| `/anderson:start <slug> <goal> [--fable]` | **Entry point** (gated mode). Normalizes any ticket/design reference into scratch (intake), seeds `state.md`, plans, **grills you** one question at a time, then plan-reviews (edits the plan inline). `--fable` (at the end) runs the review gates on Fable instead of Opus. | Halts at 🛑 **Gate 1** on a TL;DR card (what · criteria · scorecard · verdict); open `plan.md` when a line raises doubt. |
 | `/anderson:approve-plan <slug>` | Pass **Gate 1**: implement + independent diff-review. | Code + `audit.md` written, review appended. Halts at 🛑 **Gate 2**. Read `## 🔭 Review` AND the diff. |
 | `/anderson:approve-diff <slug>` | Pass **Gate 2** = **SHIP for real**: branch `anderson/<slug>` + commit + push + open PR (all guarded), then clean scratch. | Branch + PR URL, or a local-commit fallback if no remote/`gh`. **Never force-pushes.** |
 | `/anderson:rework <slug>` | Diff review said `fix_first` — loop the implementer on the "Still open" blockers only, then re-review. | Back to 🛑 **Gate 2**. Bounded by `max_iterations`. |
@@ -309,7 +310,23 @@ Fields: `task` = slug; `stage` = current pipeline stage; `gate` = `none` or `hum
 `exit_rule` = the human-readable rule the diff reviewer enforces; `plan_verdict` /
 `diff_verdict` = `pending`, `ship`, `fix_first`, or `regrill`.
 
-`plan.md` carries mandatory sections beyond the How narrative: a **`## 💥 Blast radius`** table (planner traces all dependents/callers/siblings/tests/docs before finalizing; reviewer hard-checks it, blocking on blank cells or missed in-scope sites), a **`## 🧯 Error handling`** table (each failure path the change touches, classed `deduced` = handle now or `needs-context` = a business call mirrored into `## ✅ Decisions`; reviewer blocks on a missing path, the diff-review correctness lens checks each `deduced` row is handled), a **`## 📈 Scorecard`** (7 dimensions — Risk, Horizontality, Testability, Reversibility, Confidence, Coupling, Observability — with Planner and Reviewer columns in one table; gaps ≥ 3 reconciled inline; Risk ≥ 8 or Confidence ≤ 3 blocks `ship`), and a **`## 🔭 Review`** section (last, reserved — the plan-reviewer appends its structured report here after making inline edits, and the diff-reviewer appends its diff review here; replaces the former separate `diff-review.md` and `## Diverged because` block). The scorecard is echoed verbatim into `audit.md` by the implementer.
+`plan.md` reads human-first: **What → Why → ✅ Acceptance criteria → How → 📈 Scorecard** stay
+visible (hard budgets: What ≤ 3 lines, one line per How bullet); the bodies of 🗺 Design,
+💥 Blast radius, 🧯 Error handling, and ✅ Decisions sit inside `<details>` collapses. The
+**`## ✅ Acceptance criteria`** table (`# | Criterion | Source | Proof | Evidence`) is the plan's
+spine: criteria come from the ticket (verbatim), the design inventory (exact strings — a
+`/anderson:start` intake step normalizes Figma URLs / ticket screenshots / image files into
+`feature-research/<task>/design/` + an `inventory.md`), or planner judgement (`derived` — the
+grill confirms those as 🔴 questions). Each criterion names a proof type — `test` (must fail
+without the change), `visual` (screenshot of the running UI vs the design, compared by the diff
+reviewer), `e2e` (ephemeral script in scratch — gate-time only, deleted at ship, `promote
+candidate` when worth keeping), or `manual` (only when nothing executable can cover it). The
+implementer fills the Evidence column; the diff reviewer's criteria-evidence lens blocks on a
+blank cell, a test that passes without the diff, or a visual mismatch. Both gates halt on a
+TL;DR card (what · criteria/proof counts · scorecard · verdict), so the plan file only needs
+opening when a line raises doubt.
+
+`plan.md` carries further mandatory sections beyond the How narrative: a **`## 💥 Blast radius`** table (planner traces all dependents/callers/siblings/tests/docs before finalizing; reviewer hard-checks it, blocking on blank cells or missed in-scope sites), a **`## 🧯 Error handling`** table (each failure path the change touches, classed `deduced` = handle now or `needs-context` = a business call mirrored into `## ✅ Decisions`; reviewer blocks on a missing path, the diff-review correctness lens checks each `deduced` row is handled), a **`## 📈 Scorecard`** (7 dimensions — Risk, Horizontality, Testability, Reversibility, Confidence, Coupling, Observability — with Planner and Reviewer columns in one table; gaps ≥ 3 reconciled inline; Risk ≥ 8 or Confidence ≤ 3 blocks `ship`), and a **`## 🔭 Review`** section (last, reserved — the plan-reviewer appends its structured report here after making inline edits, and the diff-reviewer appends its diff review here; replaces the former separate `diff-review.md` and `## Diverged because` block). The scorecard is echoed verbatim into `audit.md` by the implementer.
 
 ## Models & effort — what runs where, and how to verify
 
@@ -451,6 +468,39 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.23.0** — **Acceptance criteria with proof, design intake, and a leaner read.** Three
+  moves, one theme: verify against explicit criteria instead of vibes, and show humans only
+  what they need.
+  - **✅ Acceptance criteria table** (`# | Criterion | Source | Proof | Evidence`) is now the
+    plan's spine, in BOTH modes. Sources: `ticket` (verbatim), `design` (exact strings from the
+    design inventory), `derived` (planner judgement — the gated grill confirms each as a 🔴
+    question; auto's plan gate checks coverage as before). The plan-reviewer blocks on a
+    missing table, an unmapped criterion, or paraphrased design copy.
+  - **Design intake** — `/anderson:start` (step 2b) and `/anderson:auto` (step 1g) normalize
+    any referenced design — Figma URL, ticket screenshot, or image file — into
+    `feature-research/<task>/design/` (PNGs + `inventory.md`: every exact string, state, and
+    layout fact). Fixes the "built it, doesn't match the design" gap at its root: the criteria
+    and the reviewer now have the reference artifact.
+  - **Evidence or it didn't happen** — the implementer must fill the Evidence column (its only
+    permitted plan.md edit): `test` (must fail without the change), `visual` (screenshot of the
+    running UI into `evidence/`, compared against `design/` by the reviewer), `e2e` (ephemeral
+    script in scratch — gate-time only, deleted at ship, never wired into CI; `promote
+    candidate` flags a flow worth keeping), or `manual` (only when nothing executable covers
+    it). The diff reviewer gained a blocking **criteria-evidence lens**: runs the tests, opens
+    the visual pairs, blocks on blank cells, worthless tests, or any text/layout mismatch —
+    reported as `criteria: proven/total`. Auto's correctness panel lens carries the same check.
+  - **Leaner plan.md** — human-first read order (What → Why → Criteria → How → Scorecard
+    visible; Design / Blast radius / Error handling / Decisions bodies in `<details>`
+    collapses) with hard word budgets the plan-reviewer enforces. Fewer tokens for every
+    downstream agent, not just fewer lines on screen.
+  - **Gate TL;DR cards** — both gates now halt on a card (what · criteria/proof counts ·
+    scorecard · verdict; Gate 2 lists failed criteria with the reviewer's one-line why), so
+    reading the full plan becomes the exception.
+  - **Leaner PR body, both ship paths** — visible: Source (when present) · What & why ·
+    criteria table with evidence · scorecard; Setup and Open-questions print ONLY when
+    non-empty; How-to-test is absorbed by the evidence column + one `test:` line; review
+    detail, audit, metrics, and the full plan stay in collapses. Gated `state.md` gains
+    `source_url:` (additive) so the ticket link survives to the PR.
 - **0.22.0** — **`/anderson:help` quick-reference card.** New one-shot command that prints a static
   card with every command, its arguments, the two gates, and the `--fable` flag. Reads no state,
   spawns no agents — the live dashboard stays `/anderson:status`. Both READMEs' command tables

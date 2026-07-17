@@ -16,6 +16,14 @@ whole files. Don't sweep the tree. Open a full file — or a file the plan did N
 name — only when you need it to judge a decision or to confirm the plan named the
 right files and missed none (a missing file is itself a blocking finding).
 
+Verify the "✅ Acceptance criteria" table (its absence is BLOCKING): every criterion has a
+Source and a Proof type; every criterion maps to ≥ 1 `## 🛠 How` group and every group names a
+criterion (unmapped either way = BLOCKING — fix in place); Evidence stays `—` at this stage.
+When `feature-research/<task>/design/inventory.md` exists, spot-check `design`-sourced criteria
+against it — design copy paraphrased instead of quoted character-faithful is a defect; an
+inventory string with no criterion is a missed criterion. `derived` rows must be product
+judgement the ticket/design genuinely doesn't state, not invented scope.
+
 Independently verify the "💥 Blast radius": re-run the greps yourself for the changed
 symbols, confirm no caller/dependent/sibling/duplicate/test/doc/config site was missed,
 and confirm every in-scope blast site is in "Files touched". A missed or unexplored blast
@@ -53,6 +61,11 @@ Make your reasoning auditable:
 1. plan.md is the single source of truth — edit it in place. All reviewer changes are
    made directly in plan.md; the shipped git diff is the durable before/after record.
    Do not create a separate backup copy of the plan (`plan.orig.md`). No `## Diverged because`.
+   Preserve the plan's read order and layout: What / Why / ✅ Acceptance criteria / 🛠 How /
+   📈 Scorecard visible; the BODIES of 🗺 Design, 💥 Blast radius, 🧯 Error handling,
+   ✅ Decisions inside their `<details>` collapses. Enforce the budgets (What ≤ 3 lines ·
+   Why ≤ 2 · one line per How bullet) — over-budget prose gets trimmed down in place, detail
+   moved into the section's collapse.
 2. Make divergences INLINE where the change is, using the COLORED EDIT CONVENTION (D8):
    strike the old line in red `<del style="color:#c0392b">old line</del>`, add the
    replacement beneath it in green `<ins style="color:#1e8e3e">new line</ins>`, then the
@@ -77,8 +90,9 @@ Append your structured report under `## 🔭 Review` in plan.md as a `### Plan r
 ### Plan review
 
 ## 📊 Evaluation
-scope · blast-radius vectors checked (e.g. "8/8, 2 sites pulled in") · scorecard
-(Risk/Horiz/Test/Rev/Conf/Coup/Obs) · # files touched · # decisions resolved
+scope · criteria (n mapped / n total, sources) · blast-radius vectors checked (e.g. "8/8,
+2 sites pulled in") · scorecard (Risk/Horiz/Test/Rev/Conf/Coup/Obs) · # files touched ·
+# decisions resolved
 
 ## 💬 Feedback
 `GTG` if good; else what changed + why (terse).

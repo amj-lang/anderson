@@ -224,6 +224,14 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
         scope_paths / plan point outside this repo, OR project memory / `CLAUDE.md` records a
         sibling repo this task must touch. Record as `repos: <current>[,<repo2>,...]`. Multi-repo
         runs handled in BASELINE (isolation) + SHIP (one branch + PR per repo).
+      - DESIGN — if the TaskSpec references a design (figma.com URL, image path, image attached
+        to the source ticket), normalize it into `feature-research/<task-id>/design/`: Figma →
+        MCP `get_screenshot` (+ `get_design_context` for exact strings); ticket attachment →
+        download it; local path → copy it. Then write `design/inventory.md`: every EXACT text
+        string (quoted character-faithful), every state/variant, layout facts. The planner
+        turns inventory lines into `source: design` criteria; the diff panel compares the built
+        UI against these files. No human to ask in auto — capture impossible → note it under
+        `## Done so far` and the affected criteria downgrade to `manual` proof.
 
    h. (BANNER RULE) Print the INGEST banner now, last line before any further action.
 
@@ -296,8 +304,11 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
 
    c. Invoke the **planner** subagent, seeded with:
       - task title and body
-      - derived acceptance_criteria (from state.md `## Done so far` `[criteria]` bullets)
+      - derived acceptance_criteria (from state.md `## Done so far` `[criteria]` bullets —
+        planner expresses them in plan.md `## ✅ Acceptance criteria`: `source: ticket` when
+        `criteria_confidence: high`, `derived` when low)
       - criteria_confidence (so planner notes low-confidence derivations)
+      - the `design/` path when step 1g captured one (→ `source: design` criteria)
       - scope_paths if present in the TaskSpec
       Planner writes `feature-research/<task-id>/plan.md`.
 
@@ -424,7 +435,8 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
    b. (BANNER RULE) Print the IMPLEMENT banner now, last line before invoking the implementer.
 
    c. Invoke the **implementer** subagent: execute `feature-research/<task-id>/plan.md`;
-      make the frozen test pass; write `feature-research/<task-id>/audit.md`.
+      make the frozen test pass; fill the Evidence column of plan.md `## ✅ Acceptance
+      criteria` (per its agent instructions); write `feature-research/<task-id>/audit.md`.
       Implementer also runs a self-review pass before the diff gate (cheap; cuts panel rounds).
       Set stage=diff_gate after invocation.
 
@@ -516,7 +528,10 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       Lenses:
         · correctness          — "Does the diff do what the task asks, correctly, with no logic bug
                                   or unhandled case? Is every `deduced` row in the plan's 🧯 Error
-                                  handling table actually handled in the diff?"
+                                  handling table actually handled in the diff? Is every row of
+                                  plan.md `## ✅ Acceptance criteria` PROVEN by its Evidence —
+                                  run the test, open visual pairs (design/ vs evidence/), run
+                                  scratch e2e; blank or hollow evidence = fix_first?"
         · regressions+security — "What does this break elsewhere, and what does it expose (input
                                   handling, secrets, injection, auth)?"
         · plan-match           — "Does the diff match `plan.md` — nothing more (scope creep), nothing
@@ -616,43 +631,41 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       `open_questions > 0` (step 4g — unresolved business-context questions need a human) OR
       multi-repo run (cross-repo is higher-risk by default).
 
-   d. Build the PR body — LEAD WITH THE REVIEWER-ACTIONABLE ESSENTIALS (why · what · how to test ·
-      setup), keep each tight, push long-form plan + audit into collapses at the bottom.
-      Structure, in this order:
+   d. Build the PR body — visible = only what a reviewer needs (what & why · criteria with
+      evidence · scorecard); an EMPTY section is OMITTED, never printed as "none" filler; the
+      long tail collapses at the bottom. Structure, in this order:
 
       1. SOURCE — if `source_url` is set, the first line is `Source: <source_url>` (the ticket this
          traces to; weave any ticket context in as background). Omit the line when
          `source_url: none` — never fabricate one.
 
-      2. SUMMARY (2–4 lines) — what changed + why, lifted from plan.md `## 🎯 What` / `## 🤔 Why`.
+      2. `## 🎯 What & why` (2–4 lines) — lifted from plan.md `## 🎯 What` / `## 🤔 Why`.
 
-      3. `## Plan (reviewed & validated)` — the SHORT version of the plan that passed the gates: the
-         `## 🛠 How` groups as 3–6 terse bullets (one per group, NOT the full text), each tied to the
-         acceptance criterion it satisfies. Then one validation line:
-         `Validated: plan-gate <plan_panel> · diff-panel <diff_panel> · arbiter <arbiter> · CI <ci_conclusion>`.
-         This is the "what it does" a reviewer reads first — keep it to a screenful.
+      3. `## ✅ Acceptance criteria` — the plan.md table verbatim, Evidence column filled.
+         Scratch dies at ship, so rewrite scratch-path evidence: visual cells →
+         `visual: verified at gate` (+ the design source link when one exists); scratch-e2e
+         cells → `e2e: verified at gate (ephemeral, deleted at ship)`; any `promote candidate`
+         e2e → one bullet under the table naming the flow worth a permanent test. Under the
+         table, two lines:
+         `test: <test_cmd> · frozen: <frozen_test>`
+         `Validated: plan-gate <plan_panel> · diff-panel <diff_panel> · arbiter <arbiter> · CI <ci_conclusion>`
 
-      4. `## 🧪 How to test` — the exact path to reproduce green: the resolved `<test_cmd>` to run,
-         the frozen test `<frozen_test>` that encodes the criteria, plus any manual steps the
-         implementer recorded in audit.md `## ⚙️ Setup & test`. One compact block, not prose.
+      4. `## 📈 Scorecard` — the plan.md table verbatim (Planner + Reviewer columns).
 
-      5. `## ⚙️ Setup & requirements` — what the reviewer must DO before this runs, from audit.md
-         `## ⚙️ Setup & test` + the diff: new env vars, new dependencies, config/feature flags, or
-         data setup. If there are none, write one line: "None — no new env vars, dependencies, or
-         config." (Auto never authors migrations — if one were needed it has already aborted at 7d.)
+      5. `## ⚙️ Setup` — ONLY when audit.md `## ⚙️ Setup & test` + the diff introduce one: new
+         env vars, dependencies, config/feature flags, or data setup; one line each. (Auto never
+         authors migrations — if one were needed it has already aborted at 7d.)
 
-      6. `## ❓ Open questions & assumptions` (from state.md `## ❓ Open questions`, step 4g) — auto
-         had no human to grill, so this is what it could NOT decide and what it assumed. Two terse
-         lists (omit a list only if it is empty; if BOTH are empty, write one line:
-         "None — no ambiguities; all error paths deducible."):
-         - **🔴 Open (needs a human):** each `[open]` line as `- <question> — <why it needs context>`.
-           These are the business calls auto declined to invent — the reviewer must answer them.
-         - **🟢 Resolved / assumed:** each `[answered]` line as `- <question> → <answer> (<basis>)`.
-           Verify these before merge — they are auto's deductions, not confirmed product decisions.
+      6. `## 🔴 Open questions` (from state.md `## ❓ Open questions`, step 4g) — ONLY when
+         `[open]` lines exist: each as `- <question> — <why it needs context>`. These are the
+         business calls auto declined to invent — the reviewer must answer them. The
+         `[answered]` assumptions move to the Verification collapse (item 7).
 
-      7. `## Verification` (condensed — one compact block, not prose):
+      7. `<details><summary>Review & verification</summary>` — condensed:
          `tier <tier> · reviewers <n> · arbiter <arbiter> · rework rounds <r> · red <red_reason>`,
-         plus the per-lens `diff_vote_<lens>` verdicts on one line.
+         the per-lens `diff_vote_<lens>` verdicts on one line, and auto's assumptions — each
+         `[answered]` line as `- <question> → <answer> (<basis>)` (verify before merge — they
+         are deductions, not confirmed product decisions).
 
       8. `<details>Audit & risks</details>` — collapse the long tail: audit.md summary (files
          changed), residual risks, labels applied, and the machine-greppable metrics line:
@@ -662,9 +675,9 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
          final `plan.md` verbatim (its 🗺 Design, 💥 Blast radius, 🧯 Error handling, 📈 Scorecard,
          ✅ Decisions, and the `## 🔭 Review` carrying the plan- and diff-review). `feature-research/`
          is gitignored AND scratch is deleted at step 8g, so THIS collapse is the only durable
-         copy — the PR becomes the plan's permanent home on GitHub. Leave ONE blank line after the
-         `<summary>` line so GitHub renders the inner markdown (tables / ASCII flow / headers); do
-         NOT wrap the plan in a code fence — it already contains its own fenced blocks.
+         copy — the PR becomes the plan's permanent home on GitHub. Leave ONE blank line after
+         EACH `<summary>` line so GitHub renders the inner markdown (tables / ASCII flow /
+         headers); do NOT wrap the plan in a code fence — it already contains its own fenced blocks.
 
       Write the body to a temp file, use `gh pr create --body-file` (cleaner than inline quoting).
       For a multi-repo run, the PRIMARY repo's PR carries the full body plus a `Companion PRs:` list;

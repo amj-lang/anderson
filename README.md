@@ -29,11 +29,13 @@ plan ─▶ grill ─▶ plan_review ──[ YOU ]──▶ implement ─▶ dif
 | 🏛  | `plan`        | THE ARCHITECT            | opus · high     | —             | drafts `plan.md`                                                                                   |
 | 🕶  | `grill`       | THE INTERROGATOR · *you* | — (human)       | 🛑 human      | interrogates the plan one question at a time; your answers harden it                               |
 | 🔮  | `plan_review` | THE ORACLE               | opus · xhigh    | 🛑 **GATE 1** | edits the plan inline + appends review to `## 🔭 Review`; verdict `ship` / `fix_first` / `regrill` |
-| 🟢  | `implement`   | NEO                      | sonnet · medium | —             | writes the code + `audit.md`                                                                       |
-| 🕴  | `diff_review` | AGENT SMITH              | opus · xhigh    | 🛑 **GATE 2** | independent, read-only diff review                                                                 |
+| 🟢  | `implement`   | NEO                      | sonnet · medium | —             | writes the code + `audit.md`, files evidence per acceptance criterion                              |
+| 🕴  | `diff_review` | AGENT SMITH              | opus · xhigh    | 🛑 **GATE 2** | independent, read-only diff review; blocks on any unproven criterion                               |
 | 🔑  | `ship`        | THE ONE                  | —               | —             | branch `anderson/<slug>` + commit + push + PR, scratch cleaned                                     |
 
-`regrill` loops plan-review back to **grill**; `fix_first` loops the implementer (capped by `max_iterations`). Both gates halt unconditionally, even on a `ship` verdict.
+`regrill` loops plan-review back to **grill**; `fix_first` loops the implementer (capped by `max_iterations`). Both gates halt unconditionally, even on a `ship` verdict — on a TL;DR card (what · criteria/proof counts · scorecard · verdict), so you open the full plan only when a line raises doubt.
+
+Every plan is spined by an **✅ Acceptance criteria** table — criteria lifted verbatim from the ticket, extracted from the design (an intake step normalizes Figma URLs / ticket screenshots / image files into scratch + an exact-strings inventory), or `derived` (the grill confirms those). Each criterion names its proof: a **test** that fails without the change, a **visual** screenshot compared against the design, an **ephemeral e2e** (gate-time only, deleted at ship, promotable), or **manual** steps as the last resort. The implementer files the evidence; the diff review proves it or blocks.
 
 ## auto mode — the autonomous pipeline
 
@@ -96,7 +98,7 @@ All commands are namespaced `/anderson:<command>` — bare `/anderson` does not 
 
 | Command        | Invoke                                           | What it does                                                                                                                                                               | When to use                                            |
 | -------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `start`        | `/anderson:start <slug> <goal> [--fable]`        | **Entry point** (gated). Seeds state, plans, **grills you** one question at a time, plan-reviews. Halts at 🛑 Gate 1. `--fable` → review gates on Fable.                    | Begin any gated task.                                  |
+| `start`        | `/anderson:start <slug> <goal> [--fable]`        | **Entry point** (gated). Normalizes ticket/design refs into scratch, seeds state, plans, **grills you** one question at a time, plan-reviews. Halts at 🛑 Gate 1. `--fable` → review gates on Fable.                    | Begin any gated task.                                  |
 | `approve-plan` | `/anderson:approve-plan <slug>`                  | Pass Gate 1 → implement + independent diff-review. Halts at 🛑 Gate 2.                                                                                                     | After you've read `plan.md` + `## 🔭 Review`.          |
 | `approve-diff` | `/anderson:approve-diff <slug>`                  | Pass Gate 2 = **SHIP**: branch + commit + push + PR (all guarded), clean scratch. Never force-pushes.                                                                      | After you've read the diff + review.                   |
 | `rework`       | `/anderson:rework <slug>`                        | Loop the implementer on the "Still open" blockers only, then re-review. Back to Gate 2. Bounded by `max_iterations`.                                                       | Diff review returned `fix_first`.                      |

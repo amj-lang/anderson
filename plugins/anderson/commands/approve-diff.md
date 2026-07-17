@@ -9,26 +9,33 @@ runs only because you invoked it at the gate. Print intent before each network
 step. NEVER force-push; never touch an existing branch destructively.
 
 1. Build messages FROM the scratch (still present — do before step 5):
-   - Read goal, verdict from `plan.md` `## 🔭 Review`, and "Files changed" + blocking
-     count from `audit.md`.
+   - Read goal, verdict + criteria count from `plan.md` `## 🔭 Review`, the
+     `## ✅ Acceptance criteria` table, and "Files changed" + blocking count from `audit.md`.
    - Commit subject (≤72 chars): `<goal>  (review: ship · <N> blocking resolved)`
-   - PR body (markdown), VISIBLE essentials first, each tight: 2–4 lines WHAT changed + WHY
-     (from `plan.md`); `## 🧪 How to test` block (test command + covering test,
-     from `audit.md` `## ⚙️ Setup & test`); `## ⚙️ Setup & requirements` block (new env vars /
-     dependencies / config, or "none" — also from `audit.md` `## ⚙️ Setup & test`);
-     `## ❓ Open questions & assumptions` block from state.md `## ❓ Open questions` (what grill
-     resolved or deferred — PR reviewer sees it without unfolding plan), two terse lists,
-     omit empty list; both empty → one line "None — all error paths resolved in the
-     grill": **🔴 Open (deferred — needs a human):** each `[open]` line as `- <question> — <why>`;
-     **🟢 Resolved / assumed:** each `[answered]` line as `- <question> → <answer>`. Review
-     verdict + notable points (`plan.md` `## 🔭 Review`); files touched (`audit.md`);
-     test/lint status. Then append a `<details><summary>📋 Full plan (as
-     reviewed)</summary>` collapse embedding the ENTIRE `plan.md` verbatim (🗺 Design, 💥 Blast
-     radius, 🧯 Error handling, 📈 Scorecard, ✅ Decisions, `## 🔭 Review`) — `feature-research/`
-     is gitignored and step 5 deletes scratch, so this collapse is the plan's only durable
-     GitHub home. One blank line after `<summary>` so GitHub renders inner markdown; do
-     NOT wrap plan in a code fence (it has its own). Multi-line body: write to temp file,
-     use `gh pr create --body-file` (cleaner than inline quoting).
+   - PR body (markdown) — visible = only what a reviewer needs; an EMPTY section is OMITTED,
+     never printed as "none" filler. In this order:
+     1. `Source: <source_url>` — only when state.md `source_url:` ≠ none.
+     2. `## 🎯 What & why` — 2–4 lines from plan.md 🎯 What + 🤔 Why.
+     3. `## ✅ Acceptance criteria` — the plan.md table verbatim, Evidence column filled;
+        one line under it: `test: <test command>`. Scratch dies at ship, so rewrite
+        scratch-path evidence for the PR: visual cells → `visual: verified at gate 2` (+ the
+        design source link when one exists — pixels don't travel to the PR); e2e cells →
+        `e2e: verified at gate 2 (ephemeral, deleted at ship)`. Any `promote candidate` e2e →
+        one bullet under the table naming the flow worth a permanent test.
+     4. `## 📈 Scorecard` — the plan.md table verbatim (Planner + Reviewer columns).
+     5. `## ⚙️ Setup` — ONLY when audit.md `## ⚙️ Setup & test` names a new env var /
+        dependency / config flag / manual setup; one line each.
+     6. `## 🔴 Open questions` — ONLY when state.md has `[open]` rows (deferred business
+        calls); each as `- <question> — <why it needs a human>`.
+     7. `<details><summary>Review & verification</summary>` — review verdict + notable points
+        (`plan.md` `## 🔭 Review`), `criteria: <proven>/<N>`, files touched (audit.md),
+        test/lint status, and the grill's `[answered]` decisions (`- <q> → <a>`).
+     8. `<details><summary>📋 Full plan (as reviewed)</summary>` — the ENTIRE `plan.md`
+        verbatim — `feature-research/` is gitignored and step 5 deletes scratch, so this
+        collapse is the plan's only durable GitHub home.
+     One blank line after each `<summary>` so GitHub renders inner markdown; do NOT wrap the
+     plan in a code fence (it has its own). Multi-line body: write to temp file, use
+     `gh pr create --body-file` (cleaner than inline quoting).
 
 2. Pick branch (defensive — anderson runs in any repo):
    - If `git rev-parse --is-inside-work-tree` fails → not a git repo: skip every git/PR
