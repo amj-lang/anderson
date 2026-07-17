@@ -37,12 +37,13 @@ don't exist yet. Step 2 begins only after step 1's implementer has stopped.
    ```
    Pool (24): "Your green tests are a comfort, not a verdict." / "The bug you cannot find is the one you decided was not there." / "Untested is unknown, and unknown is unsafe." / "Every assumption is a door you left unlocked." / "Read the diff as if your worst enemy wrote it." / "A passing test proves the test ran, not that the code is right." / "The edge case you skip is the one production will find for you." / "Approve nothing you would not be paged for at midnight." / "Find the failure before the failure finds the user." / "Doubt is the only honest first reaction to working code." / "Mr. Anderson." / "That is the sound of inevitability." / "Never send a human to do a machine's job." / "I'm going to enjoy watching you die, Mr. Anderson." / "We're not here because we're free; we're here because we're not free." / "It is purpose that created us, purpose that connects us, purpose that drives us." / "I'd like to share a revelation I've had during my time here." / "Appalling, isn't it?" / "It's the smell — if there is such a thing." / "You are a plague, and I am the cure." / "Green is not innocence; it is an alibi to check." / "The diff you wave through is the page you write at 3 a.m." / "The case you don't open is the one that reopens you." / "Inevitability, Mr. Anderson — the bug you chose not to see."
    Then invoke the **reviewer** subagent (model override = state.md `review_model`, effort xhigh) → appends diff review under `## 🔭 Review` in plan.md; sets diff_verdict.
-3. Print and STOP — fill in the real task slug for every `<task>` and real
-   verdict for `<diff_verdict>` so commands + path are copy-pasteable (e.g.
-   `/anderson:approve-diff brief-views`, NOT a literal `<task>`):
+3. Print the GATE 2 TL;DR card and STOP. Fill EVERY value for real (slug, verdict, criteria
+   counts from the diff review's `criteria:` line — copy-pasteable, no literal `<task>`); when
+   criteria failed, list each on its own indented line with the reviewer's one-line why:
    ```
    ﾊﾐﾐ 0ｺ1  🔴 G A T E  2 · AWAITING YOU  1ｺ0 ﾐﾐﾊ
-     ⌐■-■  Read feature-research/<task>/plan.md ## 🔭 Review AND the actual diff (verdict=<diff_verdict>), then
-            /anderson:approve-diff <task> to ship, or /anderson:rework <task>.
+     ⌐■-■  criteria <proven>/<N> proven<, failed: #<n> <one-line why> — or " (all)">
+           verdict <diff_verdict> → read the diff + plan.md ## 🔭 Review, then
+           /anderson:approve-diff <task> to ship, or /anderson:rework <task>.
    ```
    Halt is unconditional even on a ship verdict.
