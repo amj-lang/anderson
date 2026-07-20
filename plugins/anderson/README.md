@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.23.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.24.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -78,10 +78,11 @@ gate). They are the executable ground truth the panel reasons against.
   reviewers · arbiter · arbiter_trigger · rounds · ci · replan · red · override · outcome` — to the PR
   + report, so each new behavior is greppable (which model the panel ran on, why the arbiter fired,
   which soft guardrails were relaxed) and the thresholds can be tuned from real outcomes.
-- **PR body leads with criteria + evidence.** The draft PR opens with the source-ticket link (from
-  the TaskSpec `source_url`, when present), What & why, the acceptance-criteria table with its
-  Evidence column filled, and the scorecard; Setup / Open-questions print only when non-empty; the
-  audit trail and metrics collapse to the bottom.
+- **PR body is the plan minus the how.** The draft PR opens with the source-ticket link (from the
+  TaskSpec `source_url`, when present), What & why, the acceptance-criteria table with its Evidence
+  column filled, the design, and a reviewer-facing how-to-test + config; scorecard / blast radius /
+  error handling collapse below, then the audit trail and metrics. The 🛠 How is left to the diff
+  (Open-questions print only when non-empty).
 - **Multi-repo.** When the task must change other repos (TaskSpec `repos:`, scope spilling outside the
   repo, or a sibling repo in project memory / `CLAUDE.md`), each repo gets an isolated **git worktree**,
   its own branch, and its own cross-linked draft PR (labeled `needs-human`). A dirty tree is isolated
@@ -429,8 +430,9 @@ The durable record is your **git history + the PR**, not the scratch files. On
 `/anderson:approve-diff` the loop now **ships for real**, in this order:
 
 1. Builds the commit subject (`<goal> (review: ship · N blocking resolved)`) and a
-   PR body (what changed + why, the review verdict, files touched, test status) from
-   the scratch — *before* it deletes anything.
+   PR body (the plan minus the how: what & why, criteria + evidence, design, how-to-test
+   + config, and scorecard / blast radius / error handling collapses) from the scratch —
+   *before* it deletes anything.
 2. **Branches if needed:** if you're on the default branch (`main`/`master`) it
    creates and switches to `anderson/<slug>`; if you're already on a feature branch it
    commits there. It never commits straight to the default branch and never force-pushes.
@@ -468,6 +470,15 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.24.0** — **PR body is the plan minus the how.** Both ship paths (`/anderson:approve-diff`
+  + `/anderson:auto` step 8d) now build the PR from the plan's durable sections instead of dumping
+  the whole plan into one collapse. Visible, in read order: What & why, the acceptance-criteria
+  table with evidence, the design (lifted out of its plan collapse), and a reviewer-facing
+  **How to test** section — the test command, manual steps, and a `**Config required:**` line for
+  new env vars / flags / deps. Scorecard, blast radius, and error handling drop into `<details>`
+  collapses below. The **🛠 How and ✅ Decisions are excluded** — the diff is the how, no double-up.
+  Open-questions still print only when there are deferred business calls. The old verbatim "Full
+  plan" collapse is gone: the structured sections are now the plan's durable GitHub home.
 - **0.23.0** — **Acceptance criteria with proof, design intake, and a leaner read.** Three
   moves, one theme: verify against explicit criteria instead of vibes, and show humans only
   what they need.

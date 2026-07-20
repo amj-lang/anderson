@@ -5,7 +5,7 @@
     {
       "name": "anderson",
       "source": "./plugins/anderson",
-      "version": "0.23.0",
+      "version": "0.24.0",
       "description": "Gated build loop (plan -> grill -> plan-review -> implement -> diff-review) with per-stage model/effort, an interactive plan-grilling step, two approval gates, real hook-JSON autonomous chaining, and a ship step that commits cleanly on a branch and opens the PR."
     }
   ]
