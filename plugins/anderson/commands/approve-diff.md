@@ -9,33 +9,38 @@ runs only because you invoked it at the gate. Print intent before each network
 step. NEVER force-push; never touch an existing branch destructively.
 
 1. Build messages FROM the scratch (still present — do before step 5):
-   - Read goal, verdict + criteria count from `plan.md` `## 🔭 Review`, the
-     `## ✅ Acceptance criteria` table, and "Files changed" + blocking count from `audit.md`.
+   - Read from `plan.md`: goal + 🎯 What + 🤔 Why, the `## ✅ Acceptance criteria` table,
+     `## 📈 Scorecard`, `## 🗺 Design`, `## 💥 Blast radius`, `## 🧯 Error handling`, and the
+     `## 🔭 Review` verdict + criteria count. Read from `audit.md`: "Files changed", blocking
+     count, and `## ⚙️ Setup & test` (test command, manual steps, config/env vars).
    - Commit subject (≤72 chars): `<goal>  (review: ship · <N> blocking resolved)`
-   - PR body (markdown) — visible = only what a reviewer needs; an EMPTY section is OMITTED,
-     never printed as "none" filler. In this order:
+   - PR body (markdown) — the whole plan MINUS the how: 🛠 How and ✅ Decisions are DELIBERATELY
+     excluded (the diff IS the how — don't double it up). An EMPTY section is OMITTED, never
+     printed as "none" filler. Normal (open) sections first, the three reference collapses last.
+     In this order:
      1. `Source: <source_url>` — only when state.md `source_url:` ≠ none.
      2. `## 🎯 What & why` — 2–4 lines from plan.md 🎯 What + 🤔 Why.
-     3. `## ✅ Acceptance criteria` — the plan.md table verbatim, Evidence column filled;
-        one line under it: `test: <test command>`. Scratch dies at ship, so rewrite
-        scratch-path evidence for the PR: visual cells → `visual: verified at gate 2` (+ the
-        design source link when one exists — pixels don't travel to the PR); e2e cells →
-        `e2e: verified at gate 2 (ephemeral, deleted at ship)`. Any `promote candidate` e2e →
-        one bullet under the table naming the flow worth a permanent test.
-     4. `## 📈 Scorecard` — the plan.md table verbatim (Planner + Reviewer columns).
-     5. `## ⚙️ Setup` — ONLY when audit.md `## ⚙️ Setup & test` names a new env var /
-        dependency / config flag / manual setup; one line each.
-     6. `## 🔴 Open questions` — ONLY when state.md has `[open]` rows (deferred business
-        calls); each as `- <question> — <why it needs a human>`.
-     7. `<details><summary>Review & verification</summary>` — review verdict + notable points
-        (`plan.md` `## 🔭 Review`), `criteria: <proven>/<N>`, files touched (audit.md),
-        test/lint status, and the grill's `[answered]` decisions (`- <q> → <a>`).
-     8. `<details><summary>📋 Full plan (as reviewed)</summary>` — the ENTIRE `plan.md`
-        verbatim — `feature-research/` is gitignored and step 5 deletes scratch, so this
-        collapse is the plan's only durable GitHub home.
-     One blank line after each `<summary>` so GitHub renders inner markdown; do NOT wrap the
-     plan in a code fence (it has its own). Multi-line body: write to temp file, use
-     `gh pr create --body-file` (cleaner than inline quoting).
+     3. `## ✅ Acceptance criteria` — the plan.md table verbatim, Evidence column filled. Scratch
+        dies at ship, so rewrite scratch-path evidence for the PR: visual cells →
+        `visual: verified at gate 2` (+ the design source link when one exists — pixels don't
+        travel to the PR); e2e cells → `e2e: verified at gate 2 (ephemeral, deleted at ship)`.
+        Any `promote candidate` e2e → one bullet under the table naming the flow worth a
+        permanent test.
+     4. `## 🗺 Design` — the plan.md 🗺 Design body shown normally (lift it OUT of the plan's
+        `<details>` collapse). Omit when the design was a single trivial line already implied by What.
+     5. `## 🧪 How to test` — reviewer-facing, from audit.md `## ⚙️ Setup & test`: the test
+        command to run, plus step-by-step for any `manual`-proof criteria. Then a
+        `**Config required:**` line — new env vars / flags / dependencies / manual setup
+        (env-var labels and so forth) — ONLY when the change introduced one; omit the line when none.
+     6. `## 🔴 Open questions` — ONLY when state.md has `[open]` rows (deferred business calls);
+        each as `- <question> — <why it needs a human>` (pairs with the `needs-human` label).
+     7. `<details><summary>📈 Scorecard</summary>` — the plan.md Scorecard table verbatim
+        (Planner + Reviewer columns).
+     8. `<details><summary>💥 Blast radius</summary>` — the plan.md 💥 Blast radius table.
+     9. `<details><summary>🧯 Error handling</summary>` — the plan.md 🧯 Error handling table.
+     One blank line after each `<summary>` so GitHub renders the inner markdown; do NOT wrap a
+     table in a code fence. Multi-line body: write to temp file, use `gh pr create --body-file`
+     (cleaner than inline quoting).
 
 2. Pick branch (defensive — anderson runs in any repo):
    - If `git rev-parse --is-inside-work-tree` fails → not a git repo: skip every git/PR
@@ -67,8 +72,9 @@ step. NEVER force-push; never touch an existing branch destructively.
    - No remote: skip the network; local commit stands. Print the PR body.
 
 5. Remove disposable scratch: `rm -rf "feature-research/$ARGUMENTS"`.
-   (Git history + PR are the durable record; full plan embedded in PR body at
-   step 1 — deleting scratch loses nothing.)
+   (Git history + PR are the durable record; the plan's durable sections — what & why, criteria,
+   design, scorecard, blast radius, error handling — are embedded in the PR body at step 1, and
+   the 🛠 How lives in the diff, so deleting scratch loses nothing.)
 
 6. (BANNER RULE) Print this SHIP banner (choose ending by COUNTING, not feel: N = task slug character count (every character, hyphens included); iteration = `iteration:` value in state.md (read fresh); ending = 0-based item at index (N + 6 + iteration) mod M; M = integer in "Pool (M endings):" label below; count list from 0; mod M always yields valid position (0 to M−1); label number must equal actual ending count. Do NOT pick "at random", do NOT default to first.) as the LAST framed line before the done line:
    ```

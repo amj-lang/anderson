@@ -39,7 +39,7 @@ Print in exactly this order (sub-bullet = quote pool to pick from):
   ⌐■-■  criteria 5/5 proven (all)
         verdict ship → read the diff + plan.md ## 🔭 Review, then
         /anderson:approve-diff demo-task to ship, or /anderson:rework demo-task
-  (ship builds a lean PR — What & why · criteria table with evidence · scorecard, Setup/Open-questions only when non-empty, full reviewed plan in a collapse — then deletes the gitignored scratch; the PR is the durable record)
+  (ship builds the PR from the plan minus the how — What & why · criteria with evidence · design · how-to-test + config, with scorecard / blast radius / error handling in collapses; Open-questions only when non-empty — then deletes the gitignored scratch; the PR is the durable record)
 
 ╭─ ⌐■-■  SHIP ✓ · THE ONE · welcome to the real world
   Pool: "Green is not understood; read what you merged." / "The gate is not an obstacle; it is the point." / "Review is how respect for the future is spelled."
