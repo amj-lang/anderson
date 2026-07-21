@@ -44,9 +44,10 @@ plan.md edit you may make. Per proof type:
   (playwright / the repo's own tooling); cell: `visual: evidence/<name>.png vs design/<file>`.
   Capture impossible → downgrade the cell to `manual` and say why.
 - `e2e` → write the script under `feature-research/<task>/e2e/` (EPHEMERAL: gitignored,
-  deleted at ship — never wire it into the repo suite or CI), run it; cell:
-  `e2e: <file> (passed)`. Flow worth keeping permanently → append `· promote candidate`;
-  the human decides at the PR.
+  deleted at ship — never wire it into the repo suite or CI), run it and tee its output to
+  `feature-research/<task>/evidence/<name>.e2e.log` (the ship step embeds this log in the PR —
+  it's the only record the deleted script ever ran); cell: `e2e: <file> (passed)`. Flow worth
+  keeping permanently → append `· promote candidate`; the human decides at the PR.
 - `manual` → cell: `manual: see audit ⚙️ Setup & test`, and write the step-by-step there.
 
 Before finishing, write `feature-research/<task>/audit.md` using this shape:

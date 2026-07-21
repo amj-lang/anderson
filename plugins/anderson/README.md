@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.24.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.25.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -311,8 +311,8 @@ Fields: `task` = slug; `stage` = current pipeline stage; `gate` = `none` or `hum
 `exit_rule` = the human-readable rule the diff reviewer enforces; `plan_verdict` /
 `diff_verdict` = `pending`, `ship`, `fix_first`, or `regrill`.
 
-`plan.md` reads human-first: **What → Why → ✅ Acceptance criteria → How → 📈 Scorecard** stay
-visible (hard budgets: What ≤ 3 lines, one line per How bullet); the bodies of 🗺 Design,
+`plan.md` reads human-first: **What → Why → ⚠️ Behavior change → 🗺 Design → ✅ Acceptance criteria → How → 📈 Scorecard** stay
+visible (hard budgets: What ≤ 3 lines, ⚠️ Behavior change ≤ 2 lines, one line per How bullet); the bodies of 🗺 Design,
 💥 Blast radius, 🧯 Error handling, and ✅ Decisions sit inside `<details>` collapses. The
 **`## ✅ Acceptance criteria`** table (`# | Criterion | Source | Proof | Evidence`) is the plan's
 spine: criteria come from the ticket (verbatim), the design inventory (exact strings — a
@@ -469,6 +469,18 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
   ```
 
 ## Changelog
+
+- **0.25.0** — **⚠️ Behavior change section + design moves up.** The planner adds a `## ⚠️ Behavior
+  change` line (≤2 lines: the "so what" — what observably changes for a user/caller/API, or
+  "none — internal only") right after Why. New plan read order: What → Why → ⚠️ Behavior change →
+  🗺 Design → ✅ Acceptance criteria → 🛠 How → 📈 Scorecard (Design promoted above the criteria).
+  Both ship paths carry the behavior-change line verbatim into the PR body (omitted when
+  internal-only) and match the same order (Design before criteria). **Proof is now displayed,
+  not just named:** the implementer tees each e2e run to `evidence/*.e2e.log`; both ship paths
+  embed that log in a per-criterion `<details>` collapse under the criteria table (the ephemeral
+  script's only record — it never reaches CI), and post visual screenshots as a PR comment
+  (gist-hosted, since `gh` can't inline-upload), degrading to the gate-verified text note on any
+  failure. Test proofs stay named-only — the diff + CI already show them.
 
 - **0.24.0** — **PR body is the plan minus the how.** Both ship paths (`/anderson:approve-diff`
   + `/anderson:auto` step 8d) now build the PR from the plan's durable sections instead of dumping

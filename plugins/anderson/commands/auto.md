@@ -642,49 +642,56 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
 
       2. `## 🎯 What & why` (2–4 lines) — lifted from plan.md `## 🎯 What` / `## 🤔 Why`.
 
-      3. `## ✅ Acceptance criteria` — the plan.md table verbatim, Evidence column filled.
-         Scratch dies at ship, so rewrite scratch-path evidence: visual cells →
-         `visual: verified at gate` (+ the design source link when one exists); scratch-e2e
-         cells → `e2e: verified at gate (ephemeral, deleted at ship)`; any `promote candidate`
-         e2e → one bullet under the table naming the flow worth a permanent test. Under the
-         table, two lines:
-         `test: <test_cmd> · frozen: <frozen_test>`
-         `Validated: plan-gate <plan_panel> · diff-panel <diff_panel> · arbiter <arbiter> · CI <ci_conclusion>`
+      3. `## ⚠️ Behavior change` — the plan.md ⚠️ Behavior change line(s) verbatim (≤2 lines).
+         OMIT when the plan says "none — internal only".
 
       4. `## 🗺 Design` — the plan.md 🗺 Design body shown normally (lift it OUT of the plan's
          `<details>` collapse). Omit when the design was a single trivial line already implied by What.
 
-      5. `## 🧪 How to test` — reviewer-facing, from audit.md `## ⚙️ Setup & test`: the test
+      5. `## ✅ Acceptance criteria` — the plan.md table verbatim, Evidence column filled.
+         Scratch dies at ship, so rewrite scratch-path evidence: visual cells →
+         `visual: verified at gate` (+ the design source link when one exists; the screenshot
+         itself rides a proof comment posted in step 8e); scratch-e2e cells →
+         `e2e: verified at gate (ephemeral, deleted at ship)`; any `promote candidate` e2e →
+         one bullet under the table naming the flow worth a permanent test. Under the table,
+         two lines:
+         `test: <test_cmd> · frozen: <frozen_test>`
+         `Validated: plan-gate <plan_panel> · diff-panel <diff_panel> · arbiter <arbiter> · CI <ci_conclusion>`
+         Then DISPLAY the e2e output inline: for each `evidence/*.e2e.log` in scratch, append below
+         the table a `<details><summary>proof: e2e #<n></summary>` collapse with the log fenced
+         (tail ≤ 40 lines) — the deleted script's only record, never in CI.
+
+      6. `## 🧪 How to test` — reviewer-facing, from audit.md `## ⚙️ Setup & test`: the test
          command to run, plus step-by-step for any `manual`-proof criteria. Then a
          `**Config required:**` line — new env vars / flags / dependencies / data setup
          (env-var labels and so forth) — ONLY when audit.md + the diff introduce one; omit when
          none. (Auto never authors migrations — if one were needed it has already aborted at 7d.)
 
-      6. `## 🔴 Open questions` (from state.md `## ❓ Open questions`, step 4g) — ONLY when
+      7. `## 🔴 Open questions` (from state.md `## ❓ Open questions`, step 4g) — ONLY when
          `[open]` lines exist: each as `- <question> — <why it needs context>`. These are the
          business calls auto declined to invent — the reviewer must answer them. The
-         `[answered]` assumptions move to the Verification collapse (item 10).
+         `[answered]` assumptions move to the Verification collapse (item 11).
 
-      7. `<details><summary>📈 Scorecard</summary>` — the plan.md Scorecard table verbatim
+      8. `<details><summary>📈 Scorecard</summary>` — the plan.md Scorecard table verbatim
          (Planner + Reviewer columns).
 
-      8. `<details><summary>💥 Blast radius</summary>` — the plan.md 💥 Blast radius table.
+      9. `<details><summary>💥 Blast radius</summary>` — the plan.md 💥 Blast radius table.
 
-      9. `<details><summary>🧯 Error handling</summary>` — the plan.md 🧯 Error handling table.
+      10. `<details><summary>🧯 Error handling</summary>` — the plan.md 🧯 Error handling table.
 
-      10. `<details><summary>Review & verification</summary>` — condensed:
+      11. `<details><summary>Review & verification</summary>` — condensed:
          `tier <tier> · reviewers <n> · arbiter <arbiter> · rework rounds <r> · red <red_reason>`,
          the per-lens `diff_vote_<lens>` verdicts on one line, and auto's assumptions — each
          `[answered]` line as `- <question> → <answer> (<basis>)` (verify before merge — they
          are deductions, not confirmed product decisions).
 
-      11. `<details>Audit & risks</details>` — collapse the long tail: audit.md summary (files
+      12. `<details>Audit & risks</details>` — collapse the long tail: audit.md summary (files
          changed), residual risks, labels applied, and the machine-greppable metrics line:
          `metrics: tier=<t> panel_model=<m> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> open_q=<n> outcome=SHIP`.
 
       Leave ONE blank line after EACH `<summary>` line so GitHub renders the inner markdown
       (tables / ASCII flow / headers); do NOT wrap a table in a code fence. The structured
-      sections (2–9) are now the plan's durable home — `feature-research/` is gitignored and
+      sections (2–10) are now the plan's durable home — `feature-research/` is gitignored and
       scratch is deleted at 8g, and the 🛠 How lives in the diff. Write the body to a temp file,
       use `gh pr create --body-file` (cleaner than inline quoting).
       For a multi-repo run, the PRIMARY repo's PR carries the full body plus a `Companion PRs:` list;
@@ -704,6 +711,11 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       - Open: `gh pr create --draft --title "<title> [auto-mode]" --body-file <tmp> --label "auto-mode"`
         (+ `--label needs-human` per step 8c). If `gh` unavailable, print the body and note the
         human should open it. Capture each PR URL.
+      - Visual proofs (guarded — only when that repo has `evidence/*.png` AND its PR opened):
+        `gh` can't inline-upload, so host the PNGs on a secret gist
+        (`gh gist create --secret .../evidence/*.png`), build a comment (`### proof: <criterion>` +
+        `![](<raw-gist-url>)` per image), and `gh pr comment "<pr-url>" --body-file <tmp>`. Any
+        step fails → drop it, ship stands. <!-- ponytail: orphan gist per ship; add retention if they pile up. -->
       - After all PRs open, edit the PRIMARY PR's body to fill its `Companion PRs:` list with the
         other URLs, and each companion's `Part of` back-link.
 
@@ -711,8 +723,9 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
 
    g. Clean up workspace: `git worktree remove` each worktree created in step 2d, then
       `rm -rf feature-research/<task-id>/`. PR(s) + git history are the durable record — the
-      plan's durable sections are embedded in the PR body (step 8d items 2–9) and the how is in
-      the diff, so nothing of value lost on deletion. (On
+      plan's durable sections are embedded in the PR body (step 8d items 2–10), e2e output in the
+      criteria collapse and visual proof in the step-8e comment, and the how is in the diff, so
+      nothing of value lost on deletion. (On
       any abort path the scratch + worktrees are KEPT for inspection — do not remove on abort.)
 
 9. REPORT — print the structured terminal result.

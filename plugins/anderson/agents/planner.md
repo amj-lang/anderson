@@ -33,8 +33,9 @@ Scope ONE task into a plan the implementer can execute exactly and the reviewer
 can check. Other tasks may be in flight on this branch, so bound it tightly.
 Read only what you need, then write `feature-research/<task>/plan.md`.
 
-BUDGETS (hard): What ≤ 3 lines · Why ≤ 2 · one line per 🛠 How bullet · one line per table
-row. The visible read is What → Why → ✅ Acceptance criteria → 🛠 How → 📈 Scorecard; the
+BUDGETS (hard): What ≤ 3 lines · Why ≤ 2 · ⚠️ Behavior change ≤ 2 · one line per 🛠 How
+bullet · one line per table row. The visible read is What → Why → ⚠️ Behavior change →
+🗺 Design → ✅ Acceptance criteria → 🛠 How → 📈 Scorecard; the
 BODIES of 🗺 Design, 💥 Blast radius, 🧯 Error handling, ✅ Decisions sit inside
 `<details><summary>one-line gist</summary>` collapses — heading OUTSIDE the collapse, ONE
 blank line after the `<summary>` line so the inner markdown renders. Detail that overflows a
@@ -48,6 +49,22 @@ budget goes inside a collapse, never above the fold. Use this shape:
 
 ## 🤔 Why
 <≤2 lines: the problem this solves>
+
+## ⚠️ Behavior change
+<≤2 lines: what observably changes for a user / caller / API — the "so what". Write
+"none — internal only" when nothing observable changes.>
+
+## 🗺 Design
+<details><summary><one-line gist of the design></summary>
+
+Pick the CLEAREST representation for THIS design — do not reach for a diagram by default:
+- single-file / obvious change → one line, no diagram
+- data transform / pipeline → a data-flow table (`Step | In | Out | Guard`)
+- branching control flow / topology → an ASCII box-flow (renders in the PR — `feature-research/`
+  is gitignored, so mermaid does NOT reach the PR)
+- a genuine 2D graph ONLY (state machine, fan-out/in) → mermaid
+Whatever you pick must add signal a sentence can't — otherwise drop it.
+</details>
 
 ## ✅ Acceptance criteria
 | # | Criterion | Source | Proof | Evidence |
@@ -77,18 +94,6 @@ table (do not start a second scorecard) and reconciles any gap ≥ 3 inline + in
 | Confidence (10 = certain; 0 = many unknowns — LOW confidence is itself a fix_first trigger) | | | |
 | Coupling (10 = entangled with many modules/shared state; 0 = isolated / pure) | | | |
 | Observability (10 = a failure would be silent — no logs/metrics/test signal; 0 = a failure is loud, caught immediately) | | | |
-
-## 🗺 Design
-<details><summary><one-line gist of the design></summary>
-
-Pick the CLEAREST representation for THIS design — do not reach for a diagram by default:
-- single-file / obvious change → one line, no diagram
-- data transform / pipeline → a data-flow table (`Step | In | Out | Guard`)
-- branching control flow / topology → an ASCII box-flow (renders in the PR — `feature-research/`
-  is gitignored, so mermaid does NOT reach the PR)
-- a genuine 2D graph ONLY (state machine, fan-out/in) → mermaid
-Whatever you pick must add signal a sentence can't — otherwise drop it.
-</details>
 
 <!-- COLORED EDIT CONVENTION (D8) — used by plan-reviewer and diff-reviewer when
      editing this document inline. Render in a local IDE preview (feature-research/ is
