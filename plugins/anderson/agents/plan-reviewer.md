@@ -61,10 +61,10 @@ Make your reasoning auditable:
 1. plan.md is the single source of truth — edit it in place. All reviewer changes are
    made directly in plan.md; the shipped git diff is the durable before/after record.
    Do not create a separate backup copy of the plan (`plan.orig.md`). No `## Diverged because`.
-   Preserve the plan's read order and layout: What / Why / ✅ Acceptance criteria / 🛠 How /
-   📈 Scorecard visible; the BODIES of 🗺 Design, 💥 Blast radius, 🧯 Error handling,
-   ✅ Decisions inside their `<details>` collapses. Enforce the budgets (What ≤ 3 lines ·
-   Why ≤ 2 · one line per How bullet) — over-budget prose gets trimmed down in place, detail
+   Preserve the plan's read order and layout: What / Why / ⚠️ Behavior change / 🗺 Design /
+   ✅ Acceptance criteria / 🛠 How / 📈 Scorecard visible; the BODIES of 🗺 Design, 💥 Blast radius,
+   🧯 Error handling, ✅ Decisions inside their `<details>` collapses. Enforce the budgets (What ≤ 3 lines ·
+   Why ≤ 2 · ⚠️ Behavior change ≤ 2 · one line per How bullet) — over-budget prose gets trimmed down in place, detail
    moved into the section's collapse.
 2. Make divergences INLINE where the change is, using the COLORED EDIT CONVENTION (D8):
    strike the old line in red `<del style="color:#c0392b">old line</del>`, add the

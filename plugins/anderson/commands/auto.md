@@ -642,7 +642,13 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
 
       2. `## 🎯 What & why` (2–4 lines) — lifted from plan.md `## 🎯 What` / `## 🤔 Why`.
 
-      3. `## ✅ Acceptance criteria` — the plan.md table verbatim, Evidence column filled.
+      3. `## ⚠️ Behavior change` — the plan.md ⚠️ Behavior change line(s) verbatim (≤2 lines).
+         OMIT when the plan says "none — internal only".
+
+      4. `## 🗺 Design` — the plan.md 🗺 Design body shown normally (lift it OUT of the plan's
+         `<details>` collapse). Omit when the design was a single trivial line already implied by What.
+
+      5. `## ✅ Acceptance criteria` — the plan.md table verbatim, Evidence column filled.
          Scratch dies at ship, so rewrite scratch-path evidence: visual cells →
          `visual: verified at gate` (+ the design source link when one exists); scratch-e2e
          cells → `e2e: verified at gate (ephemeral, deleted at ship)`; any `promote candidate`
@@ -651,40 +657,37 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
          `test: <test_cmd> · frozen: <frozen_test>`
          `Validated: plan-gate <plan_panel> · diff-panel <diff_panel> · arbiter <arbiter> · CI <ci_conclusion>`
 
-      4. `## 🗺 Design` — the plan.md 🗺 Design body shown normally (lift it OUT of the plan's
-         `<details>` collapse). Omit when the design was a single trivial line already implied by What.
-
-      5. `## 🧪 How to test` — reviewer-facing, from audit.md `## ⚙️ Setup & test`: the test
+      6. `## 🧪 How to test` — reviewer-facing, from audit.md `## ⚙️ Setup & test`: the test
          command to run, plus step-by-step for any `manual`-proof criteria. Then a
          `**Config required:**` line — new env vars / flags / dependencies / data setup
          (env-var labels and so forth) — ONLY when audit.md + the diff introduce one; omit when
          none. (Auto never authors migrations — if one were needed it has already aborted at 7d.)
 
-      6. `## 🔴 Open questions` (from state.md `## ❓ Open questions`, step 4g) — ONLY when
+      7. `## 🔴 Open questions` (from state.md `## ❓ Open questions`, step 4g) — ONLY when
          `[open]` lines exist: each as `- <question> — <why it needs context>`. These are the
          business calls auto declined to invent — the reviewer must answer them. The
-         `[answered]` assumptions move to the Verification collapse (item 10).
+         `[answered]` assumptions move to the Verification collapse (item 11).
 
-      7. `<details><summary>📈 Scorecard</summary>` — the plan.md Scorecard table verbatim
+      8. `<details><summary>📈 Scorecard</summary>` — the plan.md Scorecard table verbatim
          (Planner + Reviewer columns).
 
-      8. `<details><summary>💥 Blast radius</summary>` — the plan.md 💥 Blast radius table.
+      9. `<details><summary>💥 Blast radius</summary>` — the plan.md 💥 Blast radius table.
 
-      9. `<details><summary>🧯 Error handling</summary>` — the plan.md 🧯 Error handling table.
+      10. `<details><summary>🧯 Error handling</summary>` — the plan.md 🧯 Error handling table.
 
-      10. `<details><summary>Review & verification</summary>` — condensed:
+      11. `<details><summary>Review & verification</summary>` — condensed:
          `tier <tier> · reviewers <n> · arbiter <arbiter> · rework rounds <r> · red <red_reason>`,
          the per-lens `diff_vote_<lens>` verdicts on one line, and auto's assumptions — each
          `[answered]` line as `- <question> → <answer> (<basis>)` (verify before merge — they
          are deductions, not confirmed product decisions).
 
-      11. `<details>Audit & risks</details>` — collapse the long tail: audit.md summary (files
+      12. `<details>Audit & risks</details>` — collapse the long tail: audit.md summary (files
          changed), residual risks, labels applied, and the machine-greppable metrics line:
          `metrics: tier=<t> panel_model=<m> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> open_q=<n> outcome=SHIP`.
 
       Leave ONE blank line after EACH `<summary>` line so GitHub renders the inner markdown
       (tables / ASCII flow / headers); do NOT wrap a table in a code fence. The structured
-      sections (2–9) are now the plan's durable home — `feature-research/` is gitignored and
+      sections (2–10) are now the plan's durable home — `feature-research/` is gitignored and
       scratch is deleted at 8g, and the 🛠 How lives in the diff. Write the body to a temp file,
       use `gh pr create --body-file` (cleaner than inline quoting).
       For a multi-repo run, the PRIMARY repo's PR carries the full body plus a `Companion PRs:` list;
@@ -711,7 +714,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
 
    g. Clean up workspace: `git worktree remove` each worktree created in step 2d, then
       `rm -rf feature-research/<task-id>/`. PR(s) + git history are the durable record — the
-      plan's durable sections are embedded in the PR body (step 8d items 2–9) and the how is in
+      plan's durable sections are embedded in the PR body (step 8d items 2–10) and the how is in
       the diff, so nothing of value lost on deletion. (On
       any abort path the scratch + worktrees are KEPT for inspection — do not remove on abort.)
 

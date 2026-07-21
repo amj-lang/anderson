@@ -20,24 +20,26 @@ step. NEVER force-push; never touch an existing branch destructively.
      In this order:
      1. `Source: <source_url>` — only when state.md `source_url:` ≠ none.
      2. `## 🎯 What & why` — 2–4 lines from plan.md 🎯 What + 🤔 Why.
-     3. `## ✅ Acceptance criteria` — the plan.md table verbatim, Evidence column filled. Scratch
+     3. `## ⚠️ Behavior change` — the plan.md ⚠️ Behavior change line(s) verbatim (≤2 lines).
+        OMIT when the plan says "none — internal only".
+     4. `## 🗺 Design` — the plan.md 🗺 Design body shown normally (lift it OUT of the plan's
+        `<details>` collapse). Omit when the design was a single trivial line already implied by What.
+     5. `## ✅ Acceptance criteria` — the plan.md table verbatim, Evidence column filled. Scratch
         dies at ship, so rewrite scratch-path evidence for the PR: visual cells →
         `visual: verified at gate 2` (+ the design source link when one exists — pixels don't
         travel to the PR); e2e cells → `e2e: verified at gate 2 (ephemeral, deleted at ship)`.
         Any `promote candidate` e2e → one bullet under the table naming the flow worth a
         permanent test.
-     4. `## 🗺 Design` — the plan.md 🗺 Design body shown normally (lift it OUT of the plan's
-        `<details>` collapse). Omit when the design was a single trivial line already implied by What.
-     5. `## 🧪 How to test` — reviewer-facing, from audit.md `## ⚙️ Setup & test`: the test
+     6. `## 🧪 How to test` — reviewer-facing, from audit.md `## ⚙️ Setup & test`: the test
         command to run, plus step-by-step for any `manual`-proof criteria. Then a
         `**Config required:**` line — new env vars / flags / dependencies / manual setup
         (env-var labels and so forth) — ONLY when the change introduced one; omit the line when none.
-     6. `## 🔴 Open questions` — ONLY when state.md has `[open]` rows (deferred business calls);
+     7. `## 🔴 Open questions` — ONLY when state.md has `[open]` rows (deferred business calls);
         each as `- <question> — <why it needs a human>` (pairs with the `needs-human` label).
-     7. `<details><summary>📈 Scorecard</summary>` — the plan.md Scorecard table verbatim
+     8. `<details><summary>📈 Scorecard</summary>` — the plan.md Scorecard table verbatim
         (Planner + Reviewer columns).
-     8. `<details><summary>💥 Blast radius</summary>` — the plan.md 💥 Blast radius table.
-     9. `<details><summary>🧯 Error handling</summary>` — the plan.md 🧯 Error handling table.
+     9. `<details><summary>💥 Blast radius</summary>` — the plan.md 💥 Blast radius table.
+     10. `<details><summary>🧯 Error handling</summary>` — the plan.md 🧯 Error handling table.
      One blank line after each `<summary>` so GitHub renders the inner markdown; do NOT wrap a
      table in a code fence. Multi-line body: write to temp file, use `gh pr create --body-file`
      (cleaner than inline quoting).
