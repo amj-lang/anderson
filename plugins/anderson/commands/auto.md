@@ -223,7 +223,13 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
         Set to comma-list when work spans repos: TaskSpec names additional `repos:`, OR
         scope_paths / plan point outside this repo, OR project memory / `CLAUDE.md` records a
         sibling repo this task must touch. Record as `repos: <current>[,<repo2>,...]`. Multi-repo
-        runs handled in BASELINE (isolation) + SHIP (one branch + PR per repo).
+        runs handled in BASELINE (isolation) + SHIP (one branch + PR per repo). When `repos:` lists
+        more than `current`, tell the planner the seam is in scope: the shared contract between the
+        repos (endpoint shape, event/message schema, shared type, CLI/env interface) is a MANDATORY
+        `source: contract` criterion proven by a frozen fixture both repos pin — an isolated
+        per-repo test does not cover it (both repos can pass their own suites while the seam breaks).
+        Determine a MERGE ORDER for the companion PRs (the repo defining the contract merges before
+        the repo consuming it) and record it as `merge_order: <repo> before <repo>` in state.md.
       - DESIGN — if the TaskSpec references a design (figma.com URL, image path, image attached
         to the source ticket), normalize it into `feature-research/<task-id>/design/`: Figma →
         MCP `get_screenshot` (+ `get_design_context` for exact strings); ticket attachment →
@@ -375,9 +381,12 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       the now-final `plan.md` "🧯 Error handling" + "✅ Decisions". Record under state.md
       `## ❓ Open questions`, one line each:
       - `[open] <failure path / question> — <why it needs a business call auto can't make>` for every
-        `needs-context` row and every unresolved open question in "✅ Decisions".
+        `needs-context` row and every LB `## ✅ Decisions` row the plan-reviewer left Confirmed = ✗
+        (could not ratify from evidence). A still-✗ LB row is a load-bearing guess no one ratified —
+        it MUST land here, never be silently shipped as decided.
       - `[answered] <question> → <answer> (<basis>)` for ambiguities auto resolved on its own — each
-        `deduced` error path's chosen handling, derived acceptance criteria when
+        LB `## ✅ Decisions` row the plan-reviewer ratified ✗ → ✓ (step 4), each `deduced` error
+        path's chosen handling, derived acceptance criteria when
         `criteria_confidence: low`, and the low-confidence planner override (step 3a) if it fired.
       Set `open_questions: <count of [open] lines>` in state.md. Non-zero count forces the
       `needs-human` label at SHIP (step 8c) — auto must not invent a business answer it lacks context
@@ -694,8 +703,12 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       sections (2–10) are now the plan's durable home — `feature-research/` is gitignored and
       scratch is deleted at 8g, and the 🛠 How lives in the diff. Write the body to a temp file,
       use `gh pr create --body-file` (cleaner than inline quoting).
-      For a multi-repo run, the PRIMARY repo's PR carries the full body plus a `Companion PRs:` list;
-      each companion PR gets the same Source + Summary + Plan, plus a `Part of <task-id>` back-link.
+      For a multi-repo run, the PRIMARY repo's PR carries the full body plus a `Companion PRs:` list
+      AND a `**⚠️ Merge order:**` line from state.md `merge_order:` (e.g. "merge <backend #> before
+      <frontend #> — frontend consumes the new contract"); each companion PR gets the same Source +
+      Summary + Plan, a `Part of <task-id>` back-link, and — when it depends on another companion —
+      a `Blocked by <PR>` line naming its blocker so GitHub shows the dependency. The seam's
+      `contract` criterion and its fixture are cited in whichever repo's PR ran the assertion.
 
    e. Push + open the draft PR(s) — once per repo in `repos:` with a non-empty diff (single-repo
       run = just the current repo). For each such repo, from its worktree (or `gh -R <owner/repo>`):
@@ -717,7 +730,8 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
         `![](<raw-gist-url>)` per image), and `gh pr comment "<pr-url>" --body-file <tmp>`. Any
         step fails → drop it, ship stands. <!-- ponytail: orphan gist per ship; add retention if they pile up. -->
       - After all PRs open, edit the PRIMARY PR's body to fill its `Companion PRs:` list with the
-        other URLs, and each companion's `Part of` back-link.
+        other URLs and resolve `merge_order:` to the real PR numbers, and each companion's `Part of`
+        back-link plus its `Blocked by <PR>` line (from `merge_order:`) now that URLs exist.
 
    f. Set state.md `stage: done`.
 

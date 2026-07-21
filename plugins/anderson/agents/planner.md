@@ -69,9 +69,36 @@ Whatever you pick must add signal a sentence can't — otherwise drop it.
 ## ✅ Acceptance criteria
 | # | Criterion | Source | Proof | Evidence |
 |---|-----------|--------|-------|----------|
-<one row per criterion. Source: ticket | design | derived. Proof: test (unit/integration) |
-visual (screenshot vs design) | e2e (ephemeral script in scratch) | manual (step-by-step —
-ONLY when nothing executable can cover it). Leave Evidence `—`; the implementer fills it.>
+<one row per criterion.
+CRITERION = an observable OUTCOME in the actor's words, shape `When <situation> → <observable
+result>`. Never name a function, module, or technique — that is 🛠 How. Cover the flow, not just
+the happy path: the success outcome, the failure outcomes (what the user/caller sees when it
+breaks), and the boundary/empty/permission cases. The OUTCOME lives here; the *mechanism* that
+delivers it lives in 🧯 Error handling — do not restate the mechanism as a criterion.
+CAP: a scenario earns a row only if BOTH (1) provable by a proof type below and (2) load-bearing
+— failing it means the feature is WRONG, not merely different. Aim ≤ 7 rows; more than that means
+the task is too big (split it) or you are listing 🛠 How steps as criteria (demote them) or
+enumerating variants of one outcome (collapse to one row + a proof covering the cases).
+MULTI-REPO SEAM (mandatory): when this task changes MORE THAN ONE repo (a `repos:` handoff, or
+scope/blast-radius pointing outside this repo) the value lives in the seam between them — so the
+shared contract (endpoint shape, event/message schema, shared type, CLI/env interface) is a
+MANDATORY criterion with `source: contract`. State the outcome across the boundary ("When the
+frontend requests /briefs → each row carries `view_count` as an integer"), name the contract, and
+prove it with the `contract` proof below — NOT one repo's isolated test (both repos can pass their
+own suites while the seam is broken). One seam criterion per shared contract, on the PRIMARY repo's
+plan; the companion plan cross-references it.
+ONE PROOF PER ROW: every criterion needs its OWN proof that fails if THAT criterion breaks —
+a discriminating check, not a shared one. Do NOT let one test stand in for several rows, and do
+NOT mark a criterion "covered by" another row's proof: the happy-path test passing tells you
+nothing about the empty / boundary / failure rows, which is exactly where silent bugs hide. If
+two criteria genuinely can't be told apart by any distinct check, they are one criterion —
+collapse them.
+Source: ticket | design | derived | contract. Proof: test (unit/integration) | visual (a screenshot
+PER outcome-state the criteria name — success, error, empty, loading, disabled, key breakpoints —
+vs design, never one happy-path shot) | contract (assert the built output — response body, emitted
+event, exported type — against a FROZEN shared fixture both repos pin, so drift in either repo fails
+that repo's gate) | e2e (ephemeral script in scratch) | manual (step-by-step — ONLY when nothing
+executable can cover it). Leave Evidence `—`; the implementer fills it.>
 
 ## 🛠 How
 
@@ -139,9 +166,17 @@ external/network calls, parses, nullable inputs, concurrency, partial writes —
 </details>
 
 ## ✅ Decisions
-<details><summary><n> decided · <n> open</summary>
+<details><summary><n> LB unconfirmed · <n> decided · <n> open</summary>
 
-<each as Q → chosen answer, one line each; open questions the human must decide>
+| Q | Assumption / answer | Class | Confirmed |
+|---|--------------------|-------|-----------|
+<one row per decision. Class: **LB** (load-bearing — if this guess is wrong the feature is
+WRONG, not merely different: scope, contract shape, limit values, on-failure behavior, who the
+actor is) or **safe** (a reasonable default with a known ceiling — name the ceiling). At plan
+time every LB row is Confirmed = ✗ (you are guessing; the human ratifies at the gate); safe rows
+are Confirmed = — (no confirmation needed). NEVER ship an LB guess as if decided — the gate
+blocks while any LB row is ✗. A `needs-context` error row and a `derived` criterion each imply
+at least one LB decision.>
 </details>
 
 ## 🔭 Review

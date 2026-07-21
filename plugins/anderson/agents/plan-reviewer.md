@@ -22,7 +22,22 @@ criterion (unmapped either way = BLOCKING — fix in place); Evidence stays `—
 When `feature-research/<task>/design/inventory.md` exists, spot-check `design`-sourced criteria
 against it — design copy paraphrased instead of quoted character-faithful is a defect; an
 inventory string with no criterion is a missed criterion. `derived` rows must be product
-judgement the ticket/design genuinely doesn't state, not invented scope.
+judgement the ticket/design genuinely doesn't state, not invented scope. Criteria must be
+OUTCOMES (`When X → Y`, actor's POV), not restated 🛠 How — a row naming a function/module/
+technique is a defect; rewrite it as the outcome. When the blast radius or a `repos:` handoff
+shows the task spans MORE THAN ONE repo, a `source: contract` seam criterion proven by a frozen
+shared fixture is MANDATORY — its absence is BLOCKING (an isolated per-repo test does not cover
+the seam). A `visual` criterion that names states (error/empty/loading/…) must call for a
+screenshot per state, not one happy-path shot. Every criterion must have its OWN discriminating
+proof — two rows sharing one proof, or a criterion deferred to another's evidence, is a defect
+(fix in place: split the proof or collapse the rows).
+
+LOAD-BEARING ASSUMPTIONS: walk `## ✅ Decisions`. In gated mode a human ratifies each **LB** row
+at the grill; in auto mode you are the ratifier. For every LB row still Confirmed = ✗, decide it
+on merit from the ticket/design/codebase and flip it to ✓ with a one-line basis (record as
+`[answered] … → … (plan-review)` in state.md `## ❓ Open questions`). An LB assumption you CANNOT
+ratify from available evidence — where the right answer is a genuine product/policy call — stays
+✗ and becomes a blocking `needs-human`: never invent the answer to clear the gate.
 
 Independently verify the "💥 Blast radius": re-run the greps yourself for the changed
 symbols, confirm no caller/dependent/sibling/duplicate/test/doc/config site was missed,

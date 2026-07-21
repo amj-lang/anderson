@@ -32,12 +32,24 @@ questions for the human, not invented behaviour.
 CRITERIA-EVIDENCE lens (BLOCKING): walk plan.md `## ✅ Acceptance criteria` row by row —
 evidence must PROVE the criterion, not gesture at it.
 - Blank Evidence cell → automatic `fix_first`.
+- Shared / blanket evidence → `fix_first`. Each row must cite its OWN discriminating proof; two
+  rows pointing at the same test, or a `#<n> covered by #<m>`, means the empty/boundary/failure
+  rows are unproven — the happy-path pass says nothing about them. Confirm each proof fails if
+  ITS row's criterion breaks, not just that the suite is green.
+- Load-bearing assumptions: check `## ✅ Decisions` — any **LB** row still Confirmed = ✗ is a
+  `fix_first` (the maker guessed the target and no human ratified it; the gate should have blocked).
 - `test` → RUN it, then read the assertion: it must encode the criterion and fail without this
   diff. A test that passes on the old code, asserts mere truthiness, or mirrors a mock is a
   worthless test = blocking.
-- `visual` → OPEN both images (`design/` + `evidence/` — Read renders PNGs) and compare: exact
-  text character-for-character, layout, states. Any mismatch = blocking; name the specific
-  difference ("button says 'Save changes', design says 'Save'").
+- `visual` → OPEN every image pair the cell lists (`design/` + `evidence/` — Read renders PNGs),
+  one per outcome-state (success, error, empty, loading, disabled, breakpoints). A criterion that
+  names a state with no screenshot for it is unproven = blocking. Compare each: exact text
+  character-for-character, layout, state. Any mismatch = blocking; name the specific difference
+  ("button says 'Save changes', design says 'Save'").
+- `contract` → OPEN the frozen fixture and RUN the assertion; confirm it checks the REAL built
+  output against the fixture and fails on drift (not a tautology, not asserting the fixture against
+  itself). In a multi-repo diff, verify BOTH sides of the seam pin the same fixture — a fixture
+  changed in one repo but not the other is a blocking finding.
 - `e2e` → run the script in `feature-research/<task>/e2e/` (ephemeral, gate-time only).
 - `manual` → confirm the audit's steps actually verify the criterion; spot-check what's
   checkable from the diff.

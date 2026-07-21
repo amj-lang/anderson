@@ -36,13 +36,25 @@ else.
 
 EVIDENCE — the pass is NOT done while any Evidence cell in plan.md
 `## ✅ Acceptance criteria` is blank. After implementing, fill that column — the ONLY
-plan.md edit you may make. Per proof type:
+plan.md edit you may make. ONE DISCRIMINATING PROOF PER ROW: each criterion gets its OWN
+evidence that fails if THAT criterion breaks — never point two rows at the same test, and never
+write `#<n> covered by #<m>`. The happy-path test passing proves nothing about the empty,
+boundary, or failure rows — those need their own checks, because that is exactly where a silent
+bug survives review. If you cannot write a check that distinguishes one criterion from another,
+say so in the audit rather than papering over it with shared evidence. Per proof type:
 - `test` → run it; cell: `test: <test name> · <command>`. The assertion must encode the
   criterion and FAIL without your change — a test that passes on the old code, asserts mere
   truthiness, or echoes a mock proves nothing and the reviewer will block on it.
 - `visual` → screenshot the RUNNING UI into `feature-research/<task>/evidence/<name>.png`
-  (playwright / the repo's own tooling); cell: `visual: evidence/<name>.png vs design/<file>`.
-  Capture impossible → downgrade the cell to `manual` and say why.
+  (playwright / the repo's own tooling), ONE shot per outcome-state the criterion names (success,
+  error, empty, loading, disabled, the breakpoints listed) — not a single happy-path shot; drive
+  the app into each state before capturing. Cell: `visual: evidence/<state>.png vs design/<file>`
+  (list every state's file). Capture impossible → downgrade the cell to `manual` and say why.
+- `contract` → assert the built output (response body, emitted event, exported type) against the
+  FROZEN shared fixture both repos pin — add/extend a test that loads the fixture and checks the
+  real output matches it (fails if either side drifts). Cell: `contract: <fixture path> · <test> ·
+  <command>`. In a multi-repo run, land the fixture where BOTH repos import it (or pin identical
+  copies) and run the assertion in each repo that touches the seam.
 - `e2e` → write the script under `feature-research/<task>/e2e/` (EPHEMERAL: gitignored,
   deleted at ship — never wire it into the repo suite or CI), run it and tee its output to
   `feature-research/<task>/evidence/<name>.e2e.log` (the ship step embeds this log in the PR —
@@ -62,7 +74,8 @@ Before finishing, write `feature-research/<task>/audit.md` using this shape:
 
 ## ⚙️ Setup & test
 <the test command; step-by-step verification ONLY for `manual`-proof criteria — criteria
-covered by test/visual/e2e evidence get one line each (`#<n> covered by <evidence>`); then any
+covered by test/visual/e2e evidence get one line each naming that row's OWN proof
+(`#<n>: <its own evidence>`, never `#<n> covered by #<m>`); then any
 operational requirement introduced — new env var, dependency, config/feature flag, or manual
 setup step — one line each, or "none". Feeds the PR's visible sections.>
 

@@ -153,11 +153,19 @@ plan-reviewer (step 5).
      (grilled)` for each row we resolved together, and `[open] <question> — <why it needs a business
      call>` for each row I chose to DEFER (left `needs-context`). Set `open_questions:` in state.md
      to the count of `[open]` lines. A non-zero count is surfaced in the ship PR, not silently dropped.
+   - LB ASSUMPTIONS ARE NON-DEFERRABLE. Every `## ✅ Decisions` row classed **LB** is always a 🔴
+     and MUST be answered by me before you leave the grill — it cannot be auto-resolved, batched,
+     or left `[open]`. On my confirmation, flip its `Confirmed` cell ✗ → ✓ and record `[answered]
+     … → … (grilled)`. If I edit the guess, fold the new value in. An LB row still ✗ = the maker
+     guessed the target and I never ratified it: the single most expensive way to ship the wrong
+     thing, so the gate refuses to advance while any remains (below).
    - Continue until I signal shared understanding ("done", "good", "go to review") or no open
      branches remain. On early exit: auto-resolve any unasked 🟢 to your recommendations
-     (record each as `[answered] … → … (grilled, default)`), and record any unasked 🔴/🟡 as
-     `[open]` — an early exit skips questions, it never silently decides the big ones.
-     Then set stage=plan_review and continue to the reviewer.
+     (record each as `[answered] … → … (grilled, default)`), and record any unasked 🟡 (and any
+     🔴 that is NOT an LB row) as `[open]` — an early exit skips questions, it never silently
+     decides the big ones, and it can NEVER skip an LB row. If any LB row is still ✗, do not exit:
+     print the unconfirmed LB rows and ask me to resolve them. Only once every LB row is ✓ set
+     stage=plan_review and continue to the reviewer.
 5. (BANNER + QUOTE RULES, offset +3) Print this PLAN-REVIEW banner as the LAST line
    before invoking the plan-reviewer (substitute `<review_model>` with the state.md value):
    ```
@@ -175,8 +183,12 @@ plan-reviewer (step 5).
    ```
    ﾊﾐﾐ 0ｺ1  🔴 G A T E  1 · YOUR TURN  1ｺ0 ﾐﾐﾊ
      ⌐■-■  <plan.md ## 🎯 What, first line>
-           criteria <N> (<t> ticket · <d> design · <x> derived) · proof: <a> test · <b> visual · <c> e2e · <m> manual
+           criteria <N> (<t> ticket · <d> design · <x> derived · <n> contract) · proof: <a> test · <b> visual · <c> e2e · <p> contract · <m> manual
+           assumptions: <n> load-bearing · all confirmed ✓   (each criterion has its own proof)
            scorecard: Risk <r> · Confidence <c> · Coupling <k> · Reversibility <v>
            verdict <plan_verdict> → /anderson:approve-plan <task> — or "approved, go" · full plan: feature-research/<task>/plan.md
    ```
-   Halt is unconditional even on a ship verdict.
+   Halt is unconditional even on a ship verdict. GATE-BLOCK RULE: the gate is not approvable while
+   any `## ✅ Decisions` LB row is unconfirmed (✗) — the grill above should have caught this, but
+   if any remains, replace the "YOUR TURN" card with a `🔴 GATE 1 BLOCKED — <n> load-bearing
+   assumptions unconfirmed` card listing each, and resolve them with me before offering approval.

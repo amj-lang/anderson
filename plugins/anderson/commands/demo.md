@@ -26,6 +26,7 @@ Print in exactly this order (sub-bullet = quote pool to pick from):
   ﾊﾐﾐ 0ｺ1  🔴 G A T E  1 · YOUR TURN  1ｺ0 ﾐﾐﾊ
   ⌐■-■  Add CSV export to the briefs table
         criteria 5 (2 ticket · 2 design · 1 derived) · proof: 3 test · 1 visual · 1 e2e
+        assumptions: 2 load-bearing · all confirmed ✓   (each criterion has its own proof)
         scorecard: Risk 4 · Confidence 8 · Coupling 3 · Reversibility 9
         verdict ship → /anderson:approve-plan demo-task — or "approved, go"
 

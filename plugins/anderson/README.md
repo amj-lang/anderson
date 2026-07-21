@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.25.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.26.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -86,7 +86,12 @@ gate). They are the executable ground truth the panel reasons against.
 - **Multi-repo.** When the task must change other repos (TaskSpec `repos:`, scope spilling outside the
   repo, or a sibling repo in project memory / `CLAUDE.md`), each repo gets an isolated **git worktree**,
   its own branch, and its own cross-linked draft PR (labeled `needs-human`). A dirty tree is isolated
-  in a worktree rather than aborting.
+  in a worktree rather than aborting. The value of a cross-repo feature lives in the **seam**, so the
+  shared contract (endpoint shape, event/message schema, shared type, CLI/env interface) is a
+  **mandatory `contract` acceptance criterion** proven against a frozen fixture both repos pin — an
+  isolated per-repo test can't catch a contract mismatch (both suites pass green while the feature is
+  dead). The primary PR carries a **⚠️ Merge order** line and each companion links its `Blocked by`,
+  so the contract-defining repo merges before its consumer.
 
 Still review the PR carefully — auto mode is experimental, and the gates are orchestrator
 *instructions* the model follows, not enforced code.
@@ -470,6 +475,18 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.26.0** — **Outcome-shaped criteria, load-bearing assumptions, one proof per criterion, and
+  multi-repo contract verification.** Acceptance criteria are now observable outcomes (`When X → Y`,
+  actor's POV — never a restated How), capped to what's provable AND load-bearing. `## ✅ Decisions`
+  classifies each assumption **LB** (feature is wrong if the guess is wrong) or **safe**; the plan
+  gate **blocks** while any LB row is unconfirmed (gated: the grill can't defer it; auto: the
+  plan-reviewer ratifies with a basis or ships it as `needs-human`) — a guessed target can no longer
+  pass every downstream check. Every criterion now needs its OWN discriminating proof that fails if
+  that criterion breaks (no shared/blanket evidence, no `#n covered by #m`) — the silent
+  edge/failure-case bug now needs executable proof, not a reviewer's eyeball. Multi-repo tasks gain a
+  mandatory `source: contract` seam criterion proven against a frozen fixture both repos pin, a
+  `⚠️ Merge order` line on the primary PR, and `Blocked by` links on companions. `visual` proof is
+  state-driven (a screenshot per outcome-state, not one happy-path shot).
 - **0.25.0** — **⚠️ Behavior change section + design moves up.** The planner adds a `## ⚠️ Behavior
   change` line (≤2 lines: the "so what" — what observably changes for a user/caller/API, or
   "none — internal only") right after Why. New plan read order: What → Why → ⚠️ Behavior change →
