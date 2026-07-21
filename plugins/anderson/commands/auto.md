@@ -650,12 +650,16 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
 
       5. `## ✅ Acceptance criteria` — the plan.md table verbatim, Evidence column filled.
          Scratch dies at ship, so rewrite scratch-path evidence: visual cells →
-         `visual: verified at gate` (+ the design source link when one exists); scratch-e2e
-         cells → `e2e: verified at gate (ephemeral, deleted at ship)`; any `promote candidate`
-         e2e → one bullet under the table naming the flow worth a permanent test. Under the
-         table, two lines:
+         `visual: verified at gate` (+ the design source link when one exists; the screenshot
+         itself rides a proof comment posted in step 8e); scratch-e2e cells →
+         `e2e: verified at gate (ephemeral, deleted at ship)`; any `promote candidate` e2e →
+         one bullet under the table naming the flow worth a permanent test. Under the table,
+         two lines:
          `test: <test_cmd> · frozen: <frozen_test>`
          `Validated: plan-gate <plan_panel> · diff-panel <diff_panel> · arbiter <arbiter> · CI <ci_conclusion>`
+         Then DISPLAY the e2e output inline: for each `evidence/*.e2e.log` in scratch, append below
+         the table a `<details><summary>proof: e2e #<n></summary>` collapse with the log fenced
+         (tail ≤ 40 lines) — the deleted script's only record, never in CI.
 
       6. `## 🧪 How to test` — reviewer-facing, from audit.md `## ⚙️ Setup & test`: the test
          command to run, plus step-by-step for any `manual`-proof criteria. Then a
@@ -707,6 +711,11 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       - Open: `gh pr create --draft --title "<title> [auto-mode]" --body-file <tmp> --label "auto-mode"`
         (+ `--label needs-human` per step 8c). If `gh` unavailable, print the body and note the
         human should open it. Capture each PR URL.
+      - Visual proofs (guarded — only when that repo has `evidence/*.png` AND its PR opened):
+        `gh` can't inline-upload, so host the PNGs on a secret gist
+        (`gh gist create --secret .../evidence/*.png`), build a comment (`### proof: <criterion>` +
+        `![](<raw-gist-url>)` per image), and `gh pr comment "<pr-url>" --body-file <tmp>`. Any
+        step fails → drop it, ship stands. <!-- ponytail: orphan gist per ship; add retention if they pile up. -->
       - After all PRs open, edit the PRIMARY PR's body to fill its `Companion PRs:` list with the
         other URLs, and each companion's `Part of` back-link.
 
@@ -714,8 +723,9 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
 
    g. Clean up workspace: `git worktree remove` each worktree created in step 2d, then
       `rm -rf feature-research/<task-id>/`. PR(s) + git history are the durable record — the
-      plan's durable sections are embedded in the PR body (step 8d items 2–10) and the how is in
-      the diff, so nothing of value lost on deletion. (On
+      plan's durable sections are embedded in the PR body (step 8d items 2–10), e2e output in the
+      criteria collapse and visual proof in the step-8e comment, and the how is in the diff, so
+      nothing of value lost on deletion. (On
       any abort path the scratch + worktrees are KEPT for inspection — do not remove on abort.)
 
 9. REPORT — print the structured terminal result.

@@ -8,7 +8,7 @@ set diff_verdict=ship, stage=done. Command has side effects (commit, push, PR);
 runs only because you invoked it at the gate. Print intent before each network
 step. NEVER force-push; never touch an existing branch destructively.
 
-1. Build messages FROM the scratch (still present — do before step 5):
+1. Build messages FROM the scratch (still present — do before step 6):
    - Read from `plan.md`: goal + 🎯 What + 🤔 Why, the `## ✅ Acceptance criteria` table,
      `## 📈 Scorecard`, `## 🗺 Design`, `## 💥 Blast radius`, `## 🧯 Error handling`, and the
      `## 🔭 Review` verdict + criteria count. Read from `audit.md`: "Files changed", blocking
@@ -26,10 +26,14 @@ step. NEVER force-push; never touch an existing branch destructively.
         `<details>` collapse). Omit when the design was a single trivial line already implied by What.
      5. `## ✅ Acceptance criteria` — the plan.md table verbatim, Evidence column filled. Scratch
         dies at ship, so rewrite scratch-path evidence for the PR: visual cells →
-        `visual: verified at gate 2` (+ the design source link when one exists — pixels don't
-        travel to the PR); e2e cells → `e2e: verified at gate 2 (ephemeral, deleted at ship)`.
-        Any `promote candidate` e2e → one bullet under the table naming the flow worth a
-        permanent test.
+        `visual: verified at gate 2` (+ the design source link when one exists; the screenshot
+        itself rides a proof comment posted in step 5); e2e cells →
+        `e2e: verified at gate 2 (ephemeral, deleted at ship)`. Any `promote candidate` e2e →
+        one bullet under the table naming the flow worth a permanent test.
+        DISPLAY the e2e output inline: for each `evidence/*.e2e.log` present in scratch, append
+        below the table a `<details><summary>proof: e2e #<n></summary>` collapse with the log
+        fenced (tail ≤ 40 lines). The script is deleted at ship — this log is the PR's ONLY
+        record it ever ran, and it never reaches CI.
      6. `## 🧪 How to test` — reviewer-facing, from audit.md `## ⚙️ Setup & test`: the test
         command to run, plus step-by-step for any `manual`-proof criteria. Then a
         `**Config required:**` line — new env vars / flags / dependencies / manual setup
@@ -46,7 +50,7 @@ step. NEVER force-push; never touch an existing branch destructively.
 
 2. Pick branch (defensive — anderson runs in any repo):
    - If `git rev-parse --is-inside-work-tree` fails → not a git repo: skip every git/PR
-     step, jump to step 5, hand me the commit subject + PR body to use by hand.
+     step, jump to step 6, hand me the commit subject + PR body to use by hand.
    - `current=$(git rev-parse --abbrev-ref HEAD)`.
    - default = remote head if present (`git symbolic-ref --short refs/remotes/origin/HEAD`
      with leading `origin/` stripped); else `main` if it exists, else `master`.
@@ -73,12 +77,24 @@ step. NEVER force-push; never touch an existing branch destructively.
      hint so I can open the PR myself.
    - No remote: skip the network; local commit stands. Print the PR body.
 
-5. Remove disposable scratch: `rm -rf "feature-research/$ARGUMENTS"`.
-   (Git history + PR are the durable record; the plan's durable sections — what & why, criteria,
-   design, scorecard, blast radius, error handling — are embedded in the PR body at step 1, and
-   the 🛠 How lives in the diff, so deleting scratch loses nothing.)
+5. Post visual proofs as a PR comment (guarded — do ONLY when a PR was opened AND
+   `feature-research/$ARGUMENTS/evidence/`*`.png` exist AND `gh` is ready; else skip silently,
+   the gate-2 text note in the table stands):
+   - `gh` cannot inline-upload an image, so host the PNGs on a secret gist:
+     `gh gist create --secret feature-research/$ARGUMENTS/evidence/*.png` (one gist; capture its id).
+   - Build a comment body: per image `### proof: <criterion #/name>` + `![](<raw-url>)`, where
+     raw-url = `https://gist.githubusercontent.com/<user>/<gist-id>/raw/<file>`.
+   - `gh pr comment "<pr-url>" --body-file <tmp>`, capture + print the comment URL.
+   - Any command here fails → drop it, ship still stands (never fail the ship for a screenshot).
+   <!-- ponytail: leaves one orphan gist per ship. Add a cleanup/retention step if they pile up. -->
 
-6. (BANNER RULE) Print this SHIP banner (choose ending by COUNTING, not feel: N = task slug character count (every character, hyphens included); iteration = `iteration:` value in state.md (read fresh); ending = 0-based item at index (N + 6 + iteration) mod M; M = integer in "Pool (M endings):" label below; count list from 0; mod M always yields valid position (0 to M−1); label number must equal actual ending count. Do NOT pick "at random", do NOT default to first.) as the LAST framed line before the done line:
+6. Remove disposable scratch: `rm -rf "feature-research/$ARGUMENTS"`.
+   (Git history + PR are the durable record; the plan's durable sections — what & why, criteria,
+   design, scorecard, blast radius, error handling — are embedded in the PR body at step 1,
+   e2e output at step 1's item 5, visual proof at step 5, and the 🛠 How lives in the diff, so
+   deleting scratch loses nothing.)
+
+7. (BANNER RULE) Print this SHIP banner (choose ending by COUNTING, not feel: N = task slug character count (every character, hyphens included); iteration = `iteration:` value in state.md (read fresh); ending = 0-based item at index (N + 6 + iteration) mod M; M = integer in "Pool (M endings):" label below; count list from 0; mod M always yields valid position (0 to M−1); label number must equal actual ending count. Do NOT pick "at random", do NOT default to first.) as the LAST framed line before the done line:
    ```
      ╭─ ⌐■-■  SHIP ✓ · THE ONE · welcome to the real world
      │  "[one ending from the pool]"

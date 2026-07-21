@@ -475,8 +475,12 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
   "none — internal only") right after Why. New plan read order: What → Why → ⚠️ Behavior change →
   🗺 Design → ✅ Acceptance criteria → 🛠 How → 📈 Scorecard (Design promoted above the criteria).
   Both ship paths carry the behavior-change line verbatim into the PR body (omitted when
-  internal-only) and match the same order (Design before criteria). Proof results still ride in
-  the criteria table's Evidence column — no separate results section.
+  internal-only) and match the same order (Design before criteria). **Proof is now displayed,
+  not just named:** the implementer tees each e2e run to `evidence/*.e2e.log`; both ship paths
+  embed that log in a per-criterion `<details>` collapse under the criteria table (the ephemeral
+  script's only record — it never reaches CI), and post visual screenshots as a PR comment
+  (gist-hosted, since `gh` can't inline-upload), degrading to the gate-verified text note on any
+  failure. Test proofs stay named-only — the diff + CI already show them.
 
 - **0.24.0** — **PR body is the plan minus the how.** Both ship paths (`/anderson:approve-diff`
   + `/anderson:auto` step 8d) now build the PR from the plan's durable sections instead of dumping
