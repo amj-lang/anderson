@@ -103,10 +103,10 @@ Was tentatively "triage-bot"; hold the name — keep this **agnostic**, not Line
 - Linear hosted MCP URL: `https://mcp.linear.app/sse`. Auth is an **OAuth bearer token**, NOT a Linear
   API key (`lin_api_...` will not work as MCP auth — different system).
 
-**Models / pricing (per 1M tokens, in/out):**
-- `claude-opus-4-8` — $5 / $25. Default for plan/label/route judgment and the coding loop.
-- `claude-sonnet-4-6` — $3 / $15. A/B candidate for the bot once the prompt is stable.
-- Use bare model-ID strings, no date suffixes.
+**Models:**
+- `claude-opus-5` — Default for plan/label/route judgment and the coding loop.
+- `claude-sonnet-5` — A/B candidate for the bot once the prompt is stable.
+- Use bare model-ID strings, no date suffixes; pricing lives in the API docs, not here.
 
 **Build plane safety boundaries (non-negotiable):**
 - Draft PR only, never auto-merge; branch only (`anderson/auto/<task-id>-<slug>`).

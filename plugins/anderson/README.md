@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.26.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.27.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -339,7 +339,12 @@ opening when a line raises doubt.
 Each agent declares its own `model` + `effort` in frontmatter, and these switch
 automatically per stage (planner opus/high, plan-reviewer opus/xhigh, implementer
 sonnet/medium, reviewer opus/xhigh). Resolution order is: `CLAUDE_CODE_SUBAGENT_MODEL`
-env var → per-invocation override → **agent frontmatter** → main session.
+env var → per-invocation override → **agent frontmatter** → main session. The rank of
+the first two against each other is unverified — if you set the env var *and* start a
+pipeline with `--fable`, the transcript grep below is ground truth for what actually ran.
+`model:` in agent frontmatter is a floating tier alias — `opus` resolved to
+`claude-opus-5` the day Opus 5 shipped, with no edit here — so a model release
+needs no anderson change; the plugin pins no dated ID.
 
 **`--fable` — Fable for the critique gates.** Start a pipeline with `--fable`
 (`/anderson:start … --fable`, `/anderson:auto … --fable`, or `bin/feature.sh start … --fable`)
@@ -352,12 +357,26 @@ resumed `approve-plan` / `rework` commands. In auto mode the tiered panel's HARD
 and the arbiter follow `review_model` (`panel_model` metric can read `fable`); the cheap
 TRIVIAL/NORMAL panel tier stays on sonnet.
 
-**The gotcha:** if `CLAUDE_CODE_SUBAGENT_MODEL` is set, it overrides every agent's
-frontmatter — your implementer would silently run on whatever that env says, not
-Sonnet. `/anderson:status` prints this for you; or check directly:
+**Set your own models permanently.** Set `env` in `~/.claude/settings.json`
+(user-wide) or `.claude/settings.json` (project) to pin every stage to one
+model for all future runs:
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
+    "ANTHROPIC_MODEL": "sonnet"
+  }
+}
+```
+
+`CLAUDE_CODE_SUBAGENT_MODEL` covers every subagent, `ANTHROPIC_MODEL` the main
+thread. Consequence: with it set, every stage runs on that one model, so
+per-stage tiering flattens. `/anderson:status` reports the override for you;
+or check directly what's actually running:
 
 ```
-echo "${CLAUDE_CODE_SUBAGENT_MODEL:-<unset, good>}"
+echo "${CLAUDE_CODE_SUBAGENT_MODEL:-<unset>}"
 ```
 
 **What to start the main session as.** The main thread here is only an
@@ -475,6 +494,14 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.27.0** — **Dated model IDs removed, per-token prices dropped, persistent override
+  documented, statusline follows the active review model.** The two dated model-ID strings in
+  `docs/auto-mode-handoff.md` are gone, along with the per-token figures next to them — a new CI
+  step now fails the build if any tracked file quotes a paired per-token price. `settings.json`
+  `env` (`CLAUDE_CODE_SUBAGENT_MODEL` / `ANTHROPIC_MODEL`) is documented as the supported way to
+  pin every stage to one model permanently, not a gotcha to clear. The statusline now reads the
+  active review model (`fable`/`opus`) instead of always showing Opus under `--fable`. Version
+  sites re-synced across `plugin.json`, `marketplace.json`, and both README badges.
 - **0.26.0** — **Outcome-shaped criteria, load-bearing assumptions, one proof per criterion, and
   multi-repo contract verification.** Acceptance criteria are now observable outcomes (`When X → Y`,
   actor's POV — never a restated How), capped to what's provable AND load-bearing. `## ✅ Decisions`
