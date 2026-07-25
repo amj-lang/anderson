@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Scheduler unit tests
+      - name: Unit tests
         run: python3 -m unittest discover -s plugins/anderson/test -v
 
       - name: Compile the hook
@@ -45,6 +45,18 @@ jobs:
               exit 1
             fi
           done
+
+      - name: No per-token prices (they rot; API docs own pricing)
+        run: |
+          # Deliberately prices-only, no model-ID pattern. A date-suffix regex
+          # (`claude-[a-z]+-[0-9]+-[0-9]+`) does discriminate a stale `claude-opus-4-8` from a
+          # bare `claude-opus-5` — but it also bans real versioned IDs (`claude-haiku-4-5`,
+          # `claude-sonnet-4-5`), so the ID convention stays prose ("no date suffixes",
+          # docs/auto-mode-handoff.md). Ceiling: a stale-but-undated ID still slips through.
+          if git grep -InE '\$[0-9][0-9.]*[[:space:]]*/[[:space:]]*\$[0-9][0-9.]*'; then
+            echo "::error::per-token prices rot -- cite the API docs instead"
+            exit 1
+          fi
 
       - name: Require a version bump when the plugin changes (PRs only)
         if: github.event_name == 'pull_request'

@@ -33,12 +33,14 @@ st="$(ls -t feature-research/*/state.md 2>/dev/null | head -1 || true)"
 if [ -n "$st" ] && [ -f "$st" ]; then
   stage="$(field stage "$st")"
   task="$(field task "$st")"
+  rmodel="$(field review_model "$st")"
+  rmodel="${rmodel:-opus}"
   case "$stage" in
     plan)        who="THE ARCHITECT · opus/high" ;;
     grill)       who="THE INTERROGATOR · you" ;;
-    plan_review) who="THE ORACLE · opus/xhigh" ;;
+    plan_review) who="THE ORACLE · $rmodel/xhigh" ;;
     implement)   who="NEO · sonnet/medium" ;;
-    diff_review) who="AGENT SMITH · opus/xhigh" ;;
+    diff_review) who="AGENT SMITH · $rmodel/xhigh" ;;
     done)        who="shipped" ;;
     *)           who="${stage:-?}" ;;
   esac
