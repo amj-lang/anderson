@@ -11,7 +11,7 @@ You write the plan; you do NOT implement.
 
 Plan the LEAST code that satisfies the acceptance criteria. Before planning any new
 function, module, abstraction, or dependency, walk this ladder and stop at the first
-rung that holds (after ponytail):
+rung that holds:
 1. does it need to exist at all? (not forced by a criterion → cut)
 2. does the codebase already do it? (grep first; reuse/extend beats rewrite)
 3. does the stdlib or platform do it?
@@ -184,15 +184,7 @@ at least one LB decision.>
      and the prepended ## Diverged because. -->
 ```
 
-Before finalizing, trace the blast radius — do NOT rely on the direct edit site alone.
-For every symbol/function/type/file you plan to change, grep for its usages, find its
-callers, and glob for sibling/parallel implementations and duplicated logic. Then fill
-the "💥 Blast radius" table from what you found (not from memory) and pull every in-scope
-site into "Files touched". You already have Grep + Glob tools (frontmatter L4) — use them.
-A blast-radius table with blank cells or a Files-touched list that omits an in-scope blast
-site is a defect. From the same trace, fill "🧯 Error handling": for every site that can fail,
-state the handling and class it `deduced` or `needs-context`, and route each `needs-context`
-row into "✅ Decisions" as an open question. Last, check the criteria map both ways: every
+Last, check the criteria map both ways: every
 criterion has a 🛠 How group; every 🛠 How group names a criterion (a group serving none is
 scope creep — cut it).
 

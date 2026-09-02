@@ -3,18 +3,19 @@ description: "Run the full plan → implement → review pipeline non-halting to
 argument-hint: <task-id> <title> [body|@taskspec-file]
 allowed-tools: Bash, Read, Edit, Write
 ---
-Parse $ARGUMENTS: FIRST strip an optional `--fable` token from anywhere in $ARGUMENTS
-(it is a flag, not content) — if present, the two review gates run on Fable instead of
-Opus (see REVIEW MODEL below); record it for the state seed. THEN from the remaining
+Parse $ARGUMENTS: FIRST strip an optional `--opus` token from anywhere in $ARGUMENTS
+(it is a flag, not content) — if present, the two review gates run on Opus instead of
+the default Fable (see REVIEW MODEL below); record it for the state seed. THEN from the remaining
 words: first word = task-id (run-lock key + state dir name); second word = title;
 remainder = body (or @path to TaskSpec file on disk). task-id and title required;
 body optional (acceptance_criteria derived if absent).
 
 REVIEW MODEL: the two critique gates (PLAN GATE plan-reviewer, DIFF GATE reviewer panel
-+ arbiter) run on the model in state.md `review_model:` — `opus` by default, `fable` when
-`--fable` was passed. Fable is the stronger critical analyst; Opus stays the default for the
-generative stages (planner, implementer), which `--fable` never touches. Effort stays xhigh
-either way. Every banner and invocation below reads `review_model` from state.md.
++ arbiter) run on the model in state.md `review_model:` — `fable` by default, `opus` when
+`--opus` was passed. Fable is the stronger critical analyst; Opus stays the default for the
+generative stages (planner, implementer), which `--opus` never touches. Plan-reviewer effort
+is xhigh; reviewer effort is tiered (see MODEL TIERING in 7f): `high` for TRIVIAL/NORMAL
+panelists, `xhigh` for HARD/CRITICAL panelists and the arbiter. Every banner and invocation below reads `review_model` from state.md.
 
 BANNER RULE (every stage below): finish ALL setup and state.md edits for stage FIRST,
 then print stage's banner as LAST line before stage's work begins (immediately
@@ -23,26 +24,11 @@ skip banner; never print two banners back-to-back. Unlike gated commands, this c
 NEVER prints a GATE line and NEVER halts for a human — self-sequences all 9 steps in one turn.
 Terminal states: SHIP (stage: done, draft PR) or abort (stage: aborted with structured report).
 
-AUTO-MODE OVERRIDE POLICY (operator opt-in — GOVERNS steps below; where later step conflicts,
-THIS section wins). auto mode runs unattended, expected to FINISH task, not bail to human
-for soft guardrails. Own branch + draft PR are its SANDBOX: inside that PR it may create
-draft, push to it, update description, squash own commits. Must not reach outside it.
-
-RELAX (do NOT abort or stop run for these — push through, complete task, NOTE
-condition under `## Done so far` + in PR body so reviewer sees it):
-- Planner confidence ≤ 3 (step 3a) — proceed; record low confidence, add `needs-human` label
-  at SHIP instead of aborting.
-- Runaway-refactor cap >200 lines / >20 files (step 7d) — proceed; record size; do NOT fail gate.
-- scope_paths violations (step 7d) — proceed; note out-of-scope files; do NOT fail gate.
-- Sensitive NON-migration paths — `.github/`, CI config, `*.lock`/lockfiles, dependency manifests,
-  `.env`, `*.pem`, `*.key` (step 7d) — auto MAY change these when task requires; attach
-  `needs-human` label as heads-up but do NOT abort, do NOT fail gate.
-
-KEEP unchanged (verification engine + cost backstops, NOT blockers — stay exactly
-as written): baseline-green precondition (step 2); test_cmd resolution incl. needs-spec when
-truly un-inferable (verification needs test command); RED + red-for-right-reason (step 5);
-test-tamper guard (7b); CI veto (7c); blind panel + arbiter (7f/7g); thrash breaker / replan
-bounce / max_iterations budget (7h).
+SANDBOX: auto runs unattended and finishes the task. Its own branch + draft PR are the
+sandbox — it may create the draft, push to it, edit its description, squash its own
+commits — and it never reaches outside them. Soft guardrails (low planner confidence,
+diff size, scope_paths, sensitive non-migration paths) are recorded and surfaced with a
+`needs-human` label, not treated as stop conditions; the steps below say where.
 
 NON-NEGOTIABLE HARD RULES (no override, ever):
 1. NEVER author or apply a database migration. If task requires schema/data migration, STOP:
@@ -107,7 +93,7 @@ IMPLEMENT pool (14): "Make it small enough to be wrong cheaply." / "Touch only w
 
 DIFF GATE banner (stage offset 7):
 ```
-  ╭─ ⌐■-■  DIFF GATE · 7/9 · AGENT SMITH · <review_model>/xhigh
+  ╭─ ⌐■-■  DIFF GATE · 7/9 · AGENT SMITH · <review_model>/<review_effort>
   │  "[quote from DIFF GATE pool]"
   ╰─
 ```
@@ -129,11 +115,7 @@ REPORT banner (stage offset 9):
 ```
 REPORT pool (14): "The result is only as good as the evidence behind it." / "State the outcome; show your work." / "A structured report is a gift to the next person in the chain." / "Name the blockers before the blockers name you." / "The human needs the map, not just the destination." / "Criteria in; evidence out." / "If you can't report it clearly, you don't understand it yet." / "The PR is the answer; the report is the reasoning." / "Leave breadcrumbs: someone will need to retrace this." / "End with the truth, whatever it is." / "A metric unrecorded is a lesson unlearned." / "Say what shipped, what slipped, and why." / "The next operator reads what you leave behind." / "End with evidence, not optimism."
 
-Quote selection rule (same deterministic formula as other commands): N = number of characters in
-task-id; stageOffset = stage offset printed in banner above (1–9); rework_round =
-`rework_round:` value in state.md (0 at first pass); quote = 0-based item at index
-(N + stageOffset + rework_round) mod M, where M = pool size (count list from 0). Read fresh
-from state.md each time. Do NOT pick at random; do NOT default to first.
+Quote: pick one line from the stage's pool; vary it across stages.
 
 ---
 
@@ -186,7 +168,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       ci_conclusion:       none
       red_reason:          none
       tier:                pending
-      review_model:        opus
+      review_model:        fable
       panel_model:         pending
       reviewers:           0
       arbiter:             none
@@ -204,7 +186,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       ## ❓ Open questions
       ```
       Where `<slug>` = title lowercased, spaces replaced with hyphens, truncated to 30 chars.
-      Set `review_model:` to `fable` if the `--fable` flag was parsed from $ARGUMENTS, else `opus`.
+      Set `review_model:` to `opus` if the `--opus` flag was parsed from $ARGUMENTS, else `fable`.
       If file already exists (re-run after abort), overwrite with this fresh block.
 
    f. Parse body/acceptance_criteria: if body present, scan for an "acceptance criteria",
@@ -325,13 +307,12 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
    e. Read `feature-research/<task-id>/plan.md`. Read the `## 📈 Scorecard` section.
       Find the Confidence row. If planner's Confidence score ≤ 3 (ambiguous,
       underspecified, or out-of-scope):
-      RELAXED in auto mode (Override Policy) — do NOT abort. Record
+      Relaxed in auto mode — do not abort. Record
       `low planner confidence (<score>) — proceeding under override` under `## Done so far`, append
       `low-confidence` to the `override:` field in state.md (metric reference for this relaxation;
       comma-joined if more relaxations fire later), set flag to add the `needs-human` label at
       SHIP (step 8c), and CONTINUE. Diff gate's RED test + CI veto + blind panel remain the safety
       net for an under-specified task.
-      (Previously: this aborted with a needs-spec report when Confidence ≤ 3.)
       If Confidence > 3: continue normally.
 
    3b. ROUTE — compute difficulty tier (drives plan-gate depth, diff panel size, and arbiter
@@ -446,7 +427,6 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
    c. Invoke the **implementer** subagent: execute `feature-research/<task-id>/plan.md`;
       make the frozen test pass; fill the Evidence column of plan.md `## ✅ Acceptance
       criteria` (per its agent instructions); write `feature-research/<task-id>/audit.md`.
-      Implementer also runs a self-review pass before the diff gate (cheap; cuts panel rounds).
       Set stage=diff_gate after invocation.
 
 7. DIFF GATE — CI veto + tier-sized blind reviewer panel + arbiter-on-split.
@@ -503,21 +483,21 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       (added+deleted). Each RELAXED guard below that fires appends its tag to the `override:`
       field in state.md (comma-joined) — that field is this step's metric reference, surfaced in the
       `metrics:` line so a relaxed run is greppable.
-      - MIGRATIONS (HARD STOP — Override Policy rule 1) — if any changed file is a DB migration
+      - MIGRATIONS (hard rule 1) — if any changed file is a DB migration
         (`*/migrations/*`, or the repo's migration directory/format), auto has violated a
         non-negotiable rule: it must NEVER author a migration. Discard the change, write a
         `needs-migration` hand-off report to `feature-research/<task-id>/report.md`, set
         `stage: aborted` (abort surfaces as `outcome=ABORTED:needs-migration` in the metrics
         line — the metric reference for the migration guard), print it, and STOP.
-      - OTHER SENSITIVE / DEPENDENCY paths (RELAXED — Override Policy) — `.github/`, `*.yml` in
+      - OTHER SENSITIVE / DEPENDENCY paths (relaxed) — `.github/`, `*.yml` in
         `.github/`, CI config, `*.lock`, `package-lock.json`, `yarn.lock`, `Pipfile.lock`, dependency
         manifests, or secrets-like paths (`.env`, `*.pem`, `*.key`): auto MAY change these when the
         task requires it. Attach `needs-human` label as heads-up AND force `tier: critical`
         (extra scrutiny), record flagged paths, append `sensitive-paths` to `override:` — but do
         NOT abort and do NOT fail the gate.
-      - SCOPE (RELAXED — Override Policy) — if scope_paths was provided and changed files fall outside
+      - SCOPE (relaxed) — if scope_paths was provided and changed files fall outside
         it: record out-of-scope files, append `scope` to `override:`; do NOT fail the gate.
-      - RUNAWAY (RELAXED — Override Policy) — if diff exceeds 200 lines OR 20 files: record
+      - RUNAWAY (relaxed) — if diff exceeds 200 lines OR 20 files: record
         size as NOTE, append `runaway` to `override:`; do NOT fail the gate (panel + CI still
         judge the diff on merit).
       - RE-TIER on actual diff size, taking the MAX with the current tier (tier only escalates):
@@ -558,10 +538,12 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
          `FINDINGS: <count of blocking findings>`."
       MODEL TIERING (where the harness supports a per-invocation model override): size panelist
       model to tier — run TRIVIAL and NORMAL panelists on a faster/cheaper tier (sonnet), run
-      HARD and CRITICAL panelists on the reviewer default (state.md `review_model`/xhigh — `opus`,
-      or `fable` under `--fable`), since a missed bug at those tiers has real blast radius and a
-      stronger reviewer earns its cost there. Arbiter ALWAYS runs at the reviewer default
-      (`review_model`/xhigh) regardless of tier. If no override available, all panelists run at the
+      HARD and CRITICAL panelists on the reviewer default (state.md `review_model`, effort override
+      `xhigh` — `fable`, or `opus` under `--opus`), since a missed bug at those tiers has real blast
+      radius and a stronger reviewer earns its cost there. TRIVIAL/NORMAL panelists run at `high`
+      (reviewer frontmatter default). Arbiter ALWAYS runs at the reviewer default model with effort
+      `xhigh` regardless of tier. `<review_effort>` in the DIFF GATE banner = `xhigh` when tier is
+      HARD/CRITICAL, else `high`. If no override available, all panelists run at the
       reviewer default — model tiering is a cost optimization, not a correctness requirement. Record
       the model the panel actually ran on as `panel_model: <sonnet|opus|fable>` in state.md
       (the reviewer-default value when no override available and all panelists fell back to it) —
@@ -571,7 +553,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
 
    g. Resolve the gate (CI already passed — a red build short-circuited at 7c-iv and never reaches
       here). Count a `fix_first` as a refute. Arbiter is the reviewer-default quality gate over the
-      panel (runs at `review_model`/xhigh) — runs on every outcome EXCEPT a unanimous refute:
+      panel (runs at `review_model`, effort xhigh) — runs on every outcome EXCEPT a unanimous refute:
         - SPLIT — panel NOT unanimous (mix of ship and fix_first) → arbiter runs to resolve
           contested findings. Set `arbiter_trigger: split` in state.md.
         - UNANIMOUS SHIP — all panelists ship → arbiter ALWAYS runs as final sign-off over
@@ -600,7 +582,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       Record `arbiter: <ship|fix_first|none>` (`none` only on a unanimous refute, where no arbiter ran).
       GATE PASSES if: arbiter returned `ship` (it runs on every split and every unanimous ship) —
       AND tamper guard passed. (Scope / forbidden / dependency / runaway findings only attach the
-      `needs-human` label or a note in auto mode — see Override Policy — they do NOT fail the gate.)
+      `needs-human` label or a note in auto mode — see SANDBOX — they do not fail the gate.)
       GATE FAILS → rework (7h) if: arbiter returned `fix_first`, OR panel unanimously refuted
       (no arbiter ran).
       Set `diff_panel: <pass | killed-by-arbiter | killed-by-vote>`.
@@ -636,7 +618,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
    b. (BANNER RULE) Print the SHIP banner now, last line before the ship step.
 
    c. Determine labels: always add `auto-mode`. Add `needs-human` if sensitive/dependency paths
-      flagged (step 7d) OR planner confidence was ≤ 3 (step 3a, relaxed under the Override Policy) OR
+      flagged (step 7d) OR planner confidence was ≤ 3 (step 3a, relaxed, see SANDBOX) OR
       `open_questions > 0` (step 4g — unresolved business-context questions need a human) OR
       multi-repo run (cross-repo is higher-risk by default).
 
@@ -712,15 +694,11 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
 
    e. Push + open the draft PR(s) — once per repo in `repos:` with a non-empty diff (single-repo
       run = just the current repo). For each such repo, from its worktree (or `gh -R <owner/repo>`):
-      - Clean history (own branch only — Override Policy rule 2): squash this run's commits on
-        `<branch>` into a SINGLE well-described commit so the PR merges clean for tidy releases
-        (e.g. `git reset --soft <branch-base> && git commit -m "<subject>" -F <body-file>`). This
-        rewrites ONLY auto's own `anderson/auto/*` branch.
-      - Push: `git push --force-with-lease -u origin <branch>` (squash rewrote the branch;
-        force-with-lease permitted HERE — and ONLY here, on auto's own `anderson/auto/*` branch —
-        NEVER on the default / shared / human branch without explicit consent). CI veto at step 7c
-        may have already pushed this branch; this sends the final squashed state. No remote / push
-        fails → degrade gracefully: note it, print that repo's PR body as text.
+      - Squash this run's commits into one well-described commit (`git reset --soft <branch-base>
+        && git commit -m "<subject>" -F <body-file>`), then `git push --force-with-lease -u origin
+        <branch>` (hard rule 2: own `anderson/auto/*` branch only). CI veto at step 7c may have
+        pushed this branch already; this sends the final squashed state. No remote / push fails →
+        note it, print that repo's PR body as text.
       - Open: `gh pr create --draft --title "<title> [auto-mode]" --body-file <tmp> --label "auto-mode"`
         (+ `--label needs-human` per step 8c). If `gh` unavailable, print the body and note the
         human should open it. Capture each PR URL.
@@ -753,7 +731,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       task_id:      <task-id>
       pr_url:       <url or "see printed PR body above">
       branch:       <branch>
-      tier:         <trivial|normal|hard|critical>   panel_model: <sonnet|opus>
+      tier:         <trivial|normal|hard|critical>   panel_model: <sonnet|fable|opus>
       reviewers:    <n>   arbiter: <ship|fix_first|none> (trigger: <split|unanimous-ship|critical|none>)
       override:     <comma-joined relaxations applied (low-confidence,scope,runaway,sensitive-paths), or none>
       rework_rounds: <n>   replan_bounced: <yes|no>

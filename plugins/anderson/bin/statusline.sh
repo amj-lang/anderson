@@ -34,13 +34,13 @@ if [ -n "$st" ] && [ -f "$st" ]; then
   stage="$(field stage "$st")"
   task="$(field task "$st")"
   rmodel="$(field review_model "$st")"
-  rmodel="${rmodel:-opus}"
+  rmodel="${rmodel:-fable}"
   case "$stage" in
     plan)        who="THE ARCHITECT · opus/high" ;;
     grill)       who="THE INTERROGATOR · you" ;;
     plan_review) who="THE ORACLE · $rmodel/xhigh" ;;
     implement)   who="NEO · sonnet/medium" ;;
-    diff_review) who="AGENT SMITH · $rmodel/xhigh" ;;
+    diff_review) who="AGENT SMITH · $rmodel/high" ;;
     done)        who="shipped" ;;
     *)           who="${stage:-?}" ;;
   esac

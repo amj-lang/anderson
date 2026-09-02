@@ -5,15 +5,15 @@
 # /anderson:* slash commands instead. Requires the anderson plugin installed and the
 # `claude` CLI on PATH. Run from your repo root.
 #
-#   ./feature.sh start <task> "<goal>" [--fable]  # plan -> plan_review, halt
+#   ./feature.sh start <task> "<goal>" [--opus]   # plan -> plan_review, halt
 #   ./feature.sh --approve-plan <task>      # implement -> diff_review, halt
 #   ./feature.sh --approve-diff <task>      # ship: branch + commit + push + PR (guarded)
 #   ./feature.sh --rework <task>            # loop implement on checker findings
-# --fable (on `start`, at the end) runs the two review gates on Fable instead of Opus;
+# --opus (on `start`, at the end) runs the two review gates on Opus instead of the default Fable;
 # the choice persists in state.md, so the review model carries across the resumed sub-commands.
 set -euo pipefail
 ROOT="feature-research"; task="${2:-}"; dir="$ROOT/$task"; state="$dir/state.md"
-RM_SEED=opus; for _a in "$@"; do [ "$_a" = "--fable" ] && RM_SEED=fable; done
+RM_SEED=fable; for _a in "$@"; do [ "$_a" = "--opus" ] && RM_SEED=opus; done
 
 seed_state() {
   mkdir -p "$dir"
@@ -39,7 +39,7 @@ TPL
 }
 get() { grep -E "^$1:" "$state" | head -1 | sed -E "s/^$1:[[:space:]]*//; s/[[:space:]]*#.*//" || true; }
 set_field() { sed -i.bak -E "s|^($1:[[:space:]]*).*|\1$2|" "$state" && rm -f "$state.bak"; }
-rmodel() { local m; m="$(get review_model)"; echo "${m:-opus}"; }  # review-gate model; opus if unset (older state)
+rmodel() { local m; m="$(get review_model)"; echo "${m:-fable}"; }  # review-gate model; fable if unset
 run() { claude -p "$3" --model "$1" --permission-mode "$2" --output-format json | tee -a "$dir/run.log"; }
 
 _tty=1; [ -t 1 ] || _tty=0; case "${TERM:-}" in dumb|"") _tty=0 ;; esac

@@ -94,7 +94,7 @@ step. NEVER force-push; never touch an existing branch destructively.
    e2e output at step 1's item 5, visual proof at step 5, and the 🛠 How lives in the diff, so
    deleting scratch loses nothing.)
 
-7. (BANNER RULE) Print this SHIP banner (choose ending by COUNTING, not feel: N = task slug character count (every character, hyphens included); iteration = `iteration:` value in state.md (read fresh); ending = 0-based item at index (N + 6 + iteration) mod M; M = integer in "Pool (M endings):" label below; count list from 0; mod M always yields valid position (0 to M−1); label number must equal actual ending count. Do NOT pick "at random", do NOT default to first.) as the LAST framed line before the done line:
+7. (BANNER RULE) Print this SHIP banner as the LAST framed line before the done line:
    ```
      ╭─ ⌐■-■  SHIP ✓ · THE ONE · welcome to the real world
      │  "[one ending from the pool]"

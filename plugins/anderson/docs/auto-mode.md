@@ -11,7 +11,7 @@
 >   Plan errors are cheap; rigor is concentrated at the diff gate.
 > - **Diff panel (gate 7) is tier-sized 1/2/3 and runs in PARALLEL** (each reviewer writes its own
 >   file + returns a verdict, so no shared-state collision). The panel model is tier-sized (sonnet for
->   trivial/normal, opus for hard/critical), and an **opus arbiter** backstops every panel that doesn't
+>   trivial/normal, fable for hard/critical), and a **fable arbiter** backstops every panel that doesn't
 >   unanimously refute — resolving splits on merit and signing off unanimous ships — with a forced
 >   `## Options considered` (+/−) table, instead of a flat majority-vote.
 > - **CI veto runs first and short-circuits** a red build before reviewer tokens are spent.
@@ -181,11 +181,12 @@ Adapters (Linear, GitHub Issues, chat, CLI) are **out of scope for this doc** �
   each other (anchoring kills independence). Run **in parallel** — each writes its own review file and
   returns its verdict, so there is no shared-state collision.
 - Lenses (added in order): **correctness**, **regressions / security**, **does the diff match the plan?**
-- **Panel model is tiered** — trivial/normal panels run on **sonnet** (cost), hard/critical on **opus**
-  (a missed bug there has real blast radius). Effort is `xhigh` either way.
-- **Arbiter backstops every panel** — one **opus** arbiter runs on every outcome except a unanimous
+- **Panel model is tiered** — trivial/normal panels run on **sonnet** (cost), hard/critical on **fable**
+  (a missed bug there has real blast radius). Effort follows: `high` for sonnet panelists, `xhigh` for
+  fable panelists and the arbiter.
+- **Arbiter backstops every panel** — one **fable** arbiter runs on every outcome except a unanimous
   refute: it resolves a split **on merit, not headcount**, and on a unanimous *ship* it runs as a final
-  opus sign-off (independent re-review, no rubber-stamp). Justified in a required `## Options considered`
+  fable sign-off (independent re-review, no rubber-stamp). Justified in a required `## Options considered`
   (+/−) table. This replaces a flat ≥2/3 majority vote and the earlier "unanimous ship skips the arbiter"
   token-saver.
 - **CI is a veto, not a vote** — it runs FIRST and a red build short-circuits before any reviewer

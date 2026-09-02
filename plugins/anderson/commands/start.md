@@ -3,43 +3,30 @@ description: "Start the gated build loop: plan, grill the plan with you, then pl
 argument-hint: <task-slug> <one-line goal>
 allowed-tools: Bash(grep:*), Bash(echo:*)
 ---
-Parse "$ARGUMENTS": FIRST strip an optional `--fable` token from anywhere in it (it is a flag,
+Parse "$ARGUMENTS": FIRST strip an optional `--opus` token from anywhere in it (it is a flag,
 not content). THEN task slug = first word of what remains; goal = the rest.
 
 REVIEW MODEL: the plan-reviewer critique gate (PLAN_REVIEW) runs on the model in state.md
-`review_model:` — `opus` by default, `fable` when `--fable` was passed. Fable is the stronger
-critical analyst; Opus stays the default for the planner (generative), which `--fable` never
-touches. Effort stays xhigh either way. The field persists in state.md, so the diff-review gate
+`review_model:` — `fable` by default, `opus` when `--opus` was passed. Fable is the stronger
+critical analyst; Opus stays the default for the planner (generative), which `--opus` never
+touches. Plan-reviewer effort is xhigh either way. The field persists in state.md, so the diff-review gate
 in `/anderson:approve-plan` and `/anderson:rework` reads the same choice for this pipeline.
 
-BANNER RULE (every stage): finish ALL stage setup + state.md edits FIRST, then print
-the stage banner as the LAST line before the stage's work — immediately above the
-agent invocation (for GRILL: above your first question). Per stage: (1) setup,
-(2) banner, (3) work — NOTHING between (2) and (3). Never skip a banner; never two
-banners back-to-back; never any line between a banner and the agent line.
+BANNER RULE: finish setup and state.md edits, then print the banner as the last line before
+the agent call.
 
-QUOTE RULE (every banner): pick by COUNTING, never by feel. N = character count of
-the task slug (every char, hyphens included); iteration = `iteration:` value read
-fresh from state.md (at that point it already reflects this command's increment).
-Quote = the 0-based item at index (N + offset + iteration) mod M — offset is given
-per banner; M = the integer in that pool's "Pool (M):" label (the label number must
-always equal the actual item count; count the list from 0; mod M always yields a
-valid 0..M−1). Never "at random"; never default to the first.
+QUOTE: pick one line from the stage's pool; vary it across stages.
 
-SEQUENCING RULE: stages are STRICTLY SEQUENTIAL; each consumes the previous one's
-output — the GRILL hardens the plan.md the planner wrote; the plan-reviewer reads
-that grilled plan.md. Invoke exactly ONE subagent per message, as the LAST thing in
-it, then STOP until it fully finishes. NEVER two stage agents in one message/tool
-block — that runs them in PARALLEL: the plan-reviewer judges a plan not yet written
-or grilled, and the human grill gets skipped. Planner (step 3) finishes → grill
-(step 4, your own interactive step — not a subagent) completes → only then the
-plan-reviewer (step 5).
+SEQUENCING: stages are sequential because each reads the previous stage's file output
+(the reviewer reads the diff + audit.md the implementer just wrote). Invoke one subagent
+per message, as its last line, and wait for it to finish — two Agent calls in one message
+run in parallel and the reviewer judges files that don't exist yet.
 
 1. Make sure the scratch dir is ignored by git (it's disposable):
    if `feature-research/` is not already in `.gitignore`, append it.
 2. If `feature-research/<task>/state.md` is absent, create it with this EXACT block
-   (substitute `<task>` with the task slug; set `review_model:` to `fable` if `--fable` was
-   parsed from $ARGUMENTS, else leave `opus`). This block is machine-read by
+   (substitute `<task>` with the task slug; set `review_model:` to `opus` if `--opus` was
+   parsed from $ARGUMENTS, else leave `fable`). This block is machine-read by
    `hooks/scheduler.py`, `commands/status.md`, and `bin/feature.sh` — byte-faithful:
    column-0 `key:`, the two STATE comments, no markdown bullets or bold:
    ```
@@ -51,7 +38,7 @@ plan-reviewer (step 5).
    iteration:       0
    max_iterations:  2
    exit_rule:       all tests pass and lint clean, only major issues fixed
-   review_model:    opus
+   review_model:    fable
    source_url:      none
    plan_verdict:    pending
    diff_verdict:    pending
@@ -81,7 +68,7 @@ plan-reviewer (step 5).
      against these files.
    Pass to the planner: goal + ticket criteria (verbatim) + the `design/` path when present.
 
-3. (BANNER + QUOTE RULES, offset +1) Print this PLAN banner as the LAST line before
+3. Print this PLAN banner as the LAST line before
    invoking the planner, so it sits right above the agent:
    ```
      ╭─ ⌐■-■  PLAN · 1/5 · THE ARCHITECT · opus/high
@@ -90,7 +77,7 @@ plan-reviewer (step 5).
    ```
    Pool (24): "Design twice, so reality only has to happen once." / "The most dangerous flaw is the one the blueprint calls a feature." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it." / "A plan is a promise you make to your future self at 3 a.m." / "Every line you don't write is a line you never debug." / "Decide the hard things on paper, where erasing is cheap." / "The shape of the solution hides in the shape of the problem." / "Cut the scope until it bleeds, then ship the part that lived." / "A blueprint nobody questions is a blueprint nobody read." / "Denial is the most predictable of all human responses." / "Hope: your greatest strength and your greatest weakness." / "As you adequately put, the problem is choice." / "Your life is the sum of a remainder of an unbalanced equation." / "Ergo: vis-à-vis, concordantly." / "There are levels of survival we are prepared to accept." / "I can only show you the door; you are the one who has to walk through it." / "You have to let it all go — fear, doubt, and disbelief." / "You take the red pill, and I show you how deep the rabbit hole goes." / "What you know you can't explain, but you feel it." / "The blueprint is cheaper than the rebuild." / "Name the blast radius before it names you." / "A plan survives contact only if it expected the contact." / "Erase on paper; never in production."
    Then immediately invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md. Set stage=grill.
-4. (BANNER + QUOTE RULES, offset +2) Print this GRILL banner as the LAST line before
+4. Print this GRILL banner as the LAST line before
    your FIRST grilling question:
    ```
      ╭─ ⌐■-■  GRILL · 2/5 · THE INTERROGATOR · you
@@ -166,7 +153,7 @@ plan-reviewer (step 5).
      decides the big ones, and it can NEVER skip an LB row. If any LB row is still ✗, do not exit:
      print the unconfirmed LB rows and ask me to resolve them. Only once every LB row is ✓ set
      stage=plan_review and continue to the reviewer.
-5. (BANNER + QUOTE RULES, offset +3) Print this PLAN-REVIEW banner as the LAST line
+5. Print this PLAN-REVIEW banner as the LAST line
    before invoking the plan-reviewer (substitute `<review_model>` with the state.md value):
    ```
      ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · <review_model>/xhigh
