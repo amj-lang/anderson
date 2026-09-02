@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.27.0-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.28.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -28,9 +28,9 @@ plan ─▶ grill ─▶ plan_review ──[ YOU ]──▶ implement ─▶ dif
 | --- | ------------- | ------------------------ | --------------- | ------------- | -------------------------------------------------------------------------------------------------- |
 | 🏛  | `plan`        | THE ARCHITECT            | opus · high     | —             | drafts `plan.md`                                                                                   |
 | 🕶  | `grill`       | THE INTERROGATOR · *you* | — (human)       | 🛑 human      | interrogates the plan one question at a time; your answers harden it                               |
-| 🔮  | `plan_review` | THE ORACLE               | opus · xhigh    | 🛑 **GATE 1** | edits the plan inline + appends review to `## 🔭 Review`; verdict `ship` / `fix_first` / `regrill` |
+| 🔮  | `plan_review` | THE ORACLE               | fable · xhigh   | 🛑 **GATE 1** | edits the plan inline + appends review to `## 🔭 Review`; verdict `ship` / `fix_first` / `regrill` |
 | 🟢  | `implement`   | NEO                      | sonnet · medium | —             | writes the code + `audit.md`, files evidence per acceptance criterion                              |
-| 🕴  | `diff_review` | AGENT SMITH              | opus · xhigh    | 🛑 **GATE 2** | independent, read-only diff review; blocks on any unproven criterion                               |
+| 🕴  | `diff_review` | AGENT SMITH              | fable · xhigh   | 🛑 **GATE 2** | independent, read-only diff review; blocks on any unproven criterion                               |
 | 🔑  | `ship`        | THE ONE                  | —               | —             | branch `anderson/<slug>` + commit + push + PR, scratch cleaned                                     |
 
 `regrill` loops plan-review back to **grill**; `fix_first` loops the implementer (capped by `max_iterations`). Both gates halt unconditionally, even on a `ship` verdict — on a TL;DR card (what · criteria/proof counts · scorecard · verdict), so you open the full plan only when a line raises doubt.
@@ -54,10 +54,10 @@ ingest ─▶ baseline ─▶ plan ─▶ plan-gate ─▶ RED ─▶ implement 
 | 📥  | `ingest`    | THE OPERATOR  | —                                                | normalize the TaskSpec, derive acceptance criteria, acquire a run-lock on `task-id`                                             |
 | 🛡  | `baseline`  | THE GUARDIAN  | —                                                | `git fetch`, isolate a worktree, cut a branch, run the suite — **must be green** (red baseline → abort)                         |
 | 🏛  | `plan`      | THE ARCHITECT | opus · high                                      | draft `plan.md`; confidence gate; route a difficulty **tier** (trivial/normal/hard/critical)                                    |
-| 🔮  | `plan-gate` | THE ORACLE    | opus · xhigh                                     | criteria-coverage check + **one** plan-reviewer (skipped on a trivial tier)                                                     |
+| 🔮  | `plan-gate` | THE ORACLE    | fable · xhigh                                    | criteria-coverage check + **one** plan-reviewer (skipped on a trivial tier)                                                     |
 | 🧪  | `RED`       | THE SABOTEUR  | —                                                | write a failing test for the criteria, confirm it fails on an **assertion** (not a load error), then content-hash **freeze** it |
 | 🟢  | `implement` | NEO           | sonnet · medium                                  | make the red test green + `audit.md`; implementer self-reviews first                                                            |
-| 🕴  | `diff-gate` | AGENT SMITH   | panel sonnet/opus · xhigh · arbiter opus · xhigh | **CI veto** (red build short-circuits) → tier-sized **blind panel** (1/2/3) → **opus arbiter** backstop                         |
+| 🕴  | `diff-gate` | AGENT SMITH   | panel sonnet/fable · xhigh · arbiter fable · xhigh | **CI veto** (red build short-circuits) → tier-sized **blind panel** (1/2/3) → **fable arbiter** backstop                         |
 | 🔑  | `ship`      | THE ONE       | —                                                | squash to one clean commit, push the branch, open a **draft** PR (never auto-merge)                                             |
 | 📨  | `report`    | THE MESSENGER | —                                                | structured terminal result + a machine-greppable `metrics:` line                                                                |
 
@@ -66,9 +66,9 @@ ingest ─▶ baseline ─▶ plan ─▶ plan-gate ─▶ RED ─▶ implement 
 | Replaces                | Mechanism                                                                                               | Model · effort                                                 | Directive                                                                                                                            |
 | ----------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | *both gates, objective* | **CI veto** — GitHub Actions run, or the in-tree suite as fallback                                      | —                                                              | runs FIRST; a red build/suite fails the gate **before a single reviewer token is spent**                                             |
-| **plan gate**           | criteria check + **one plan-reviewer** (skip trivial)                                                   | opus · xhigh                                                   | refute the plan; map every criterion to a step; default reject                                                                       |
-| **diff gate**           | **tier-sized blind panel** — 1/2/3 reviewers, parallel                                                  | **sonnet** (trivial/normal) · **opus** (hard/critical) · xhigh | each judges ONE lens — correctness · regressions+security · plan-match — from the diff+plan only, blind to `audit.md` and each other |
-| **diff arbiter**        | **one reviewer**, runs on every split **and** every unanimous ship (skipped only on a unanimous refute) | opus · xhigh                                                   | resolve on merit, not headcount; on a clean ship, re-review rather than rubber-stamp; forced `## Options considered` (+/−) table     |
+| **plan gate**           | criteria check + **one plan-reviewer** (skip trivial)                                                   | fable · xhigh                                                  | refute the plan; map every criterion to a step; default reject                                                                       |
+| **diff gate**           | **tier-sized blind panel** — 1/2/3 reviewers, parallel                                                  | **sonnet** (trivial/normal) · **fable** (hard/critical) · xhigh| each judges ONE lens — correctness · regressions+security · plan-match — from the diff+plan only, blind to `audit.md` and each other |
+| **diff arbiter**        | **one reviewer**, runs on every split **and** every unanimous ship (skipped only on a unanimous refute) | fable · xhigh                                                  | resolve on merit, not headcount; on a clean ship, re-review rather than rubber-stamp; forced `## Options considered` (+/−) table     |
 
 Plus:
 
@@ -98,14 +98,14 @@ All commands are namespaced `/anderson:<command>` — bare `/anderson` does not 
 
 | Command        | Invoke                                           | What it does                                                                                                                                                               | When to use                                            |
 | -------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `start`        | `/anderson:start <slug> <goal> [--fable]`        | **Entry point** (gated). Normalizes ticket/design refs into scratch, seeds state, plans, **grills you** one question at a time, plan-reviews. Halts at 🛑 Gate 1. `--fable` → review gates on Fable.                    | Begin any gated task.                                  |
+| `start`        | `/anderson:start <slug> <goal> [--opus]`         | **Entry point** (gated). Normalizes ticket/design refs into scratch, seeds state, plans, **grills you** one question at a time, plan-reviews. Halts at 🛑 Gate 1. `--fable` → review gates on Fable.                    | Begin any gated task.                                  |
 | `approve-plan` | `/anderson:approve-plan <slug>`                  | Pass Gate 1 → implement + independent diff-review. Halts at 🛑 Gate 2.                                                                                                     | After you've read `plan.md` + `## 🔭 Review`.          |
 | `approve-diff` | `/anderson:approve-diff <slug>`                  | Pass Gate 2 = **SHIP**: branch + commit + push + PR (all guarded), clean scratch. Never force-pushes.                                                                      | After you've read the diff + review.                   |
 | `rework`       | `/anderson:rework <slug>`                        | Loop the implementer on the "Still open" blockers only, then re-review. Back to Gate 2. Bounded by `max_iterations`.                                                       | Diff review returned `fix_first`.                      |
 | `status`       | `/anderson:status <slug>`                        | Dashboard: stage, next agent + model/effort, both verdicts, iteration vs max, model-override check. Read-only.                                                             | Check where a run is, or resume later.                 |
 | `demo`         | `/anderson:demo`                                 | Zero-token dry-run: prints every stage banner + both gate lines. No agents, no files.                                                                                      | Preview the UX before a real run.                      |
-| `auto`         | `/anderson:auto <task-id> <title> [body\|@file] [--fable]` | **Autonomous** end-to-end → draft PR, no human gates (see [auto mode](#auto-mode--the-autonomous-pipeline)). `body` is optional inline text or `@path` to a TaskSpec file; `--fable` → review gates on Fable. | Well-scoped, unattended fixes you'll review at the PR. |
-| `help`         | `/anderson:help`                                 | Static quick-reference card: every command, arguments, gates, `--fable`. Reads nothing, spends no agent tokens.                                                            | Forgot an invocation or what `--fable` does.           |
+| `auto`         | `/anderson:auto <task-id> <title> [body\|@file] [--opus]` | **Autonomous** end-to-end → draft PR, no human gates (see [auto mode](#auto-mode--the-autonomous-pipeline)). `body` is optional inline text or `@path` to a TaskSpec file; `--fable` → review gates on Fable. | Well-scoped, unattended fixes you'll review at the PR. |
+| `help`         | `/anderson:help`                                 | Static quick-reference card: every command, arguments, gates, `--opus`. Reads nothing, spends no agent tokens.                                                            | Forgot an invocation or what `--fable` does.           |
 
 **Our suggestions.** First-timers: run `/anderson:demo` to see the whole flow for free. For everyday work drive the gated loop `start → approve-plan → approve-diff` (with `rework` between gates as needed) — the two human gates are the point. Reach for `auto` only when the task is well-scoped **and** the suite is green; always review its draft PR. For CI / walk-away runs use the flag-driven headless runner `bin/feature.sh` (`start` / `--approve-plan` / `--approve-diff` / `--rework`) — see [Headless / CI](#headless--ci).
 

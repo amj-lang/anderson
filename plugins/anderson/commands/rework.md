@@ -6,8 +6,8 @@ Task slug = "$ARGUMENTS". Blocking findings are already in state.md "Still open"
 Run exactly the implement → diff_review → halt sequence from approve-plan,
 incrementing iteration and stopping if it exceeds max_iterations.
 
-REVIEW MODEL: the diff-review gate runs on the model in state.md `review_model:` (`opus` default,
-`fable` if the pipeline was started with `--fable`; missing field → treat as `opus`). Read it
+REVIEW MODEL: the diff-review gate runs on the model in state.md `review_model:` (`fable` default,
+`opus` if the pipeline was started with `--opus`; missing field → treat as `fable`). Read it
 fresh; the implementer is unaffected.
 
 BANNER RULE: state.md edit FIRST, then each banner as the LAST line before

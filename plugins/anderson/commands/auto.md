@@ -3,17 +3,17 @@ description: "Run the full plan → implement → review pipeline non-halting to
 argument-hint: <task-id> <title> [body|@taskspec-file]
 allowed-tools: Bash, Read, Edit, Write
 ---
-Parse $ARGUMENTS: FIRST strip an optional `--fable` token from anywhere in $ARGUMENTS
-(it is a flag, not content) — if present, the two review gates run on Fable instead of
-Opus (see REVIEW MODEL below); record it for the state seed. THEN from the remaining
+Parse $ARGUMENTS: FIRST strip an optional `--opus` token from anywhere in $ARGUMENTS
+(it is a flag, not content) — if present, the two review gates run on Opus instead of
+the default Fable (see REVIEW MODEL below); record it for the state seed. THEN from the remaining
 words: first word = task-id (run-lock key + state dir name); second word = title;
 remainder = body (or @path to TaskSpec file on disk). task-id and title required;
 body optional (acceptance_criteria derived if absent).
 
 REVIEW MODEL: the two critique gates (PLAN GATE plan-reviewer, DIFF GATE reviewer panel
-+ arbiter) run on the model in state.md `review_model:` — `opus` by default, `fable` when
-`--fable` was passed. Fable is the stronger critical analyst; Opus stays the default for the
-generative stages (planner, implementer), which `--fable` never touches. Effort stays xhigh
++ arbiter) run on the model in state.md `review_model:` — `fable` by default, `opus` when
+`--opus` was passed. Fable is the stronger critical analyst; Opus stays the default for the
+generative stages (planner, implementer), which `--opus` never touches. Effort stays xhigh
 either way. Every banner and invocation below reads `review_model` from state.md.
 
 BANNER RULE (every stage below): finish ALL setup and state.md edits for stage FIRST,
@@ -186,7 +186,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       ci_conclusion:       none
       red_reason:          none
       tier:                pending
-      review_model:        opus
+      review_model:        fable
       panel_model:         pending
       reviewers:           0
       arbiter:             none
@@ -204,7 +204,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       ## ❓ Open questions
       ```
       Where `<slug>` = title lowercased, spaces replaced with hyphens, truncated to 30 chars.
-      Set `review_model:` to `fable` if the `--fable` flag was parsed from $ARGUMENTS, else `opus`.
+      Set `review_model:` to `opus` if the `--opus` flag was parsed from $ARGUMENTS, else `fable`.
       If file already exists (re-run after abort), overwrite with this fresh block.
 
    f. Parse body/acceptance_criteria: if body present, scan for an "acceptance criteria",
@@ -558,8 +558,8 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
          `FINDINGS: <count of blocking findings>`."
       MODEL TIERING (where the harness supports a per-invocation model override): size panelist
       model to tier — run TRIVIAL and NORMAL panelists on a faster/cheaper tier (sonnet), run
-      HARD and CRITICAL panelists on the reviewer default (state.md `review_model`/xhigh — `opus`,
-      or `fable` under `--fable`), since a missed bug at those tiers has real blast radius and a
+      HARD and CRITICAL panelists on the reviewer default (state.md `review_model`/xhigh — `fable`,
+      or `opus` under `--opus`), since a missed bug at those tiers has real blast radius and a
       stronger reviewer earns its cost there. Arbiter ALWAYS runs at the reviewer default
       (`review_model`/xhigh) regardless of tier. If no override available, all panelists run at the
       reviewer default — model tiering is a cost optimization, not a correctness requirement. Record
@@ -753,7 +753,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       task_id:      <task-id>
       pr_url:       <url or "see printed PR body above">
       branch:       <branch>
-      tier:         <trivial|normal|hard|critical>   panel_model: <sonnet|opus>
+      tier:         <trivial|normal|hard|critical>   panel_model: <sonnet|fable|opus>
       reviewers:    <n>   arbiter: <ship|fix_first|none> (trigger: <split|unanimous-ship|critical|none>)
       override:     <comma-joined relaxations applied (low-confidence,scope,runaway,sensitive-paths), or none>
       rework_rounds: <n>   replan_bounced: <yes|no>

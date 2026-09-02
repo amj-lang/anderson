@@ -34,7 +34,7 @@ if [ -n "$st" ] && [ -f "$st" ]; then
   stage="$(field stage "$st")"
   task="$(field task "$st")"
   rmodel="$(field review_model "$st")"
-  rmodel="${rmodel:-opus}"
+  rmodel="${rmodel:-fable}"
   case "$stage" in
     plan)        who="THE ARCHITECT · opus/high" ;;
     grill)       who="THE INTERROGATOR · you" ;;

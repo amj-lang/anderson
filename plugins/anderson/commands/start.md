@@ -3,12 +3,12 @@ description: "Start the gated build loop: plan, grill the plan with you, then pl
 argument-hint: <task-slug> <one-line goal>
 allowed-tools: Bash(grep:*), Bash(echo:*)
 ---
-Parse "$ARGUMENTS": FIRST strip an optional `--fable` token from anywhere in it (it is a flag,
+Parse "$ARGUMENTS": FIRST strip an optional `--opus` token from anywhere in it (it is a flag,
 not content). THEN task slug = first word of what remains; goal = the rest.
 
 REVIEW MODEL: the plan-reviewer critique gate (PLAN_REVIEW) runs on the model in state.md
-`review_model:` — `opus` by default, `fable` when `--fable` was passed. Fable is the stronger
-critical analyst; Opus stays the default for the planner (generative), which `--fable` never
+`review_model:` — `fable` by default, `opus` when `--opus` was passed. Fable is the stronger
+critical analyst; Opus stays the default for the planner (generative), which `--opus` never
 touches. Effort stays xhigh either way. The field persists in state.md, so the diff-review gate
 in `/anderson:approve-plan` and `/anderson:rework` reads the same choice for this pipeline.
 
@@ -38,8 +38,8 @@ plan-reviewer (step 5).
 1. Make sure the scratch dir is ignored by git (it's disposable):
    if `feature-research/` is not already in `.gitignore`, append it.
 2. If `feature-research/<task>/state.md` is absent, create it with this EXACT block
-   (substitute `<task>` with the task slug; set `review_model:` to `fable` if `--fable` was
-   parsed from $ARGUMENTS, else leave `opus`). This block is machine-read by
+   (substitute `<task>` with the task slug; set `review_model:` to `opus` if `--opus` was
+   parsed from $ARGUMENTS, else leave `fable`). This block is machine-read by
    `hooks/scheduler.py`, `commands/status.md`, and `bin/feature.sh` — byte-faithful:
    column-0 `key:`, the two STATE comments, no markdown bullets or bold:
    ```
@@ -51,7 +51,7 @@ plan-reviewer (step 5).
    iteration:       0
    max_iterations:  2
    exit_rule:       all tests pass and lint clean, only major issues fixed
-   review_model:    opus
+   review_model:    fable
    source_url:      none
    plan_verdict:    pending
    diff_verdict:    pending

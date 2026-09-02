@@ -2,7 +2,7 @@
 name: reviewer
 description: "Independent diff reviewer. Did not write the code. Use at pipeline stage `diff_review`."
 tools: Read, Grep, Glob, Bash, Edit
-model: opus
+model: fable
 effort: xhigh
 color: orange
 ---

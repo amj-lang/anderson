@@ -5,8 +5,8 @@ argument-hint: <task-slug>
 Task slug = "$ARGUMENTS". In state.md set plan_verdict=ship, gate=none, iteration += 1.
 If iteration > max_iterations, print `■ EXIT · hit max_iterations` and STOP.
 
-REVIEW MODEL: the diff-review gate runs on the model in state.md `review_model:` (`opus` default,
-`fable` if the pipeline was started with `--fable`; missing field → treat as `opus`). Read it
+REVIEW MODEL: the diff-review gate runs on the model in state.md `review_model:` (`fable` default,
+`opus` if the pipeline was started with `--opus`; missing field → treat as `fable`). Read it
 fresh; the implementer is unaffected.
 
 BANNER RULE: per stage, state.md edit FIRST, then banner as LAST line before

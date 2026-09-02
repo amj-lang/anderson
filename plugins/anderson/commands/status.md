@@ -11,8 +11,8 @@ State for "$ARGUMENTS":
 
 Summarize for me: current stage, which agent runs next and at what model/effort,
 both verdicts, and iteration vs max_iterations. For the review stages (plan-review,
-diff-review) the model is state.md `review_model` (`opus` default, `fable` when the
-pipeline was started with `--fable`); a missing field means an older run — treat as `opus`.
+diff-review) the model is state.md `review_model` (`fable` default, `opus` when the
+pipeline was started with `--opus`); a missing field means an older run — treat as `fable`.
 If `CLAUDE_CODE_SUBAGENT_MODEL` is set, report it as the override in effect over the
 stage's declared model, not as an error to clear. One short block, no padding. If stage is
 `grill`, the next step is the interactive grilling of the plan (no subagent, no model)

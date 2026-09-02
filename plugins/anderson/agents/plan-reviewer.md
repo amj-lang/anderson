@@ -2,7 +2,7 @@
 name: plan-reviewer
 description: "Senior reviewer that improves the plan directly. Assumed stronger than the planner: edits feature-research/<task>/plan.md in place and explains its divergences. Use at pipeline stage `plan_review`."
 tools: Read, Grep, Glob, Bash, Edit, Write
-model: opus
+model: fable
 effort: xhigh
 color: purple
 ---

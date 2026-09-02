@@ -20,9 +20,9 @@ rst(){  if [ "$color" -eq 1 ]; then printf '\033[0m';    fi; }
 
 case "$stage" in
   plan)        persona="THE ARCHITECT"; agent="planner";       spec="opus · high";     act="scoping → plan.md";         n="1/4"; mood="design";;
-  plan_review) persona="THE ORACLE";    agent="plan-reviewer";  spec="opus · xhigh";    act="editing plan.md";           n="2/4"; mood="insight";;
+  plan_review) persona="THE ORACLE";    agent="plan-reviewer";  spec="fable · xhigh";    act="editing plan.md";           n="2/4"; mood="insight";;
   implement)   persona="NEO";           agent="implementer";    spec="sonnet · medium"; act="executing plan.md";         n="3/4"; mood="action";;
-  diff_review) persona="AGENT SMITH";   agent="reviewer";       spec="opus · xhigh";    act="read-only diff review";     n="4/4"; mood="adversary";;
+  diff_review) persona="AGENT SMITH";   agent="reviewer";       spec="fable · xhigh";    act="read-only diff review";     n="4/4"; mood="adversary";;
   ship|done)   persona="THE ONE";       agent="";               spec="";                act="welcome to the real world"; n="✓";   mood="mentor";;
   *)           persona="ANDERSON";      agent="$stage";         spec="";                act="";                          n="•";   mood="";;
 esac
