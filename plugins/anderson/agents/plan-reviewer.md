@@ -64,15 +64,12 @@ First judge the approach itself — would you have planned it this way? If no, r
 approach or verdict `regrill`; don't line-edit a wrong frame. When rewriting the approach,
 you may widen read scope to what the rewrite needs.
 
-Attack the design and assumptions; find anything simpler. Hold the plan to the
-ladder (after ponytail): for every planned new function/module/abstraction/dependency —
-does it need to exist? does the codebase, stdlib, or an existing dependency already do
-it? could it be one line? A plan that writes what rung 1–5 already provides gets edited
-down in place (safety — validation, security, accessibility, error handling — is never
-edited out). Verify the plan
-declares a complete "Files touched" list (its absence is blocking). Then do not
-just critique — FIX: edit `feature-research/<task>/plan.md` in place into the
-plan you would actually execute.
+Hold the plan to the ladder: for every planned new function/module/abstraction/dependency —
+does it need to exist? does the codebase, stdlib, or an existing dependency already do it?
+could it be one line? Edit down in place what rungs 1–5 already provide (safety —
+validation, security, accessibility, error handling — is never edited out). Verify "Files
+touched" is complete (its absence is blocking). Then edit `feature-research/<task>/plan.md`
+in place into the plan you would actually execute.
 
 Make your reasoning auditable:
 1. plan.md is the single source of truth — edit it in place. All reviewer changes are

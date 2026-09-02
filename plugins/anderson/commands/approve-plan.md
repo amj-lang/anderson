@@ -14,18 +14,16 @@ the plan's `## 📈 Scorecard` shows Risk ≥ 8 or the change touches security, 
 management, concurrency, or OS/filesystem/process boundaries — pass `effort xhigh` as the
 per-invocation override and print `<review_effort>` = `xhigh` in the banner; else `high`.
 
-BANNER RULE: per stage, state.md edit FIRST, then banner as LAST line before
-invoking that stage's agent — nothing between banner and agent line; never
-skip a banner.
+BANNER RULE: finish setup and state.md edits, then print the banner as the last line before
+the agent call. Both stages get one — IMPLEMENT before the implementer, DIFF_REVIEW before
+the reviewer.
 
-SEQUENCING RULE: stages below are STRICTLY SEQUENTIAL — reviewer consumes the
-implementer's file outputs (reads the diff + audit.md just written). Invoke
-exactly ONE subagent per message, as the LAST thing in it, then STOP until it
-fully finishes. NEVER emit both stage agents in same message / same tool block —
-that runs them in PARALLEL and the reviewer judges a diff and audit.md that
-don't exist yet. Step 2 begins only after step 1's implementer has stopped.
+SEQUENCING: stages are sequential because each reads the previous stage's file output
+(the reviewer reads the diff + audit.md the implementer just wrote). Invoke one subagent
+per message, as its last line, and wait for it to finish — two Agent calls in one message
+run in parallel and the reviewer judges files that don't exist yet.
 
-1. Set stage=implement, then (BANNER RULE) print this IMPLEMENT banner (choose quote by COUNTING, not feel: N = task slug character count (every character, hyphens included); iteration = `iteration:` value in state.md (read fresh — already reflects this command's increment); quote = 0-based item at index (N + 4 + iteration) mod M; M = integer in "Pool (M):" label below; count list from 0; mod M always yields valid position (0 to M−1); label number must equal actual item count. Do NOT pick "at random", do NOT default to first.) as the LAST line before invoking the implementer:
+1. Set stage=implement, then (BANNER RULE) print this IMPLEMENT banner as the LAST line before invoking the implementer:
    ```
      ╭─ ⌐■-■  IMPLEMENT · 4/5 · NEO · sonnet/medium
      │  "[one quote from the pool]"
@@ -34,7 +32,7 @@ don't exist yet. Step 2 begins only after step 1's implementer has stopped.
    Pool (24): "Make it small enough to be wrong cheaply." / "Ship the truth, not the hope." / "One reviewable step beats ten clever ones." / "Prove it, then trust it." / "Code is read far more than it is run; write for the reader." / "The first version should be obvious, not impressive." / "Touch only what the plan told you to touch." / "A clever line today is a confused colleague tomorrow." / "Build the boring thing well before the interesting thing at all." / "Done is a diff someone else can understand." / "I know kung fu." / "There is no spoon." / "Don't think you are; know you are." / "There is a difference between knowing the path and walking the path." / "Stop trying to hit me and hit me." / "Guns. Lots of guns." / "I didn't say it would be easy; I just said it would be the truth." / "Free your mind." / "He is beginning to believe." / "That's why it's going to work." / "Change the diff, not the mandate." / "Small enough to revert is small enough to trust." / "Touch what the plan named; leave the rest asleep." / "Stop trying to be clever and be correct."
    Then invoke the **implementer** subagent: execute plan.md; on
    a rework loop fix only "Still open". Writes audit.md. Set stage=diff_review.
-2. (BANNER RULE) Print this DIFF-REVIEW banner (choose quote by COUNTING, not feel: N = task slug character count (every character, hyphens included); iteration = `iteration:` value in state.md (read fresh — already reflects this command's increment); quote = 0-based item at index (N + 5 + iteration) mod M; M = integer in "Pool (M):" label below; count list from 0; mod M always yields valid position (0 to M−1); label number must equal actual item count. Do NOT pick "at random", do NOT default to first.) as the LAST line before invoking the reviewer (substitute `<review_model>` with the state.md value):
+2. (BANNER RULE) Print this DIFF-REVIEW banner as the LAST line before invoking the reviewer (substitute `<review_model>` with the state.md value):
    ```
      ╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · <review_model>/<review_effort>
      │  "[one quote from the pool]"

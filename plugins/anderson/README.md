@@ -515,6 +515,12 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
   stays `xhigh`. **Two Fable 5.1 prompt snippets** (from Anthropic's prompting guide): both reviewers
   batch independent reads into one turn; the plan-reviewer edits `plan.md` surgically instead of
   rewriting it.
+  **Prompt audit** (`/claude-api prompt-audit`): quote-selection arithmetic replaced by "pick one",
+  duplicated quote pools collapsed, `auto.md` override-policy changelog rewritten as current rules,
+  sequencing/banner rules restated once at normal volume, dead self-review reference and attribution
+  asides removed. −130 lines of command surface. Bench (2×2, same fixture, `/anderson:approve-plan`):
+  sequencing held in 4/4 runs; reviewer verdict vocabulary now valid in 2/2 (was `rework` 2/2 before);
+  cost −36%, wall time −40% (confounded with the reviewer effort drop).
 - **0.27.0** — **Dated model IDs removed, per-token prices dropped, persistent override
   documented, statusline follows the active review model.** The two dated model-ID strings in
   `docs/auto-mode-handoff.md` are gone, along with the per-token figures next to them — a new CI

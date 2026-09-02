@@ -24,26 +24,11 @@ skip banner; never print two banners back-to-back. Unlike gated commands, this c
 NEVER prints a GATE line and NEVER halts for a human — self-sequences all 9 steps in one turn.
 Terminal states: SHIP (stage: done, draft PR) or abort (stage: aborted with structured report).
 
-AUTO-MODE OVERRIDE POLICY (operator opt-in — GOVERNS steps below; where later step conflicts,
-THIS section wins). auto mode runs unattended, expected to FINISH task, not bail to human
-for soft guardrails. Own branch + draft PR are its SANDBOX: inside that PR it may create
-draft, push to it, update description, squash own commits. Must not reach outside it.
-
-RELAX (do NOT abort or stop run for these — push through, complete task, NOTE
-condition under `## Done so far` + in PR body so reviewer sees it):
-- Planner confidence ≤ 3 (step 3a) — proceed; record low confidence, add `needs-human` label
-  at SHIP instead of aborting.
-- Runaway-refactor cap >200 lines / >20 files (step 7d) — proceed; record size; do NOT fail gate.
-- scope_paths violations (step 7d) — proceed; note out-of-scope files; do NOT fail gate.
-- Sensitive NON-migration paths — `.github/`, CI config, `*.lock`/lockfiles, dependency manifests,
-  `.env`, `*.pem`, `*.key` (step 7d) — auto MAY change these when task requires; attach
-  `needs-human` label as heads-up but do NOT abort, do NOT fail gate.
-
-KEEP unchanged (verification engine + cost backstops, NOT blockers — stay exactly
-as written): baseline-green precondition (step 2); test_cmd resolution incl. needs-spec when
-truly un-inferable (verification needs test command); RED + red-for-right-reason (step 5);
-test-tamper guard (7b); CI veto (7c); blind panel + arbiter (7f/7g); thrash breaker / replan
-bounce / max_iterations budget (7h).
+SANDBOX: auto runs unattended and finishes the task. Its own branch + draft PR are the
+sandbox — it may create the draft, push to it, edit its description, squash its own
+commits — and it never reaches outside them. Soft guardrails (low planner confidence,
+diff size, scope_paths, sensitive non-migration paths) are recorded and surfaced with a
+`needs-human` label, not treated as stop conditions; the steps below say where.
 
 NON-NEGOTIABLE HARD RULES (no override, ever):
 1. NEVER author or apply a database migration. If task requires schema/data migration, STOP:
@@ -130,11 +115,7 @@ REPORT banner (stage offset 9):
 ```
 REPORT pool (14): "The result is only as good as the evidence behind it." / "State the outcome; show your work." / "A structured report is a gift to the next person in the chain." / "Name the blockers before the blockers name you." / "The human needs the map, not just the destination." / "Criteria in; evidence out." / "If you can't report it clearly, you don't understand it yet." / "The PR is the answer; the report is the reasoning." / "Leave breadcrumbs: someone will need to retrace this." / "End with the truth, whatever it is." / "A metric unrecorded is a lesson unlearned." / "Say what shipped, what slipped, and why." / "The next operator reads what you leave behind." / "End with evidence, not optimism."
 
-Quote selection rule (same deterministic formula as other commands): N = number of characters in
-task-id; stageOffset = stage offset printed in banner above (1–9); rework_round =
-`rework_round:` value in state.md (0 at first pass); quote = 0-based item at index
-(N + stageOffset + rework_round) mod M, where M = pool size (count list from 0). Read fresh
-from state.md each time. Do NOT pick at random; do NOT default to first.
+Quote: pick one line from the stage's pool; vary it across stages.
 
 ---
 
@@ -326,13 +307,12 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
    e. Read `feature-research/<task-id>/plan.md`. Read the `## 📈 Scorecard` section.
       Find the Confidence row. If planner's Confidence score ≤ 3 (ambiguous,
       underspecified, or out-of-scope):
-      RELAXED in auto mode (Override Policy) — do NOT abort. Record
+      Relaxed in auto mode — do not abort. Record
       `low planner confidence (<score>) — proceeding under override` under `## Done so far`, append
       `low-confidence` to the `override:` field in state.md (metric reference for this relaxation;
       comma-joined if more relaxations fire later), set flag to add the `needs-human` label at
       SHIP (step 8c), and CONTINUE. Diff gate's RED test + CI veto + blind panel remain the safety
       net for an under-specified task.
-      (Previously: this aborted with a needs-spec report when Confidence ≤ 3.)
       If Confidence > 3: continue normally.
 
    3b. ROUTE — compute difficulty tier (drives plan-gate depth, diff panel size, and arbiter
@@ -447,7 +427,6 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
    c. Invoke the **implementer** subagent: execute `feature-research/<task-id>/plan.md`;
       make the frozen test pass; fill the Evidence column of plan.md `## ✅ Acceptance
       criteria` (per its agent instructions); write `feature-research/<task-id>/audit.md`.
-      Implementer also runs a self-review pass before the diff gate (cheap; cuts panel rounds).
       Set stage=diff_gate after invocation.
 
 7. DIFF GATE — CI veto + tier-sized blind reviewer panel + arbiter-on-split.
@@ -504,21 +483,21 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       (added+deleted). Each RELAXED guard below that fires appends its tag to the `override:`
       field in state.md (comma-joined) — that field is this step's metric reference, surfaced in the
       `metrics:` line so a relaxed run is greppable.
-      - MIGRATIONS (HARD STOP — Override Policy rule 1) — if any changed file is a DB migration
+      - MIGRATIONS (hard rule 1) — if any changed file is a DB migration
         (`*/migrations/*`, or the repo's migration directory/format), auto has violated a
         non-negotiable rule: it must NEVER author a migration. Discard the change, write a
         `needs-migration` hand-off report to `feature-research/<task-id>/report.md`, set
         `stage: aborted` (abort surfaces as `outcome=ABORTED:needs-migration` in the metrics
         line — the metric reference for the migration guard), print it, and STOP.
-      - OTHER SENSITIVE / DEPENDENCY paths (RELAXED — Override Policy) — `.github/`, `*.yml` in
+      - OTHER SENSITIVE / DEPENDENCY paths (relaxed) — `.github/`, `*.yml` in
         `.github/`, CI config, `*.lock`, `package-lock.json`, `yarn.lock`, `Pipfile.lock`, dependency
         manifests, or secrets-like paths (`.env`, `*.pem`, `*.key`): auto MAY change these when the
         task requires it. Attach `needs-human` label as heads-up AND force `tier: critical`
         (extra scrutiny), record flagged paths, append `sensitive-paths` to `override:` — but do
         NOT abort and do NOT fail the gate.
-      - SCOPE (RELAXED — Override Policy) — if scope_paths was provided and changed files fall outside
+      - SCOPE (relaxed) — if scope_paths was provided and changed files fall outside
         it: record out-of-scope files, append `scope` to `override:`; do NOT fail the gate.
-      - RUNAWAY (RELAXED — Override Policy) — if diff exceeds 200 lines OR 20 files: record
+      - RUNAWAY (relaxed) — if diff exceeds 200 lines OR 20 files: record
         size as NOTE, append `runaway` to `override:`; do NOT fail the gate (panel + CI still
         judge the diff on merit).
       - RE-TIER on actual diff size, taking the MAX with the current tier (tier only escalates):
@@ -603,7 +582,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
       Record `arbiter: <ship|fix_first|none>` (`none` only on a unanimous refute, where no arbiter ran).
       GATE PASSES if: arbiter returned `ship` (it runs on every split and every unanimous ship) —
       AND tamper guard passed. (Scope / forbidden / dependency / runaway findings only attach the
-      `needs-human` label or a note in auto mode — see Override Policy — they do NOT fail the gate.)
+      `needs-human` label or a note in auto mode — see SANDBOX — they do not fail the gate.)
       GATE FAILS → rework (7h) if: arbiter returned `fix_first`, OR panel unanimously refuted
       (no arbiter ran).
       Set `diff_panel: <pass | killed-by-arbiter | killed-by-vote>`.
@@ -639,7 +618,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
    b. (BANNER RULE) Print the SHIP banner now, last line before the ship step.
 
    c. Determine labels: always add `auto-mode`. Add `needs-human` if sensitive/dependency paths
-      flagged (step 7d) OR planner confidence was ≤ 3 (step 3a, relaxed under the Override Policy) OR
+      flagged (step 7d) OR planner confidence was ≤ 3 (step 3a, relaxed, see SANDBOX) OR
       `open_questions > 0` (step 4g — unresolved business-context questions need a human) OR
       multi-repo run (cross-repo is higher-risk by default).
 
@@ -715,15 +694,11 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
 
    e. Push + open the draft PR(s) — once per repo in `repos:` with a non-empty diff (single-repo
       run = just the current repo). For each such repo, from its worktree (or `gh -R <owner/repo>`):
-      - Clean history (own branch only — Override Policy rule 2): squash this run's commits on
-        `<branch>` into a SINGLE well-described commit so the PR merges clean for tidy releases
-        (e.g. `git reset --soft <branch-base> && git commit -m "<subject>" -F <body-file>`). This
-        rewrites ONLY auto's own `anderson/auto/*` branch.
-      - Push: `git push --force-with-lease -u origin <branch>` (squash rewrote the branch;
-        force-with-lease permitted HERE — and ONLY here, on auto's own `anderson/auto/*` branch —
-        NEVER on the default / shared / human branch without explicit consent). CI veto at step 7c
-        may have already pushed this branch; this sends the final squashed state. No remote / push
-        fails → degrade gracefully: note it, print that repo's PR body as text.
+      - Squash this run's commits into one well-described commit (`git reset --soft <branch-base>
+        && git commit -m "<subject>" -F <body-file>`), then `git push --force-with-lease -u origin
+        <branch>` (hard rule 2: own `anderson/auto/*` branch only). CI veto at step 7c may have
+        pushed this branch already; this sends the final squashed state. No remote / push fails →
+        note it, print that repo's PR body as text.
       - Open: `gh pr create --draft --title "<title> [auto-mode]" --body-file <tmp> --label "auto-mode"`
         (+ `--label needs-human` per step 8c). If `gh` unavailable, print the body and note the
         human should open it. Capture each PR URL.

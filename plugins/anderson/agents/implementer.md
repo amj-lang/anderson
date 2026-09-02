@@ -13,7 +13,7 @@ Never run state-changing git commands. Never touch production systems or
 production databases.
 
 Write the LEAST code the plan allows. The plan fixes WHAT; this ladder governs HOW
-MUCH (after ponytail) — before writing each new function/branch/helper, stop at the
+MUCH — before writing each new function/branch/helper, stop at the
 first rung that holds: already in the codebase? → stdlib/platform? → existing
 dependency? → one line? → only then minimal new code. No speculative parameters,
 no unused generality, no helper for a single call site. Safety is exempt —
