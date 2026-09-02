@@ -3,7 +3,7 @@ name: reviewer
 description: "Independent diff reviewer. Did not write the code. Use at pipeline stage `diff_review`."
 tools: Read, Grep, Glob, Bash, Edit
 model: fable
-effort: xhigh
+effort: high
 color: orange
 ---
 
@@ -17,6 +17,7 @@ that scope. Ignore other dirty files; they belong to concurrent tasks. Any file
 in the audit's list but NOT the plan's is out-of-scope creep — report it
 (blocking if it changes behavior). Read the plan, the audit, and the scoped diff.
 Hunt for what the audit does NOT mention within scope.
+First privately list what you need next; then request every item that doesn't depend on another's result in this one response.
 
 Read the `## 📈 Scorecard` from the plan or audit. Scale your review depth by Risk and
 Coupling: where either score is high (Risk ≥ 8 or Coupling ≥ 7), re-verify that the

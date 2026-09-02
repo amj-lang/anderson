@@ -9,7 +9,7 @@ not content). THEN task slug = first word of what remains; goal = the rest.
 REVIEW MODEL: the plan-reviewer critique gate (PLAN_REVIEW) runs on the model in state.md
 `review_model:` — `fable` by default, `opus` when `--opus` was passed. Fable is the stronger
 critical analyst; Opus stays the default for the planner (generative), which `--opus` never
-touches. Effort stays xhigh either way. The field persists in state.md, so the diff-review gate
+touches. Plan-reviewer effort is xhigh either way. The field persists in state.md, so the diff-review gate
 in `/anderson:approve-plan` and `/anderson:rework` reads the same choice for this pipeline.
 
 BANNER RULE (every stage): finish ALL stage setup + state.md edits FIRST, then print

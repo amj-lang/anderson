@@ -24,13 +24,14 @@ never self-approval (the maker never grades its own homework, which is what infl
 |----------|-----------|----------------|----------------------|
 | *both gates — objective* | **CI veto** — GitHub Actions run, or the in-tree suite as fallback | — *(no model)* | Runs FIRST; a red build/suite fails the gate **before a single reviewer token is spent** — the one gate the model can't argue past. |
 | **Gate 1 — plan** *(was: human grill + approve)* | criteria-coverage check + **one `plan-reviewer`** (skipped for a trivial tier) | **fable · xhigh** | Refute the plan — find why it fails or misses an acceptance criterion; default to reject if uncertain; fix inline. |
-| **Gate 2 — diff** *(was: human review)* | **tier-sized blind `reviewer` panel** — 1 / 2 / 3 by difficulty, run in parallel | **sonnet** (trivial/normal) · **fable** (hard/critical) · xhigh \* | Each judges ONE lens — *correctness* · *regressions+security* · *plan-match* — from the diff + plan only, **blind** to `audit.md` and to each other; refute, default reject. |
+| **Gate 2 — diff** *(was: human review)* | **tier-sized blind `reviewer` panel** — 1 / 2 / 3 by difficulty, run in parallel | **sonnet · high** (trivial/normal) · **fable · xhigh** (hard/critical) \* | Each judges ONE lens — *correctness* · *regressions+security* · *plan-match* — from the diff + plan only, **blind** to `audit.md` and to each other; refute, default reject. |
 | **Gate 2 — arbiter** | **one `reviewer` as the arbiter** — runs on every split AND every unanimous *ship* (final sign-off); skipped only on a unanimous refute | **fable · xhigh** | Resolve contested findings **on merit, not headcount** (a lone correct reviewer beats two wrong ones); on a clean ship, re-review independently rather than rubber-stamp. Justify the call in a required `## Options considered` (+/−) table. |
 
 \* Panel model is **tiered**: trivial/normal panels take a **sonnet** override as a cost optimization
 (a one-line fix doesn't pay for fable reviewers); hard/critical panels run on the reviewer default
-**fable · xhigh**, where a missed bug has real blast radius. Effort stays `xhigh` from the `reviewer`
-frontmatter either way; if no per-agent model override is available, all panelists run at fable · xhigh.
+**fable · xhigh**, where a missed bug has real blast radius. Effort is tiered too: the `reviewer`
+frontmatter default is `high`, raised to `xhigh` for hard/critical panelists and the arbiter; if no
+per-agent override is available, all panelists run at fable · high.
 The arbiter always runs at **fable · xhigh** and backstops every panel that doesn't unanimously refute.
 
 Two non-gate mechanisms make those verdicts trustworthy: the **RED test** (frozen, must fail on a
@@ -122,14 +123,14 @@ Living spec: `plugins/anderson/docs/auto-mode.md`. Design context: `plugins/ande
 | THE INTERROGATOR | `grill`       | you — triaged, graded Q&A (🔴🟡🟢)     | — (human)      |
 | THE ORACLE       | `plan_review` | edits the plan inline + appends review to `## 🔭 Review` | fable / xhigh  |
 | NEO              | `implement`   | executes the approved plan             | sonnet / medium|
-| AGENT SMITH      | `diff_review` | read-only diff review                  | fable / xhigh  |
+| AGENT SMITH      | `diff_review` | read-only diff review                  | fable / high\* |
 | THE ONE          | `done`        | shipped — commit + PR                  | — (terminal)   |
 
 ## Pipeline
 
 ```
 plan ─▶ grill ─▶ plan_review ──[ YOU ]──▶ implement ──▶ diff_review ──[ YOU ]──▶ done
-high   [ YOU ]   xhigh (edits)            medium        xhigh (read-only)
+high   [ YOU ]   xhigh (edits)            medium        high* (read-only)
                                     ▲              │ fix_first
                                     └──────────────┘
 ```
@@ -140,7 +141,11 @@ high   [ YOU ]   xhigh (edits)            medium        xhigh (read-only)
 | grill        | *(you)*        | —      | —      | human | triages questions from the plan's own decision tree + ✅ criteria (`derived` rows are 🔴) + 💥 blast radius + 🧯 error rows, grades 🔴 ARCH/🟡 BEHAVIOR/🟢 PREF, prints a one-line manifest, asks 🔴→🟡 as 3-line cards (`🔴 n/N ▰▰▱▱…` + question + recommendation) with an adaptive progress bar, batches 🟢; folds decisions into `plan.md` — no subagent |
 | plan_review  | `plan-reviewer`| fable  | xhigh  | human | **edits** `plan.md` inline + appends review to `## 🔭 Review`; re-scores + checks blast radius; verdict `ship`/`fix_first`/`regrill` |
 | implement    | `implementer`  | sonnet | medium | —     | writes `audit.md`                     |
-| diff_review  | `reviewer`     | fable  | xhigh  | human | diff review appended to `plan.md` `## 🔭 Review` |
+| diff_review  | `reviewer`     | fable  | high\* | human | diff review appended to `plan.md` `## 🔭 Review` |
+
+\* Diff-review effort is `high` by default and `xhigh` when the plan Scorecard has Risk ≥ 8 or the
+change touches security, auth, memory/resource management, concurrency, or OS/process boundaries
+(auto mode: hard/critical tier). Plan errors are cheap; a critical diff is not.
 
 The agents are **self-contained** — the implementer/reviewer logic is inlined, so
 there is no external skill to install. Per-stage `model` + `effort` switch
@@ -338,7 +343,7 @@ opening when a line raises doubt.
 
 Each agent declares its own `model` + `effort` in frontmatter, and these switch
 automatically per stage (planner opus/high, plan-reviewer fable/xhigh, implementer
-sonnet/medium, reviewer fable/xhigh). Resolution order is: `CLAUDE_CODE_SUBAGENT_MODEL`
+sonnet/medium, reviewer fable/high, xhigh on risky diffs). Resolution order is: `CLAUDE_CODE_SUBAGENT_MODEL`
 env var → per-invocation override → **agent frontmatter** → main session. The rank of
 the first two against each other is unverified — if you set the env var *and* start a
 pipeline with `--opus`, the transcript grep below is ground truth for what actually ran.
@@ -353,7 +358,7 @@ cache reads are far cheaper than earlier tiers, so the review context that gets 
 panel + arbiter is where it pays. Start a pipeline with `--opus` (`/anderson:start … --opus`,
 `/anderson:auto … --opus`, or `bin/feature.sh start … --opus`) to run both gates on **Opus**
 instead, via the per-invocation override in the resolution order above. The generative stages
-(planner opus, implementer sonnet) are never touched by the flag. Effort stays `xhigh`. The
+(planner opus, implementer sonnet) are never touched by the flag. Effort is unaffected by the flag. The
 choice is seeded once into `state.md` as `review_model:` (`fable` default, `opus` with the flag)
 and every gate reads it fresh, so it persists across the resumed `approve-plan` / `rework`
 commands. In auto mode the tiered panel's HARD/CRITICAL slots and the arbiter follow
@@ -504,7 +509,12 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
   reads are priced far below prior tiers, so the plan + diff context re-read by the panel and
   arbiter is cheap to serve. Generative stages (planner opus, implementer sonnet) unchanged.
   Missing `review_model` in an older `state.md` now resolves to `fable`. Banners, matrix demo,
-  statusline fallback, and both READMEs follow.
+  statusline fallback, and both READMEs follow. **Reviewer effort tiered:** `reviewer` frontmatter
+  drops to `high`; `xhigh` only for hard/critical panelists, the arbiter, and gated diff reviews where
+  the Scorecard has Risk ≥ 8 or the change touches security / memory / OS boundaries. Plan-reviewer
+  stays `xhigh`. **Two Fable 5.1 prompt snippets** (from Anthropic's prompting guide): both reviewers
+  batch independent reads into one turn; the plan-reviewer edits `plan.md` surgically instead of
+  rewriting it.
 - **0.27.0** — **Dated model IDs removed, per-token prices dropped, persistent override
   documented, statusline follows the active review model.** The two dated model-ID strings in
   `docs/auto-mode-handoff.md` are gone, along with the per-token figures next to them — a new CI

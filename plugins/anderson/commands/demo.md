@@ -33,7 +33,7 @@ Print in exactly this order (sub-bullet = quote pool to pick from):
 ╭─ ⌐■-■  IMPLEMENT · 4/5 · NEO · sonnet/medium
   Pool: "Make it small enough to be wrong cheaply." / "Ship the truth, not the hope." / "One reviewable step beats ten clever ones."
 
-╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · fable/xhigh
+╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · fable/high
   Pool: "Your green tests are a comfort, not a verdict." / "Untested is unknown, and unknown is unsafe." / "Every assumption is a door you left unlocked."
   Then the gate marker:
   ﾊﾐﾐ 0ｺ1  🔴 G A T E  2 · AWAITING YOU  1ｺ0 ﾐﾐﾊ

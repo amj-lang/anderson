@@ -40,7 +40,7 @@ if [ -n "$st" ] && [ -f "$st" ]; then
     grill)       who="THE INTERROGATOR · you" ;;
     plan_review) who="THE ORACLE · $rmodel/xhigh" ;;
     implement)   who="NEO · sonnet/medium" ;;
-    diff_review) who="AGENT SMITH · $rmodel/xhigh" ;;
+    diff_review) who="AGENT SMITH · $rmodel/high" ;;
     done)        who="shipped" ;;
     *)           who="${stage:-?}" ;;
   esac

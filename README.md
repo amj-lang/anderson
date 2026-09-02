@@ -30,7 +30,7 @@ plan ─▶ grill ─▶ plan_review ──[ YOU ]──▶ implement ─▶ dif
 | 🕶  | `grill`       | THE INTERROGATOR · *you* | — (human)       | 🛑 human      | interrogates the plan one question at a time; your answers harden it                               |
 | 🔮  | `plan_review` | THE ORACLE               | fable · xhigh   | 🛑 **GATE 1** | edits the plan inline + appends review to `## 🔭 Review`; verdict `ship` / `fix_first` / `regrill` |
 | 🟢  | `implement`   | NEO                      | sonnet · medium | —             | writes the code + `audit.md`, files evidence per acceptance criterion                              |
-| 🕴  | `diff_review` | AGENT SMITH              | fable · xhigh   | 🛑 **GATE 2** | independent, read-only diff review; blocks on any unproven criterion                               |
+| 🕴  | `diff_review` | AGENT SMITH              | fable · high    | 🛑 **GATE 2** | independent, read-only diff review; blocks on any unproven criterion                               |
 | 🔑  | `ship`        | THE ONE                  | —               | —             | branch `anderson/<slug>` + commit + push + PR, scratch cleaned                                     |
 
 `regrill` loops plan-review back to **grill**; `fix_first` loops the implementer (capped by `max_iterations`). Both gates halt unconditionally, even on a `ship` verdict — on a TL;DR card (what · criteria/proof counts · scorecard · verdict), so you open the full plan only when a line raises doubt.
@@ -57,7 +57,7 @@ ingest ─▶ baseline ─▶ plan ─▶ plan-gate ─▶ RED ─▶ implement 
 | 🔮  | `plan-gate` | THE ORACLE    | fable · xhigh                                    | criteria-coverage check + **one** plan-reviewer (skipped on a trivial tier)                                                     |
 | 🧪  | `RED`       | THE SABOTEUR  | —                                                | write a failing test for the criteria, confirm it fails on an **assertion** (not a load error), then content-hash **freeze** it |
 | 🟢  | `implement` | NEO           | sonnet · medium                                  | make the red test green + `audit.md`; implementer self-reviews first                                                            |
-| 🕴  | `diff-gate` | AGENT SMITH   | panel sonnet/fable · xhigh · arbiter fable · xhigh | **CI veto** (red build short-circuits) → tier-sized **blind panel** (1/2/3) → **fable arbiter** backstop                         |
+| 🕴  | `diff-gate` | AGENT SMITH   | panel sonnet·high / fable·xhigh · arbiter fable·xhigh | **CI veto** (red build short-circuits) → tier-sized **blind panel** (1/2/3) → **fable arbiter** backstop                         |
 | 🔑  | `ship`      | THE ONE       | —                                                | squash to one clean commit, push the branch, open a **draft** PR (never auto-merge)                                             |
 | 📨  | `report`    | THE MESSENGER | —                                                | structured terminal result + a machine-greppable `metrics:` line                                                                |
 
@@ -67,7 +67,7 @@ ingest ─▶ baseline ─▶ plan ─▶ plan-gate ─▶ RED ─▶ implement 
 | ----------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | *both gates, objective* | **CI veto** — GitHub Actions run, or the in-tree suite as fallback                                      | —                                                              | runs FIRST; a red build/suite fails the gate **before a single reviewer token is spent**                                             |
 | **plan gate**           | criteria check + **one plan-reviewer** (skip trivial)                                                   | fable · xhigh                                                  | refute the plan; map every criterion to a step; default reject                                                                       |
-| **diff gate**           | **tier-sized blind panel** — 1/2/3 reviewers, parallel                                                  | **sonnet** (trivial/normal) · **fable** (hard/critical) · xhigh| each judges ONE lens — correctness · regressions+security · plan-match — from the diff+plan only, blind to `audit.md` and each other |
+| **diff gate**           | **tier-sized blind panel** — 1/2/3 reviewers, parallel                                                  | **sonnet · high** (trivial/normal) · **fable · xhigh** (hard/critical)| each judges ONE lens — correctness · regressions+security · plan-match — from the diff+plan only, blind to `audit.md` and each other |
 | **diff arbiter**        | **one reviewer**, runs on every split **and** every unanimous ship (skipped only on a unanimous refute) | fable · xhigh                                                  | resolve on merit, not headcount; on a clean ship, re-review rather than rubber-stamp; forced `## Options considered` (+/−) table     |
 
 Plus:

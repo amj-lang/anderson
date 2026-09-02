@@ -13,8 +13,9 @@ body optional (acceptance_criteria derived if absent).
 REVIEW MODEL: the two critique gates (PLAN GATE plan-reviewer, DIFF GATE reviewer panel
 + arbiter) run on the model in state.md `review_model:` — `fable` by default, `opus` when
 `--opus` was passed. Fable is the stronger critical analyst; Opus stays the default for the
-generative stages (planner, implementer), which `--opus` never touches. Effort stays xhigh
-either way. Every banner and invocation below reads `review_model` from state.md.
+generative stages (planner, implementer), which `--opus` never touches. Plan-reviewer effort
+is xhigh; reviewer effort is tiered (see MODEL TIERING in 7f): `high` for TRIVIAL/NORMAL
+panelists, `xhigh` for HARD/CRITICAL panelists and the arbiter. Every banner and invocation below reads `review_model` from state.md.
 
 BANNER RULE (every stage below): finish ALL setup and state.md edits for stage FIRST,
 then print stage's banner as LAST line before stage's work begins (immediately
@@ -107,7 +108,7 @@ IMPLEMENT pool (14): "Make it small enough to be wrong cheaply." / "Touch only w
 
 DIFF GATE banner (stage offset 7):
 ```
-  ╭─ ⌐■-■  DIFF GATE · 7/9 · AGENT SMITH · <review_model>/xhigh
+  ╭─ ⌐■-■  DIFF GATE · 7/9 · AGENT SMITH · <review_model>/<review_effort>
   │  "[quote from DIFF GATE pool]"
   ╰─
 ```
@@ -558,10 +559,12 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
          `FINDINGS: <count of blocking findings>`."
       MODEL TIERING (where the harness supports a per-invocation model override): size panelist
       model to tier — run TRIVIAL and NORMAL panelists on a faster/cheaper tier (sonnet), run
-      HARD and CRITICAL panelists on the reviewer default (state.md `review_model`/xhigh — `fable`,
-      or `opus` under `--opus`), since a missed bug at those tiers has real blast radius and a
-      stronger reviewer earns its cost there. Arbiter ALWAYS runs at the reviewer default
-      (`review_model`/xhigh) regardless of tier. If no override available, all panelists run at the
+      HARD and CRITICAL panelists on the reviewer default (state.md `review_model`, effort override
+      `xhigh` — `fable`, or `opus` under `--opus`), since a missed bug at those tiers has real blast
+      radius and a stronger reviewer earns its cost there. TRIVIAL/NORMAL panelists run at `high`
+      (reviewer frontmatter default). Arbiter ALWAYS runs at the reviewer default model with effort
+      `xhigh` regardless of tier. `<review_effort>` in the DIFF GATE banner = `xhigh` when tier is
+      HARD/CRITICAL, else `high`. If no override available, all panelists run at the
       reviewer default — model tiering is a cost optimization, not a correctness requirement. Record
       the model the panel actually ran on as `panel_model: <sonnet|opus|fable>` in state.md
       (the reviewer-default value when no override available and all panelists fell back to it) —
@@ -571,7 +574,7 @@ from state.md each time. Do NOT pick at random; do NOT default to first.
 
    g. Resolve the gate (CI already passed — a red build short-circuited at 7c-iv and never reaches
       here). Count a `fix_first` as a refute. Arbiter is the reviewer-default quality gate over the
-      panel (runs at `review_model`/xhigh) — runs on every outcome EXCEPT a unanimous refute:
+      panel (runs at `review_model`, effort xhigh) — runs on every outcome EXCEPT a unanimous refute:
         - SPLIT — panel NOT unanimous (mix of ship and fix_first) → arbiter runs to resolve
           contested findings. Set `arbiter_trigger: split` in state.md.
         - UNANIMOUS SHIP — all panelists ship → arbiter ALWAYS runs as final sign-off over

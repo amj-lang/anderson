@@ -182,7 +182,8 @@ Adapters (Linear, GitHub Issues, chat, CLI) are **out of scope for this doc** �
   returns its verdict, so there is no shared-state collision.
 - Lenses (added in order): **correctness**, **regressions / security**, **does the diff match the plan?**
 - **Panel model is tiered** — trivial/normal panels run on **sonnet** (cost), hard/critical on **fable**
-  (a missed bug there has real blast radius). Effort is `xhigh` either way.
+  (a missed bug there has real blast radius). Effort follows: `high` for sonnet panelists, `xhigh` for
+  fable panelists and the arbiter.
 - **Arbiter backstops every panel** — one **fable** arbiter runs on every outcome except a unanimous
   refute: it resolves a split **on merit, not headcount**, and on a unanimous *ship* it runs as a final
   fable sign-off (independent re-review, no rubber-stamp). Justified in a required `## Options considered`

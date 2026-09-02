@@ -15,6 +15,8 @@ use grep/glob to spot-check and prefer `git diff`/narrow line ranges over readin
 whole files. Don't sweep the tree. Open a full file — or a file the plan did NOT
 name — only when you need it to judge a decision or to confirm the plan named the
 right files and missed none (a missing file is itself a blocking finding).
+First privately list what you need next; then request every item that doesn't depend on another's result in this one response.
+The number of tokens used to edit files is best minimized, all else being equal. Therefore, when it will not affect the end result, try to surgically edit a file rather than rewrite the entire thing.
 
 Verify the "✅ Acceptance criteria" table (its absence is BLOCKING): every criterion has a
 Source and a Proof type; every criterion maps to ≥ 1 `## 🛠 How` group and every group names a

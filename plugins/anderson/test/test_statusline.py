@@ -23,7 +23,7 @@ class TestStatusline(unittest.TestCase):
 
     def test_missing_review_model_defaults_fable(self):
         out = _run("task: x\nstage: diff_review\n")
-        self.assertIn(b"fable/xhigh", out.stdout)
+        self.assertIn(b"fable/high", out.stdout)
 
 
 if __name__ == "__main__":

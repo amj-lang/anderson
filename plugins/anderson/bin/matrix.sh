@@ -60,7 +60,7 @@ montage(){
   step "GRILL"       "THE INTERROGATOR · you"
   step "PLAN_REVIEW" "THE ORACLE · fable/xhigh       ■ GATE 1"
   step "IMPLEMENT"   "NEO · sonnet/medium"
-  step "DIFF_REVIEW" "AGENT SMITH · fable/xhigh      ■ GATE 2"
+  step "DIFF_REVIEW" "AGENT SMITH · fable/high       ■ GATE 2"
   step "SHIP ✓"      "THE ONE · commit + PR"
   printf '\n'; sleep 1.2
 }
