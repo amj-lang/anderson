@@ -2,8 +2,9 @@
 
 ## ring-matrix.wav
 
-The phone. 1.25 s cut (0.72 s → 1.97 s, 10 ms fade-in, 120 ms fade-out, peak-normalized, mono
-22.05 kHz) from **"Full Matrix.wav"** by **skycarl**, Freesound sound #210499
+The phone: exactly one ring. 2.43 s cut (0.97 s → 3.40 s, boundaries found by energy scan, 10 ms
+fade-in, 100 ms fade-out, peak-normalized, mono 22.05 kHz) from **"Full Matrix.wav"** by **skycarl**,
+Freesound sound #210499
 (https://freesound.org/people/skycarl/sounds/210499/), published 2013-12-12 under
 **Creative Commons 0** (public domain dedication, https://creativecommons.org/publicdomain/zero/1.0/).
 Also mirrored on Pixabay as "Full Matrix" (technology-full-matrix-75029).
