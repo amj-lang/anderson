@@ -6,7 +6,11 @@
 # Note: plan_verdict=regrill re-routes the loop to stage=grill (human-gated); the
 # statusline will show THE INTERROGATOR while the grill pass is active.
 set -euo pipefail
-_in="$(cat 2>/dev/null || true)"      # drain the session JSON on stdin (unused)
+_in="$(cat 2>/dev/null || true)"      # the session JSON on stdin
+# fleet heartbeat: record cost/context/model for bin/fleet.py (THE OPERATOR).
+# Backgrounded so a slow python start never delays the render; heartbeat.py never raises.
+_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+[ -n "$_in" ] && { printf '%s' "$_in" | python3 "$_dir/heartbeat.py" >/dev/null 2>&1 & }
 
 fr=$(( $(date +%s) % 4 ))             # shimmer frame, advances ~1/second
 

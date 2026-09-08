@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.28.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.29.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -270,6 +270,7 @@ then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` 
 | `/anderson:demo` | Zero-token dry-run of the whole pipeline. | All stage banners + both gate lines + ship banner. No agents, no files, no tokens. |
 | `/anderson:auto <id> <title> [body\|@file] [--opus]` | **Autonomous mode** — no gates: plan → plan-gate → RED test → implement → CI-veto + panel diff-gate → **draft PR**. `--fable` runs the plan-gate + diff-gate/arbiter on Fable. | Terminal SHIP (draft PR) or abort + `report.md`. Review the PR — auto mode is experimental. |
 | `/anderson:help` | Static quick-reference card: every command, arguments, gates, the `--opus` flag. | One printed card. Reads nothing, no agents, no state — for the live dashboard use `:status`. |
+| `/anderson:fleet` | Installs the **`fleet`** terminal command (THE OPERATOR: every Claude session on the machine, persona, stage, `$`, ctx; ⏎ jacks into its tmux pane) and prints the launch card. | `~/.local/bin/fleet` written (idempotent, survives plugin updates) + the card. No agents. Then `fleet` in any terminal — see [Extras](#extras-terminal). |
 
 All commands are **namespaced** `/anderson:<command>` — `/anderson:start`,
 `/anderson:approve-plan`, `:approve-diff`, `:rework`, `:status`. Bare plugin-name
@@ -492,7 +493,59 @@ input-side saving, not a dramatic one.
 
 ## Extras (terminal)
 
-Two optional flourishes in `bin/` — run them in a real terminal (the in-loop banners are plain text and don't animate):
+Optional flourishes in `bin/` — run them in a real terminal (the in-loop banners are plain text and don't animate):
+
+- **`fleet`** — **THE OPERATOR**, the cross-repo fleet monitor. Install once with `/anderson:fleet`
+  (writes a `fleet` shim to `~/.local/bin` that resolves the newest installed anderson at run time,
+  so plugin updates never break it), then in any terminal: `fleet` (inside tmux: this pane; outside:
+  opens/attaches a tmux session named `fleet`; no tmux: runs plain), `fleet --pane` (45% side
+  pane), `fleet --window`, `fleet --here` (never touches tmux). The installer also prints an
+  optional `prefix+F` tmux hotkey line. Every Claude Code
+  session on the machine, one row each: repo · anderson task · **persona on the job** (▲ ARCHITECT,
+  ◇ INTERROGATOR, ◎ ORACLE, ● NEO, ▣ AGENT SMITH, ★ THE ONE, ○ T. ANDERSON = no pipeline yet) ·
+  stage `n/max` · model · **now** (`▶ Bash pytest -q`, `▶ Agent implementer`, `☎ ring` = waits on
+  you, `☎ permission Bash`, `✝ sentinel` = process gone, `⟲` = rework loop) · $ · context bar · age.
+  Detail pane: verdicts, lines ±, tmux pane, last words, a mood-matched line from `quotes.txt`.
+  Runs **outside** Claude (python stdlib curses, zero tokens) in its own tmux pane; rows ring first.
+
+  Keys: `↑↓` tune · `⏎` **jack in** (switches tmux to that session's pane) · `w` white rabbit
+  (oldest ring) · `r` red pill (kill, asks first) · `b` blue pill (dismiss a sentinel) · `/` filter ·
+  `t` theme · `p` wording · `?` manual · `q`.
+
+  **Five themes**, cycled live with `t` or set with `--theme <name>`, remembered per user in
+  `~/.claude/fleet/prefs.json` together with wording and motion:
+
+  | theme | look | motion | winks |
+  | --- | --- | --- | --- |
+  | `matrix` | green phosphor | header rain tail, ringing rows breathe 1/s | full |
+  | `construct` | white void | none | quotes and toasts off |
+  | `zion` | amber machine level | slow spinner | full |
+  | `nebuchadnezzar` | cold cyan/blue console | one heartbeat dot | full |
+  | `agent` | monochrome, red alerts | none | Smith's adversary lines only |
+
+  `p` (or `--plain`) swaps the header lingo (`zion · 3 jacked in · 1 ringing · 0 sentinels`) for
+  plain English (`fleet · 3 live · 1 waiting · 0 dead`); `--calm` removes motion from any theme.
+  The boot screen (0.7s of rain, then `Loading anderson…` and a line that rotates every launch) is
+  skipped with `--no-intro`. `--demo` adds four fake rows, `--once` prints one plain frame,
+  `--ascii` uses single-byte glyphs, `--selftest` proves every line equals the terminal width at
+  40..300 columns in all five themes (wide/CJK/accents safe). Only the frame lines that changed are
+  repainted, so an idle monitor emits nothing.
+
+  Data, richest first, each optional (the view degrades, never breaks):
+  1. **no setup**: `ps` + `lsof` find running `claude` processes; the transcript tail
+     (`~/.claude/projects/<cwd>/<sid>.jsonl`) gives last tool / last words / context tokens; the
+     repo's `feature-research/*/state.md` gives stage → persona.
+  2. **this plugin's hooks** (`hooks/fleet_event.py` on SessionStart / UserPromptSubmit /
+     PostToolUse / Notification / Stop / SessionEnd) write `~/.claude/fleet/<sid>.event.json`: the
+     exact waiting-on-you vs working signal, permission prompts included.
+  3. **statusline heartbeat** (`bin/heartbeat.py`) writes `~/.claude/fleet/<sid>.status.json`: `$`
+     cost, precise context %, model, lines ±, tmux pane. `bin/statusline.sh` calls it; to keep your
+     own statusline, wrap it:
+     ```
+     "statusLine": { "type": "command",
+       "command": "bash /ABS/PATH/plugins/anderson/bin/fleet-statusline.sh bash /ABS/PATH/your-statusline.sh" }
+     ```
+  Sessions silent for 24h are forgotten; `b` forgets a sentinel now. `/anderson:fleet` prints the launch card.
 
 - **`bash bin/matrix.sh`** — green digital-rain intro that resolves into the `⌐■-■ A N D E R S O N` logo. Honors `NO_COLOR` / non-TTY (prints a clean static frame). Tunables: `MATRIX_DELAY`, `MATRIX_FRAMES`. Great for a demo GIF.
 - **`bin/statusline.sh`** — a one-line status bar with the live loop stage + a calm shimmer (glasses + rain cycle ~1/sec). Opt-in; add to `settings.json` with an absolute path (this replaces any existing statusline):
@@ -502,6 +555,17 @@ Two optional flourishes in `bin/` — run them in a real terminal (the in-loop b
 
 ## Changelog
 
+- **0.29.0** — **THE OPERATOR: `bin/fleet.py`, the cross-repo fleet monitor.** One terminal for
+  every Claude Code session on the machine: repo, anderson task, persona on the job, stage, model,
+  what it does right now, $, context, age; ⏎ jacks into the session's tmux pane. Runs outside Claude
+  (stdlib curses, zero tokens). Zero-setup discovery via `ps` + transcript tail + `state.md`; this
+  plugin's hooks add the exact waiting/working signal (`hooks/fleet_event.py`); the statusline
+  heartbeat (`bin/heartbeat.py`, called by `statusline.sh` or the new `fleet-statusline.sh` wrapper
+  around any statusline) adds cost and precise context. Five themes (`matrix`, `construct`, `zion`,
+  `nebuchadnezzar`, `agent`), Matrix-or-plain wording and motion are per-user prefs in
+  `~/.claude/fleet/prefs.json`. Repaints only changed lines (no flicker). Alignment is a tested
+  invariant (`--selftest`, `test/test_fleet.py`). Boot screen with a line that rotates every launch.
+  `/anderson:fleet` installs the `fleet` launcher (tmux-aware, stable across plugin updates) and prints the card. Loop unchanged.
 - **0.28.0** — **Fable is the default critic; `--fable` becomes `--opus`.** The `reviewer` and
   `plan-reviewer` agents now declare `model: fable` in frontmatter, and `review_model` seeds to
   `fable`; the inverse flag `--opus` (on `start`, `auto`, `feature.sh start`) runs both critique

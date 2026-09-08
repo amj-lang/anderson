@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.28.0-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.29.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -106,8 +106,41 @@ All commands are namespaced `/anderson:<command>` — bare `/anderson` does not 
 | `demo`         | `/anderson:demo`                                 | Zero-token dry-run: prints every stage banner + both gate lines. No agents, no files.                                                                                      | Preview the UX before a real run.                      |
 | `auto`         | `/anderson:auto <task-id> <title> [body\|@file] [--opus]` | **Autonomous** end-to-end → draft PR, no human gates (see [auto mode](#auto-mode--the-autonomous-pipeline)). `body` is optional inline text or `@path` to a TaskSpec file; `--fable` → review gates on Fable. | Well-scoped, unattended fixes you'll review at the PR. |
 | `help`         | `/anderson:help`                                 | Static quick-reference card: every command, arguments, gates, `--opus`. Reads nothing, spends no agent tokens.                                                            | Forgot an invocation or what `--fable` does.           |
+| `fleet`        | `/anderson:fleet`                                | Installs the **`fleet`** terminal command (THE OPERATOR — see [Fleet](#fleet--every-claude-session-on-one-screen)) and prints its launch card. Idempotent, no agents.   | Once per machine; then type `fleet` in any terminal.   |
 
 **Our suggestions.** First-timers: run `/anderson:demo` to see the whole flow for free. For everyday work drive the gated loop `start → approve-plan → approve-diff` (with `rework` between gates as needed) — the two human gates are the point. Reach for `auto` only when the task is well-scoped **and** the suite is green; always review its draft PR. For CI / walk-away runs use the flag-driven headless runner `bin/feature.sh` (`start` / `--approve-plan` / `--approve-diff` / `--rework`) — see [Headless / CI](#headless--ci).
+
+## Fleet — every Claude session on one screen
+
+You run anderson in several repos at once. **THE OPERATOR** is the terminal that watches them all: one row per Claude Code session on the machine, ringing rows first.
+
+```
+⌐■-■  T H E  O P E R A T O R                                   fleet · 3 live · 2 waiting · 1 dead
+────────────────────────────────────────────────────────────────────────────────────────────────────
+       repo              task                     persona         stage            now                 $   ctx              age
+ ▸ ☎⟲  fashion-webapp-2  ar-2270-sku-lightbox     ▣ AGENT SMITH   diff_review 1/2  ☎ ring            1.42  ▓▓▓▓▓▓░░░░  61%  12m
+       ai-shoot-service  remove-db-triggers       ● NEO           implement 0/2    ▶ Edit orders.py  0.88  ▓▓▓░░░░░░░  34%   4m
+   ☎   claude-loop       readbility               ◇ INTERROGATOR  grill 0/2        ☎ ring            0.12  ▓░░░░░░░░░   9%  41m
+   ⟲✝  fashion-webapp-2  sku-bulk-upload          ▲ ARCHITECT     plan 2/2         ✝ sentinel        0.31  ░░░░░░░░░░   —    2h
+────────────────────────────────────────────────────────────────────────────────────────────────────
+▍ ar-2270-sku-lightbox · AGENT SMITH · iteration 1/2 · plan: ship · diff: fix_first · +212 −48 · ops:1.2
+▍ last: 47 passed, 0 failed. Verdict: fix_first, one unproven criterion.
+▍ "Mr. Anderson… did you think that test would pass?"
+```
+
+- **Who is on the job**: the persona comes from that repo's `feature-research/*/state.md` — ▲ ARCHITECT · ◇ INTERROGATOR · ◎ ORACLE · ● NEO · ▣ AGENT SMITH · ★ THE ONE · ○ T. ANDERSON (a session with no pipeline yet).
+- **What it is doing**: `▶ Bash pytest -q`, `▶ Agent implementer`, `☎ ring` (waits on you), `☎ permission Bash`, `✝ sentinel` (process gone), `⟲` (rework loop). Plus `$`, context bar, lines ±, age, last words.
+- **Jack in**: `⏎` switches tmux to that session's pane. `w` jumps to the oldest one waiting. `r` kills (asks first). `b` dismisses a dead row. `/` filters. `?` manual.
+- **Zero tokens**: plain python curses, runs **outside** Claude. Sessions are found with no setup (`ps` + transcripts). The plugin's hooks add the exact waiting/working signal; the statusline heartbeat adds `$` and precise context (wrap any statusline with `bin/fleet-statusline.sh`).
+- **Your look, remembered**: five themes (`matrix`, `construct`, `zion`, `nebuchadnezzar`, `agent`) with `t`, Matrix or plain wording with `p`, `--calm` for no motion — all saved in `~/.claude/fleet/prefs.json`. Boot screen rotates a line every launch; `--no-intro` skips it.
+
+```
+/anderson:fleet            # once: installs ~/.local/bin/fleet (survives plugin updates)
+fleet                      # in tmux: this pane · outside: tmux session "fleet" · no tmux: plain
+fleet --pane               # 45% side pane        fleet --demo    # four fake rows to try it
+```
+
+Full flags, data sources and theme table: [plugins/anderson/README.md → Extras](plugins/anderson/README.md#extras-terminal).
 
 ## Requirements
 
@@ -121,6 +154,7 @@ All commands are namespaced `/anderson:<command>` — bare `/anderson` does not 
 ## More
 
 - **Full operator docs** — models/effort verification, autonomous chaining, terminal flair, troubleshooting: **[plugins/anderson/README.md](plugins/anderson/README.md)**.
+- **Fleet monitor** — `fleet`, THE OPERATOR: every Claude session, persona, stage, `$`, context, on one screen. See [Fleet](#fleet--every-claude-session-on-one-screen) above.
 - **auto mode (experimental)** — non-halting end-to-end pipeline to a draft PR: `/anderson:auto <task-id> <title>`. See the "auto mode" subsection in [plugins/anderson/README.md](plugins/anderson/README.md) and the spec at [plugins/anderson/docs/auto-mode.md](plugins/anderson/docs/auto-mode.md).
 - **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs scheduler unit tests, `py_compile`, shellcheck (advisory), and version-sync enforcement; on push to `main` it auto-creates a `vX.Y.Z` tag + GitHub release when `plugin.json` carries a new version.
 - Licensed under the [MIT License](LICENSE).

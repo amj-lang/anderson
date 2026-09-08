@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# fleet — launcher for THE OPERATOR (bin/fleet.py). Picks the right way to start it for
+# whatever terminal setup you have; everything else passes through to fleet.py.
+#
+#   fleet                 inside tmux: run in this pane · outside: start/attach tmux session
+#                         "fleet" (so ⏎ jack-in works) · no tmux installed: run plain
+#   fleet --pane          inside tmux: open in a 45% side pane
+#   fleet --window        inside tmux: open in a new window named "fleet"
+#   fleet --here          run in the current terminal, never touch tmux
+#   fleet install         put a stable `fleet` shim in ~/.local/bin (survives plugin updates)
+#   fleet uninstall       remove that shim
+#   fleet --demo | --theme zion | --plain | --calm | --no-intro | --once   -> fleet.py flags
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+py="$here/fleet.py"
+bin_dir="${FLEET_BIN_DIR:-$HOME/.local/bin}"
+shim="$bin_dir/fleet"
+
+die(){ printf 'fleet: %s\n' "$*" >&2; exit 1; }
+command -v python3 >/dev/null 2>&1 || die "python3 not found (fleet.py is stdlib python, nothing else to install)"
+
+install_shim(){
+  mkdir -p "$bin_dir"
+  # Dev checkout (not under the plugin cache): pin to it. Cache install: resolve the newest
+  # anderson at run time so plugin updates never break the shim.
+  case "$here" in
+    "$HOME"/.claude/plugins/cache/*) pinned="" ;;
+    *)                                pinned="$here" ;;
+  esac
+  cat > "$shim" <<EOF
+#!/usr/bin/env bash
+# fleet shim — installed by \`fleet install\` (anderson plugin). Resolves the launcher at run time.
+root="\${ANDERSON_ROOT:-}"
+[ -z "\$root" ] && [ -n "$pinned" ] && [ -f "$pinned/fleet" ] && root="$(dirname "$pinned")"
+if [ -z "\$root" ]; then
+  newest="\$(ls -d "\$HOME"/.claude/plugins/cache/*/anderson/*/ 2>/dev/null | sort -V | tail -1)"
+  [ -n "\$newest" ] && root="\${newest%/}"
+fi
+[ -n "\$root" ] && [ -f "\$root/bin/fleet" ] || { echo "fleet: anderson plugin not found (set ANDERSON_ROOT to its directory)" >&2; exit 1; }
+exec bash "\$root/bin/fleet" "\$@"
+EOF
+  chmod +x "$shim"
+  printf 'installed %s\n' "$shim"
+  case ":$PATH:" in
+    *":$bin_dir:"*) ;;
+    *) printf 'add to PATH (once):  echo '"'"'export PATH="%s:$PATH"'"'"' >> ~/.zshrc && source ~/.zshrc\n' "$bin_dir" ;;
+  esac
+  if command -v tmux >/dev/null 2>&1; then
+    printf 'optional tmux hotkey (prefix+F):  echo '"'"'bind F split-window -h -l 45%% "%s --here"'"'"' >> ~/.tmux.conf && tmux source ~/.tmux.conf\n' "$shim"
+  fi
+}
+
+case "${1:-}" in
+  install)   install_shim; exit 0 ;;
+  uninstall) rm -f "$shim" && printf 'removed %s\n' "$shim"; exit 0 ;;
+esac
+
+mode="auto"
+args=()
+for a in "$@"; do
+  case "$a" in
+    --pane)   mode="pane" ;;
+    --window) mode="window" ;;
+    --here)   mode="here" ;;
+    *)        args+=("$a") ;;
+  esac
+done
+
+cmd="python3 $(printf '%q' "$py")"
+for a in "${args[@]+"${args[@]}"}"; do cmd="$cmd $(printf '%q' "$a")"; done
+
+# --once / --selftest / --themes are non-interactive: always run in place.
+for a in "${args[@]+"${args[@]}"}"; do
+  case "$a" in --once|--selftest|--themes) mode="here" ;; esac
+done
+
+if [ "$mode" = "here" ] || ! command -v tmux >/dev/null 2>&1; then
+  exec python3 "$py" "${args[@]+"${args[@]}"}"
+fi
+
+if [ -n "${TMUX:-}" ]; then
+  case "$mode" in
+    pane)   exec tmux split-window -h -l 45% "$cmd" ;;
+    window) exec tmux new-window -n fleet "$cmd" ;;
+    *)      exec python3 "$py" "${args[@]+"${args[@]}"}" ;;
+  esac
+fi
+
+# Outside tmux but tmux exists: one session named "fleet", created on first run, attached after.
+exec tmux new-session -A -s fleet "$cmd"

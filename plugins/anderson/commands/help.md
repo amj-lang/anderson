@@ -15,6 +15,7 @@ ANDERSON — gated build loop: plan → grill → plan-review 🛑 → implement
   /anderson:auto <id> <title> [body|@file] [--opus]    no gates → draft PR (experimental)
   /anderson:status <slug>                              dashboard: stage, verdicts, next agent/model
   /anderson:demo                                       preview pipeline UX, no agents, no tokens
+  /anderson:fleet                                      THE OPERATOR: launch card for the cross-repo session monitor
   /anderson:help                                       this card
 
   --opus    run the critique gates (plan-review, diff-review/arbiter) on Opus instead of
