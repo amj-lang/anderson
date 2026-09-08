@@ -270,6 +270,7 @@ then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` 
 | `/anderson:demo` | Zero-token dry-run of the whole pipeline. | All stage banners + both gate lines + ship banner. No agents, no files, no tokens. |
 | `/anderson:auto <id> <title> [body\|@file] [--opus]` | **Autonomous mode** — no gates: plan → plan-gate → RED test → implement → CI-veto + panel diff-gate → **draft PR**. `--fable` runs the plan-gate + diff-gate/arbiter on Fable. | Terminal SHIP (draft PR) or abort + `report.md`. Review the PR — auto mode is experimental. |
 | `/anderson:help` | Static quick-reference card: every command, arguments, gates, the `--opus` flag. | One printed card. Reads nothing, no agents, no state — for the live dashboard use `:status`. |
+| `/anderson:fleet` | Installs the **`fleet`** terminal command (THE OPERATOR: every Claude session on the machine, persona, stage, `$`, ctx; ⏎ jacks into its tmux pane) and prints the launch card. | `~/.local/bin/fleet` written (idempotent, survives plugin updates) + the card. No agents. Then `fleet` in any terminal — see [Extras](#extras-terminal). |
 
 All commands are **namespaced** `/anderson:<command>` — `/anderson:start`,
 `/anderson:approve-plan`, `:approve-diff`, `:rework`, `:status`. Bare plugin-name
