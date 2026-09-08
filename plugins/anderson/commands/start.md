@@ -6,6 +6,14 @@ allowed-tools: Bash(grep:*), Bash(echo:*)
 Parse "$ARGUMENTS": FIRST strip an optional `--opus` token from anywhere in it (it is a flag,
 not content). THEN task slug = first word of what remains; goal = the rest.
 
+SLUG WITH A SLASH: people paste branch names as the slug (Linear style:
+`amcleanjanet/ar-2587-backoffice-ui-polish`). The task key is the LAST `/`-segment
+(`ar-2587-backoffice-ui-polish`) so `feature-research/<task>/` stays flat (nested dirs are
+invisible to the statusline, the scheduler and the fleet monitor). When the slug had a `/`,
+add `branch:          <slug as given>` to the STATE block right after `task:` — ship uses it
+verbatim as the branch name instead of `anderson/<task>`. Refer to the task by its key everywhere
+below; `<task>` means the key.
+
 REVIEW MODEL: the plan-reviewer critique gate (PLAN_REVIEW) runs on the model in state.md
 `review_model:` — `fable` by default, `opus` when `--opus` was passed. Fable is the stronger
 critical analyst; Opus stays the default for the planner (generative), which `--opus` never

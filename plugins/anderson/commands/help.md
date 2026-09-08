@@ -22,6 +22,7 @@ ANDERSON — gated build loop: plan → grill → plan-review 🛑 → implement
             the default Fable. Generative stages (planner, implementer) stay Opus/Sonnet. Set
             once at start/auto, persists in state.md across approve-plan/rework. Place at the end.
 
+  slug:     a pasted branch name works (user/ar-123-title): dir = last segment, ship branch = the slug.
   state:    feature-research/<slug>/{state.md,plan.md,audit.md} — every command reads state.md,
             so a running flow also answers plain text: "approved, go" / "ship it" / "rework".
 ```

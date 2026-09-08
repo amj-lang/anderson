@@ -177,7 +177,7 @@ def anderson_state(root):
     except Exception:
         return {}
     st = {k: field(t, k) for k in
-          ("task", "stage", "iteration", "max_iterations", "plan_verdict", "diff_verdict", "review_model")}
+          ("task", "stage", "iteration", "max_iterations", "plan_verdict", "diff_verdict", "review_model", "branch")}
     st["task"] = st["task"] or os.path.basename(os.path.dirname(p))
     st["mtime"] = os.path.getmtime(p)
     return st
@@ -456,7 +456,7 @@ def enrich(s, now):
         "repo": os.path.basename(root or s.get("cwd") or "") or "?",
         "task": st.get("task") or "", "stage": stage, "persona": persona, "pglyph": PGLYPH[gk],
         "mood": mood, "model": model_spec, "iteration": it, "max_iter": mx,
-        "plan_verdict": st.get("plan_verdict"), "diff_verdict": st.get("diff_verdict"),
+        "plan_verdict": st.get("plan_verdict"), "diff_verdict": st.get("diff_verdict"), "branch": st.get("branch"),
         "dejavu": bool(it and it.isdigit() and int(it) > 0),
         "status": status, "now": now_txt, "text": tr.get("text") or "",
         "cost": s.get("cost_usd"), "ctx_pct": ctx_pct,
@@ -757,7 +757,8 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None):
         pm = f"+{la} −{lr}" if la is not None else ""
         it = f"iteration {r['iteration']}/{r['max_iter']} · " if r.get("max_iter") else ""
         where = r["tmux_addr"] or r["tmux_pane"] or (f"pid {r['pid']}" if r["pid"] else "no pane")
-        l1 = f"{d} {r['task'] or r['repo']} · {r['persona']} · {it}plan: {r['plan_verdict'] or '—'} · diff: {r['diff_verdict'] or '—'} · {pm} · {where}"
+        br = f" · ⎇ {r['branch']}" if r.get("branch") else ""
+        l1 = f"{d} {r['task'] or r['repo']}{br} · {r['persona']} · {it}plan: {r['plan_verdict'] or '—'} · diff: {r['diff_verdict'] or '—'} · {pm} · {where}"
         l2 = f"{d} last: {r['text'] or r['now']}"
         q = quote_for(r, t)
         l3 = f"{d} {toast}" if toast else (f"{d} \"{q}\"" if q else f"{d} ")
