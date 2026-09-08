@@ -920,7 +920,8 @@ MANUAL = """
   ↑↓ / j k  tune           select a session · 1-9 jack straight into row N
   c         resume         copy `cd <cwd> && claude --resume <sid>` (bring a sentinel back)
   n         notify         desktop notification when a session starts ringing, or crosses
-                           80% context (saved)
+                           80% context (saved). macOS: brew install terminal-notifier for
+                           reliable banners; clicking one brings this terminal forward
   ⏎         jack in        tmux: switch to that pane · macOS without tmux: focus the
                            iTerm2 / Terminal.app tab that owns the session, else bring the
                            owning app forward (WebStorm / VS Code / Cursor integrated terminals)
@@ -963,11 +964,25 @@ def _colors(curses):
 NOTIFY = False
 
 
+def _terminal_bundle():
+    return {"Apple_Terminal": "com.apple.Terminal", "iTerm.app": "com.googlecode.iterm2",
+            "WarpTerminal": "dev.warp.Warp-Stable", "ghostty": "com.mitchellh.ghostty"}.get(os.environ.get("TERM_PROGRAM", ""))
+
+
 def notify(title, body):
-    """Desktop ping when a session starts waiting. macOS: Notification Center. Linux: notify-send.
-    Fire-and-forget; never blocks the UI."""
+    """Desktop ping when a session starts waiting or crosses the context line. Fire-and-forget.
+    macOS: terminal-notifier when installed (reliable, listed in System Settings, click focuses the
+    terminal fleet runs in); else osascript, which recent macOS often swallows. Linux: notify-send."""
     try:
         if sys.platform == "darwin":
+            if shutil.which("terminal-notifier"):
+                cmd = ["terminal-notifier", "-title", "THE OPERATOR", "-subtitle", title, "-message", body,
+                       "-group", "anderson-fleet", "-sound", "default"]
+                b = _terminal_bundle()
+                if b:
+                    cmd += ["-activate", b]
+                subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return
             esc = lambda t: t.replace("\\", "\\\\").replace('"', '\\"')
             subprocess.Popen(["osascript", "-e", f'display notification "{esc(body)}" with title "THE OPERATOR" subtitle "{esc(title)}"'],
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -975,6 +990,13 @@ def notify(title, body):
             subprocess.Popen(["notify-send", f"THE OPERATOR · {title}", body], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
         pass
+
+
+def notify_hint():
+    """What the `n` toast adds when banners are likely to be swallowed."""
+    if sys.platform == "darwin" and not shutil.which("terminal-notifier"):
+        return "  (macOS often drops osascript banners: brew install terminal-notifier)"
+    return ""
 
 
 def resume_cmd(r):
@@ -1262,7 +1284,11 @@ def run_tui(args):
                     say(copy_resume(rows[sel]))
             elif k == ord("n"):
                 NOTIFY = not NOTIFY; save_prefs(notify=NOTIFY)
-                say("desktop notifications on: a ring pings you wherever you are." if NOTIFY else "desktop notifications off.")
+                if NOTIFY:
+                    say("desktop notifications on: a ring pings you wherever you are." + notify_hint(), 6)
+                    notify("fleet", "notifications on")          # the test banner: seen it, it works
+                else:
+                    say("desktop notifications off.")
             elif k == ord("$"):
                 SHOW_COST = not SHOW_COST; save_prefs(cost=SHOW_COST); prev = None
                 say("api$ shown: Claude Code's list-price estimate, a burn gauge, not your bill." if SHOW_COST else "api$ hidden.")

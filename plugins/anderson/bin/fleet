@@ -49,6 +49,9 @@ EOF
     *":$bin_dir:"*) ;;
     *) printf 'add to PATH (once):  echo '"'"'export PATH="%s:$PATH"'"'"' >> ~/.zshrc && source ~/.zshrc\n' "$bin_dir" ;;
   esac
+  if [ "$(uname -s)" = "Darwin" ] && ! command -v terminal-notifier >/dev/null 2>&1; then
+    printf 'optional desktop notifications (n key): brew install terminal-notifier   (osascript banners are unreliable on recent macOS)\n'
+  fi
   if command -v tmux >/dev/null 2>&1; then
     printf 'optional tmux hotkey (prefix+F):  echo '"'"'bind F split-window -h -l 45%% "%s --here"'"'"' >> ~/.tmux.conf && tmux source ~/.tmux.conf\n' "$shim"
   else
