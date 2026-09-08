@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.33.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.34.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -566,6 +566,12 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
+- **0.34.0** — **Fleet: the phone rings; honest usage numbers.** `m` (or `--sound`) plays a
+  synthesized ringback tone (440 + 480 Hz, two bursts, stdlib-generated into
+  `~/.claude/fleet/ring.wav`, replace the file for your own sound) when a session starts waiting on
+  you; `afplay` on macOS, `paplay` / `aplay` on Linux. The footer's `/usage` windows are the last API
+  reply any session saw, since fleet cannot query the API itself: numbers older than two minutes now
+  carry `(as of 4m ago)`, and copies older than six hours are dropped rather than shown wrong.
 - **0.33.1** — **Fleet: detail card; red footer at 90% usage; test fix.** When the terminal has
   ten or more free lines below the table, the selected session gets a labelled card instead of three
   dense lines: `task` (with repo and `⎇ branch`), `who` (persona · stage · model), `verdicts` (plan,
