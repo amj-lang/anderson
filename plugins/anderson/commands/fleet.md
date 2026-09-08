@@ -28,7 +28,8 @@ curses, zero tokens); this command only installs the launcher and tells the huma
             / filter · t theme · p wording · ? manual · q
 
   jack in:  ⏎ switches tmux to the session's pane. No tmux? On macOS it focuses the iTerm2 /
-            Terminal.app tab that owns the session instead. tmux is optional:
+            Terminal.app tab that owns the session, or brings the owning IDE forward for
+            integrated terminals (WebStorm, VS Code, Cursor). tmux is optional:
             fleet install --with-tmux adds it (brew / apt / dnf) if you want panes.
 
   data:     found with no setup (ps + transcripts + state.md). This plugin's hooks add the exact
