@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.30.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.31.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -497,10 +497,10 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 - **`fleet`** — **THE OPERATOR**, the cross-repo fleet monitor. Install once with `/anderson:fleet`
   (writes a `fleet` shim to `~/.local/bin` that resolves the newest installed anderson at run time,
-  so plugin updates never break it), then in any terminal: `fleet` (inside tmux: this pane; outside:
-  opens/attaches a tmux session named `fleet`; no tmux: runs plain), `fleet --pane` (45% side
-  pane), `fleet --window`, `fleet --here` (never touches tmux). The installer also prints an
-  optional `prefix+F` tmux hotkey line. Every Claude Code
+  so plugin updates never break it), then in any terminal: `fleet` (runs right there, tmux or not),
+  `fleet --tmux` (a persistent tmux session named `fleet`, status bar hidden), `fleet --pane` (45%
+  side pane inside tmux), `fleet --window`. The installer also prints an optional `prefix+F` tmux
+  hotkey line. Every Claude Code
   session on the machine, one row each: repo · anderson task · **persona on the job** (▲ ARCHITECT,
   ◇ INTERROGATOR, ◎ ORACLE, ● NEO, ▣ AGENT SMITH, ★ THE ONE, ○ T. ANDERSON = no pipeline yet) ·
   stage `n/max` · model · **now** (`▶ Bash pytest -q`, `▶ Agent implementer`, `☎ ring` = waits on
@@ -562,6 +562,13 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
+- **0.31.0** — **Fleet: usage in words, `$` opt-in, `fleet` runs in place.** Footer now reads
+  `session 46% · 4h07 left │ week 41% · resets Fri 19:00` (the `/usage` windows: the rolling 5-hour
+  "current session" and the 7-day all-models window; Claude Code exposes no per-model weekly number
+  and no plan price, so on a flat-fee plan these percentages are the cost). The `api$` column and
+  footer estimate are hidden on subscriptions; `$` or `--cost` shows them as a burn gauge; API-key
+  users (no limits) still see them by default. `fleet` now runs in the current terminal whether or
+  not tmux is around; `fleet --tmux` opts into the persistent tmux session, with its status bar off.
 - **0.30.1** — **Fleet: zoom.** Font size belongs to the terminal, and Terminal.app exposes it per
   window over AppleScript, so `fleet --zoom 16` (or `+` / `-` while running) grows the window's font
   for the monitor and restores the original size on quit. Saved in `prefs.json`; `--no-zoom` clears.

@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.30.1-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.31.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -132,13 +132,13 @@ You run anderson in several repos at once. **THE OPERATOR** is the terminal that
 - **What it is doing**: `▶ Bash pytest -q`, `▶ Agent implementer`, `☎ ring` (waits on you), `☎ permission Bash`, `✝ sentinel` (process gone), `⟲` (rework loop). Plus `$`, context bar, lines ±, age, last words.
 - **Jack in**: `⏎` switches tmux to that session's pane; without tmux, on macOS it focuses the iTerm2 / Terminal.app tab that owns the session, or brings the owning IDE forward for integrated terminals. `w` jumps to the oldest one waiting. `r` kills (asks first). `b` dismisses a dead row. `/` filters. `?` manual.
 - **tmux is optional**: `fleet` runs plain without it. `fleet install --with-tmux` adds it (brew / apt / dnf) if you want the pane workflow.
-- **Usage at a glance**: footer shows the fleet's `$` (Claude Code's list-price estimate, notional on a subscription) and your `/usage` windows: `5h 20% ↻4h33 · 7d 37% ↻Fri`.
+- **Usage at a glance**: footer shows your `/usage` windows in words: `session 46% · 4h07 left │ week 41% · resets Fri 19:00`. On a flat-fee plan those percentages are the cost; the API-price estimate per session is hidden (`$` or `--cost` shows it as a burn gauge). API-key users see the estimate by default.
 - **Zero tokens**: plain python curses, runs **outside** Claude. Sessions are found with no setup (`ps` + transcripts). The plugin's hooks add the exact waiting/working signal; the statusline heartbeat adds `$` and precise context (wrap any statusline with `bin/fleet-statusline.sh`).
 - **Your look, remembered**: five themes (`matrix`, `construct`, `zion`, `nebuchadnezzar`, `agent`) with `t`, Matrix or plain wording with `p`, `--calm` for no motion — all saved in `~/.claude/fleet/prefs.json`. Boot screen rotates a line every launch; `--no-intro` skips it.
 
 ```
 /anderson:fleet            # once: installs ~/.local/bin/fleet (survives plugin updates)
-fleet                      # in tmux: this pane · outside: tmux session "fleet" · no tmux: plain
+fleet                      # runs right here, tmux or not · --tmux: persistent tmux session
 fleet --pane               # 45% side pane        fleet --demo    # four fake rows to try it
 ```
 

@@ -17,6 +17,7 @@ Operator watching the screens.
     python3 bin/fleet.py --plain       # plain wording instead of Matrix lingo (saved; --lingo reverts)
     python3 bin/fleet.py --calm        # no motion in any theme (saved; --motion reverts)
     python3 bin/fleet.py --zoom 16     # Terminal.app: font size while fleet runs (saved; --no-zoom clears)
+    python3 bin/fleet.py --cost        # show the api$ column on a subscription (saved; --no-cost hides)
 
 Data, richest first, each optional (the view degrades, never breaks):
   ~/.claude/fleet/<sid>.status.json   heartbeat from bin/heartbeat.py (statusline): $, ctx, model
@@ -547,7 +548,8 @@ def load_prefs():
     d = jload(PREFS_FILE) or {}
     z = d.get("zoom")
     return {"theme": d.get("theme") or "matrix", "plain": bool(d.get("plain")), "calm": bool(d.get("calm")),
-            "zoom": int(z) if isinstance(z, (int, float)) and 6 <= int(z) <= 72 else None}
+            "zoom": int(z) if isinstance(z, (int, float)) and 6 <= int(z) <= 72 else None,
+            "cost": bool(d.get("cost"))}
 
 
 def save_prefs(**kw):
@@ -646,7 +648,7 @@ COLS = [  # key, title, width (None = elastic), align, min terminal width to sho
     ("stage",   "stage",   15,   "l", 0),
     ("model",   "model",   13,   "l", 140),
     ("now",     "now",     22,   "l", 85),
-    ("cost",    "$",       6,    "r", 100),
+    ("cost",    "api$",    6,    "r", 100),
     ("ctx",     "ctx",     15,   "l", 120),
     ("ctxp",    "ctx",     4,    "r", 0),      # compact ctx, only when the bar is hidden
     ("age",     "age",     4,    "r", 100),
@@ -654,8 +656,13 @@ COLS = [  # key, title, width (None = elastic), align, min terminal width to sho
 PREFIX = 3   # margin + cursor + space
 
 
+SHOW_COST = False    # api$ column: on for API-key users (no limits), opt-in on subscriptions (--cost, `$` key)
+
+
 def layout(width):
     cols = [c for c in COLS if width >= c[4]]
+    if not SHOW_COST and usage_limits():
+        cols = [c for c in cols if c[0] != "cost"]
     if any(c[0] == "ctx" for c in cols):
         cols = [c for c in cols if c[0] != "ctxp"]
     fixed = sum(c[2] for c in cols if c[2]) + 2 * (len(cols) - 1) + PREFIX
@@ -777,27 +784,35 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None):
         if G is not ASCII else "jk tune  enter jack in  w rabbit  r red pill  b blue pill  / filter  t theme  p wording  +/- zoom  ? manual  q"
     if filt:
         keys = f"/{filt}_   (esc clears)"
-    tot = f"{THEME['name']} · {words('fleet')} ${fleet:.2f}" + (f" · {lim}" if lim else "")
+    if lim:
+        tot = f"{THEME['name']} · {lim}" + (f" · api est ${fleet:.2f}" if SHOW_COST else "")
+    else:
+        tot = f"{THEME['name']} · api est ${fleet:.2f}"
     lines.append(("foot", fit(fit(keys, max(0, W - dw(tot) - 1)) + " " + tot, W)))
     return lines
 
 
 def _reset_str(ts):
+    """'4h07 left' / '38m left' inside a day, else 'resets Fri 19:00'."""
     if not ts:
         return ""
     left = int(ts - time.time())
     if left <= 0:
         return ""
     if left < 3600:
-        return f"{left // 60}m"
+        return f"{left // 60}m left"
     if left < 86400:
-        return f"{left // 3600}h{(left % 3600) // 60:02d}"
-    return time.strftime("%a", time.localtime(ts))
+        return f"{left // 3600}h{(left % 3600) // 60:02d} left"
+    return time.strftime("resets %a %H:%M", time.localtime(ts))
 
 
 def usage_limits():
     """Subscription windows from the freshest heartbeat that carries them (account-wide, so any
-    session's copy is the truth): '5h 20% ↻4h33 · 7d 38% ↻Fri'. Empty when no heartbeat has them."""
+    session's copy is the truth), in words:
+      'session 46% · 4h07 left │ week 41% · resets Fri 19:00'
+    session = the rolling 5-hour window /usage calls "Current session"; week = the 7-day window
+    for all models. Claude Code does not expose the per-model weekly number. Empty when no
+    heartbeat has limits (API-key users)."""
     best, best_ts = None, 0
     for p in glob.glob(os.path.join(FLEET_DIR, "*.status.json")):
         d = jload(p) or {}
@@ -806,14 +821,14 @@ def usage_limits():
     if not best:
         return ""
     parts = []
-    for key, label in (("five_hour", "5h"), ("seven_day", "7d"), ("spend_limit", "spend")):
+    for key, label in (("five_hour", "session"), ("seven_day", "week"), ("spend_limit", "spend")):
         w = best.get(key) or {}
         if w.get("pct") is None:
             continue
         r = _reset_str(w.get("resets_at"))
-        arrow = "↻" if G is not ASCII else "@"
-        parts.append(f"{label} {int(w['pct'])}%" + (f" {arrow}{r}" if r else ""))
-    return " · ".join(parts)
+        parts.append(f"{label} {int(w['pct'])}%" + (f" · {r}" if r else ""))
+    sep = " │ " if G is not ASCII else " | "
+    return sep.join(parts)
 
 
 MANUAL = """
@@ -829,11 +844,14 @@ MANUAL = """
   persona   who is on the job, from feature-research/*/state.md: ARCHITECT plan,
             INTERROGATOR grill (you), ORACLE plan_review, NEO implement,
             AGENT SMITH diff_review, THE ONE shipped, T. ANDERSON: no pipeline yet
-  $ ctx     from the statusline heartbeat (bin/heartbeat.py); ctx falls back to the
-            transcript's last usage when no heartbeat is wired. $ is Claude Code's own
-            estimate at API list price: notional on a subscription, useful as a gauge.
-  5h · 7d   your subscription windows (the /usage numbers) with time to reset, from
-            the same heartbeat; account-wide, so any session's copy is the truth
+  ctx       from the statusline heartbeat (bin/heartbeat.py); falls back to the transcript's
+            last usage when no heartbeat is wired
+  footer    session 46% · 4h07 left │ week 41% · resets Fri 19:00
+            session = the rolling 5-hour window (/usage "Current session"), week = the 7-day
+            window for all models. Your plan is a flat fee: these percentages ARE the cost.
+            Claude Code does not expose the per-model weekly number.
+  api$      hidden on subscriptions. `$` (or --cost) shows Claude Code's list-price estimate
+            per session: a burn gauge (which session eats most), never your bill.
 
   ↑↓ / j k  tune           select a session
   ⏎         jack in        tmux: switch to that pane · macOS without tmux: focus the
@@ -845,6 +863,7 @@ MANUAL = """
   /         filter         substring on repo · task ; esc clears
   t         theme          matrix · construct · zion · nebuchadnezzar · agent (saved)
   p         wording        Matrix lingo (zion · jacked in · ringing · sentinel) or plain (saved)
+  $         api$           show/hide the per-session API-price estimate column (saved)
   + / -     zoom           Terminal.app: grow/shrink this window's font while fleet runs (saved,
                            restored on quit; --zoom 16 sets it, --no-zoom clears). iTerm2 / IDE: ⌘+
   ?         this           q quits
@@ -1098,6 +1117,10 @@ def run_tui(args):
                 global PLAIN
                 PLAIN = not PLAIN; save_prefs(plain=PLAIN); prev = None
                 say("plain english." if PLAIN else "welcome back to the Matrix.")
+            elif k == ord("$"):
+                global SHOW_COST
+                SHOW_COST = not SHOW_COST; save_prefs(cost=SHOW_COST); prev = None
+                say("api$ shown: Claude Code's list-price estimate, a burn gauge, not your bill." if SHOW_COST else "api$ hidden.")
             elif k in (ord("+"), ord("=")):
                 say(zoom_by(+1)); prev = None
             elif k in (ord("-"), ord("_")):
@@ -1337,9 +1360,15 @@ def main(argv):
         prefs["zoom"] = int(args[args.index("--zoom") + 1])
     if "--no-zoom" in args:
         prefs["zoom"] = None
+    if "--cost" in args:
+        prefs["cost"] = True
+    if "--no-cost" in args:
+        prefs["cost"] = False
+    global SHOW_COST
+    SHOW_COST = prefs["cost"]
     PLAIN = prefs["plain"]
     if theme in THEMES and "--selftest" not in args and "--once" not in args:
-        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"], zoom=prefs["zoom"])
+        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"], zoom=prefs["zoom"], cost=prefs["cost"])
     set_theme(theme or "matrix", calm=prefs["calm"])
     if "--themes" in args:
         for n, t in THEMES.items():

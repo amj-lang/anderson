@@ -197,9 +197,9 @@ class TestPrefsAndWording(unittest.TestCase):
             old_dir, old_prefs, old_plain = fleet.FLEET_DIR, fleet.PREFS_FILE, fleet.PLAIN
             fleet.FLEET_DIR = tmp; fleet.PREFS_FILE = os.path.join(tmp, "prefs.json")
             try:
-                self.assertEqual(fleet.load_prefs(), {"theme": "matrix", "plain": False, "calm": False, "zoom": None})
+                self.assertEqual(fleet.load_prefs(), {"theme": "matrix", "plain": False, "calm": False, "zoom": None, "cost": False})
                 fleet.save_prefs(theme="zion", plain=True)
-                self.assertEqual(fleet.load_prefs(), {"theme": "zion", "plain": True, "calm": False, "zoom": None})
+                self.assertEqual(fleet.load_prefs(), {"theme": "zion", "plain": True, "calm": False, "zoom": None, "cost": False})
                 fleet.save_prefs(calm=True)                        # partial update keeps the rest
                 self.assertEqual(fleet.load_prefs()["theme"], "zion")
                 fleet.PLAIN = True
@@ -279,9 +279,16 @@ class TestUsageLimits(unittest.TestCase):
             old = fleet.FLEET_DIR; fleet.FLEET_DIR = tmp
             try:
                 lim = fleet.usage_limits()
-                self.assertIn("5h 20%", lim); self.assertIn("7d 37%", lim); self.assertRegex(lim, r"4h3[23]")
+                self.assertIn("session 20%", lim); self.assertIn("week 37%", lim); self.assertRegex(lim, r"4h3[23] left")
                 foot = fleet.render([], 140)[-1][1]
-                self.assertIn("5h 20%", foot)
+                self.assertIn("session 20%", foot); self.assertNotIn("api est", foot)     # subscription: no $
+                self.assertNotIn("cost", {k for k, *_ in fleet.layout(200)})            # api$ column hidden
+                fleet.SHOW_COST = True
+                try:
+                    self.assertIn("api est", fleet.render([], 140)[-1][1])
+                    self.assertIn("cost", {k for k, *_ in fleet.layout(200)})
+                finally:
+                    fleet.SHOW_COST = False
                 for kind, ln in fleet.render(fleet.demo_rows(), 140):
                     self.assertEqual(fleet.dw(ln), 140)
             finally:
@@ -292,7 +299,9 @@ class TestUsageLimits(unittest.TestCase):
             old = fleet.FLEET_DIR; fleet.FLEET_DIR = tmp
             try:
                 self.assertEqual(fleet.usage_limits(), "")
-                self.assertNotIn("5h", fleet.render([], 120)[-1][1])
+                foot = fleet.render([], 120)[-1][1]
+                self.assertNotIn("session", foot); self.assertIn("api est", foot)         # API-key user: $ shown
+                self.assertIn("cost", {k for k, *_ in fleet.layout(200)})
             finally:
                 fleet.FLEET_DIR = old
 

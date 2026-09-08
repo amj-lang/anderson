@@ -2,11 +2,11 @@
 # fleet — launcher for THE OPERATOR (bin/fleet.py). Picks the right way to start it for
 # whatever terminal setup you have; everything else passes through to fleet.py.
 #
-#   fleet                 inside tmux: run in this pane · outside: start/attach tmux session
-#                         "fleet" (so ⏎ jack-in works) · no tmux installed: run plain
+#   fleet                 run right here, in the current terminal (inside or outside tmux)
+#   fleet --tmux          outside tmux: start/attach a tmux session "fleet" (status bar hidden)
 #   fleet --pane          inside tmux: open in a 45% side pane
 #   fleet --window        inside tmux: open in a new window named "fleet"
-#   fleet --here          run in the current terminal, never touch tmux
+#   fleet --here          same as the default; kept for scripts and the prefix+F hotkey
 #   fleet install         put a stable `fleet` shim in ~/.local/bin (survives plugin updates)
 #   fleet install --with-tmux   same, plus install tmux (brew / apt / dnf) if missing. tmux is
 #                         optional: on macOS ⏎ jack-in also works without it (focuses the
@@ -78,12 +78,13 @@ case "${1:-}" in
   uninstall) rm -f "$shim" && printf 'removed %s\n' "$shim"; exit 0 ;;
 esac
 
-mode="auto"
+mode="here"
 args=()
 for a in "$@"; do
   case "$a" in
     --pane)   mode="pane" ;;
     --window) mode="window" ;;
+    --tmux)   mode="tmux" ;;
     --here)   mode="here" ;;
     *)        args+=("$a") ;;
   esac
@@ -109,5 +110,9 @@ if [ -n "${TMUX:-}" ]; then
   esac
 fi
 
-# Outside tmux but tmux exists: one session named "fleet", created on first run, attached after.
-exec tmux new-session -A -s fleet "$cmd"
+# Outside tmux: --tmux = one session named "fleet" (created on first run, attached after), its
+# status bar off so only the monitor shows. Anything else runs right here.
+if [ "$mode" = "tmux" ]; then
+  exec tmux new-session -A -s fleet "$cmd" \; set-option status off
+fi
+exec python3 "$py" "${args[@]+"${args[@]}"}"
