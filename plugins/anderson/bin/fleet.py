@@ -719,6 +719,12 @@ def ctx_span(width):
     return None
 
 
+def hot_rows(rows):
+    """sids whose context is past HOT_CTX and that are still alive: the ones to /compact."""
+    return {r["sid"] for r in rows
+            if r.get("ctx_pct") is not None and r["ctx_pct"] >= HOT_CTX and r["status"] != "sentinel"}
+
+
 def cell_index(line, x):
     """Character index in `line` where display column x starts (wide chars aware)."""
     used = 0
@@ -892,7 +898,8 @@ MANUAL = """
   Every Claude Code session on this machine, one row each. Rows sort ringing first.
 
   ☎  ring 12m    the session waits on you (turn ended, or a permission prompt), and for how long
-  red ctx        context past 80%: /compact before the next review panel eats the budget
+  red ctx        context past 80%: /compact before the next review panel eats the budget.
+                 Crossing it fires a toast, and a desktop notification when `n` is on.
   "quoted" task  a session with no anderson pipeline shows its first prompt as the title
   ▶  work        model thinking, or a tool / subagent running
   ✝  sentinel    the process is gone; the row stays until you blue-pill it
@@ -912,7 +919,8 @@ MANUAL = """
 
   ↑↓ / j k  tune           select a session · 1-9 jack straight into row N
   c         resume         copy `cd <cwd> && claude --resume <sid>` (bring a sentinel back)
-  n         notify         desktop notification when a session starts ringing (saved)
+  n         notify         desktop notification when a session starts ringing, or crosses
+                           80% context (saved)
   ⏎         jack in        tmux: switch to that pane · macOS without tmux: focus the
                            iTerm2 / Terminal.app tab that owns the session, else bring the
                            owning app forward (WebStorm / VS Code / Cursor integrated terminals)
@@ -1080,7 +1088,7 @@ def run_tui(args):
         confirm = None
         manual = False
         typed = ""
-        rung, shipped, burst = set(), set(), {}
+        rung, shipped, burst, hot_seen = set(), set(), {}, set()
         last_scan = 0
         prev = None            # last painted (size, lines-with-attrs): repaint only on change
 
@@ -1103,6 +1111,14 @@ def run_tui(args):
                     if last_scan and NOTIFY:
                         notify(f"{r['repo']} · {r['task'] or r.get('title') or 'session'}", r["now"])
                 rung = new_ring
+                new_hot = hot_rows(all_rows)
+                for sid in new_hot - hot_seen:
+                    r = next(x for x in all_rows if x["sid"] == sid)
+                    if last_scan:
+                        say(f"context {int(r['ctx_pct'])}% on {r['repo']} · {r['task'] or r.get('title') or 'session'}: /compact before it eats the budget.", 6)
+                        if NOTIFY:
+                            notify(f"{r['repo']} · {r['task'] or r.get('title') or 'session'}", f"context {int(r['ctx_pct'])}%: /compact")
+                hot_seen = new_hot            # drops below the line (after a /compact) re-arms the alert
                 new_ship = {r["sid"] for r in all_rows if r["shipped"]}
                 for sid in new_ship - shipped:
                     if last_scan:

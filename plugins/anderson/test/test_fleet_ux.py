@@ -53,6 +53,12 @@ class TestUxBatch(unittest.TestCase):
         cmd = fleet.resume_cmd({"sid": "8596c744-4f19-48ac-ac12-7f4445578e3d", "cwd": "/Users/a b/repo"})
         self.assertEqual(cmd, "cd '/Users/a b/repo' && claude --resume 8596c744-4f19-48ac-ac12-7f4445578e3d")
 
+    def test_hot_rows_ignore_sentinels_and_unknown_ctx(self):
+        rows = fleet.demo_rows()
+        rows[0]["ctx_pct"] = 85; rows[1]["ctx_pct"] = None
+        rows[3]["ctx_pct"] = 99                              # demo row 3 is the sentinel
+        self.assertEqual(fleet.hot_rows(rows), {rows[0]["sid"]})
+
     def test_title_kept_on_sentinel_rows(self):
         row = dict(fleet.demo_rows()[3], task="", title="old work")
         self.assertEqual(fleet.cell(row, "task", 0), '"old work"')
