@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.29.2-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.29.3-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -542,7 +542,9 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
      PostToolUse / Notification / Stop / SessionEnd) write `~/.claude/fleet/<sid>.event.json`: the
      exact waiting-on-you vs working signal, permission prompts included.
   3. **statusline heartbeat** (`bin/heartbeat.py`) writes `~/.claude/fleet/<sid>.status.json`: `$`
-     cost, precise context %, model, lines ±, tmux pane. `bin/statusline.sh` calls it; to keep your
+     cost, precise context %, model, lines ±, tmux pane, and your subscription windows (the `/usage`
+     5-hour / 7-day percentages and reset times, shown in the footer). `$` is Claude Code's own
+     estimate at API list price: notional on a subscription, a gauge of which session burns most. `bin/statusline.sh` calls it; to keep your
      own statusline, wrap it:
      ```
      "statusLine": { "type": "command",
@@ -558,6 +560,12 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
+- **0.29.3** — **Fleet: subscription usage in the footer; honest `$`.** The heartbeat now records
+  Claude Code's `rate_limits` (the `/usage` numbers: 5-hour and 7-day windows, used % and reset time)
+  and the footer shows them: `zion $115.28 · 5h 20% ↻4h33 · 7d 37% ↻Fri`. Account-wide, so the
+  freshest heartbeat is the truth. The `today $` total is gone: it summed lifetime per-session costs
+  and read as a daily bill. `$` is documented for what it is, Claude Code's client-side estimate at
+  API list price, notional on a subscription, a gauge of which session burns most.
 - **0.29.2** — **Fleet: jack in reaches IDE terminals.** When a session runs in an integrated
   terminal (WebStorm, VS Code, Cursor, Warp...) no tab is scriptable, so `⏎` now walks the process
   ancestry to the owning `.app` and brings it forward, with a toast saying the tab itself could not

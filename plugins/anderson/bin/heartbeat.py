@@ -5,7 +5,8 @@ stdin; it records one small JSON per session in ~/.claude/fleet/<session_id>.sta
 for bin/fleet.py (THE OPERATOR). Called by bin/statusline.sh and bin/fleet-statusline.sh.
 
 Fields: session_id, cwd, transcript_path, model, cost_usd, duration_ms, lines_added,
-lines_removed, ctx_pct, ctx_tokens, tmux_pane, pid (the Claude process = our parent), ts.
+lines_removed, ctx_pct, ctx_tokens, tmux_pane, pid (the Claude process = our parent), ts,
+limits (five_hour / seven_day / spend_limit: used %, resets_at; the /usage numbers).
 Never raises: a broken heartbeat must never break the statusline.
 """
 import json, os, sys, time
@@ -30,6 +31,9 @@ def main():
     if ctx_pct is None and ctx.get("context_window_size"):
         ctx_pct = 100.0 * ctx_tokens / float(ctx["context_window_size"])
     model = d.get("model") or {}
+    rl = d.get("rate_limits") or {}          # subscription windows, same numbers as /usage
+    limits = {k: {"pct": (rl.get(k) or {}).get("used_percentage"), "resets_at": (rl.get(k) or {}).get("resets_at")}
+              for k in ("five_hour", "seven_day", "spend_limit") if rl.get(k)}
     out = {
         "session_id": sid,
         "cwd": d.get("cwd") or (d.get("workspace") or {}).get("current_dir"),
@@ -44,6 +48,7 @@ def main():
         "tmux_pane": os.environ.get("TMUX_PANE"),
         "pid": os.getppid(),
         "ts": time.time(),
+        "limits": limits or None,
     }
     os.makedirs(FLEET_DIR, exist_ok=True)
     path = os.path.join(FLEET_DIR, f"{sid}.status.json")

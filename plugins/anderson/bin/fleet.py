@@ -768,25 +768,48 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None):
     lines += [("det", fit(l1, W)), ("det", fit(l2, W)), ("quote", fit(l3, W))]
     lines.append(("rule", rule(W)))
     fleet = sum(r["cost"] or 0 for r in rows)
+    lim = usage_limits()
     keys = f"↑↓ tune  ⏎ jack in  w rabbit  r red pill  b blue pill  / filter  t theme  p wording  ? manual  q" \
         if G is not ASCII else "jk tune  enter jack in  w rabbit  r red pill  b blue pill  / filter  t theme  p wording  ? manual  q"
     if filt:
         keys = f"/{filt}_   (esc clears)"
-    tot = f"{THEME['name']} · {words('fleet')} ${fleet:.2f} · today ${today_spend():.2f}"
+    tot = f"{THEME['name']} · {words('fleet')} ${fleet:.2f}" + (f" · {lim}" if lim else "")
     lines.append(("foot", fit(fit(keys, max(0, W - dw(tot) - 1)) + " " + tot, W)))
     return lines
 
 
-def today_spend():
-    tot = 0.0
-    day = time.strftime("%Y-%m-%d")
+def _reset_str(ts):
+    if not ts:
+        return ""
+    left = int(ts - time.time())
+    if left <= 0:
+        return ""
+    if left < 3600:
+        return f"{left // 60}m"
+    if left < 86400:
+        return f"{left // 3600}h{(left % 3600) // 60:02d}"
+    return time.strftime("%a", time.localtime(ts))
+
+
+def usage_limits():
+    """Subscription windows from the freshest heartbeat that carries them (account-wide, so any
+    session's copy is the truth): '5h 20% ↻4h33 · 7d 38% ↻Fri'. Empty when no heartbeat has them."""
+    best, best_ts = None, 0
     for p in glob.glob(os.path.join(FLEET_DIR, "*.status.json")):
-        try:
-            if time.strftime("%Y-%m-%d", time.localtime(os.path.getmtime(p))) == day:
-                tot += float((jload(p) or {}).get("cost_usd") or 0)
-        except Exception:
-            pass
-    return tot
+        d = jload(p) or {}
+        if d.get("limits") and (d.get("ts") or 0) > best_ts:
+            best, best_ts = d["limits"], d["ts"]
+    if not best:
+        return ""
+    parts = []
+    for key, label in (("five_hour", "5h"), ("seven_day", "7d"), ("spend_limit", "spend")):
+        w = best.get(key) or {}
+        if w.get("pct") is None:
+            continue
+        r = _reset_str(w.get("resets_at"))
+        arrow = "↻" if G is not ASCII else "@"
+        parts.append(f"{label} {int(w['pct'])}%" + (f" {arrow}{r}" if r else ""))
+    return " · ".join(parts)
 
 
 MANUAL = """
@@ -803,7 +826,10 @@ MANUAL = """
             INTERROGATOR grill (you), ORACLE plan_review, NEO implement,
             AGENT SMITH diff_review, THE ONE shipped, T. ANDERSON: no pipeline yet
   $ ctx     from the statusline heartbeat (bin/heartbeat.py); ctx falls back to the
-            transcript's last usage when no heartbeat is wired
+            transcript's last usage when no heartbeat is wired. $ is Claude Code's own
+            estimate at API list price: notional on a subscription, useful as a gauge.
+  5h · 7d   your subscription windows (the /usage numbers) with time to reset, from
+            the same heartbeat; account-wide, so any session's copy is the truth
 
   ↑↓ / j k  tune           select a session
   ⏎         jack in        tmux: switch to that pane · macOS without tmux: focus the
