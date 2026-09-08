@@ -19,6 +19,7 @@ Operator watching the screens.
     python3 bin/fleet.py --zoom 16     # Terminal.app: font size while fleet runs (saved; --no-zoom clears)
     python3 bin/fleet.py --cost        # show the api$ column on a subscription (saved; --no-cost hides)
     python3 bin/fleet.py --notify      # desktop notification when a session starts ringing (saved)
+    python3 bin/fleet.py --editor code # what opens plan.md / audit.md on `o` or at a gate (saved)
 
 Data, richest first, each optional (the view degrades, never breaks):
   ~/.claude/fleet/<sid>.status.json   heartbeat from bin/heartbeat.py (statusline): $, ctx, model
@@ -180,7 +181,7 @@ def anderson_state(root):
     except Exception:
         return {}
     st = {k: field(t, k) for k in
-          ("task", "stage", "iteration", "max_iterations", "plan_verdict", "diff_verdict", "review_model", "branch")}
+          ("task", "stage", "iteration", "max_iterations", "plan_verdict", "diff_verdict", "review_model", "branch", "gate")}
     st["task"] = st["task"] or os.path.basename(os.path.dirname(p))
     st["mtime"] = os.path.getmtime(p)
     return st
@@ -486,6 +487,7 @@ def enrich(s, now):
         "task": st.get("task") or "", "title": tr.get("title") or "", "stage": stage, "persona": persona, "pglyph": PGLYPH[gk],
         "mood": mood, "model": model_spec, "iteration": it, "max_iter": mx,
         "plan_verdict": st.get("plan_verdict"), "diff_verdict": st.get("diff_verdict"), "branch": st.get("branch") or tr.get("branch"),
+        "gate": (st.get("gate") or "").lower(),
         "dejavu": bool(it and it.isdigit() and int(it) > 0),
         "status": status, "now": now_txt, "text": tr.get("text") or "",
         "cost": s.get("cost_usd"), "ctx_pct": ctx_pct,
@@ -576,7 +578,7 @@ def load_prefs():
     z = d.get("zoom")
     return {"theme": d.get("theme") or "matrix", "plain": bool(d.get("plain")), "calm": bool(d.get("calm")),
             "zoom": int(z) if isinstance(z, (int, float)) and 6 <= int(z) <= 72 else None,
-            "cost": bool(d.get("cost")), "notify": bool(d.get("notify"))}
+            "cost": bool(d.get("cost")), "notify": bool(d.get("notify")), "editor": d.get("editor") or None}
 
 
 def save_prefs(**kw):
@@ -841,8 +843,8 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None):
     lines.append(("rule", rule(W)))
     fleet = sum(r["cost"] or 0 for r in rows)
     lim = usage_limits()
-    keys = f"↑↓ tune  1-9/⏎ jack in  w rabbit  r red pill  b blue pill  c resume  n notify  / filter  t theme  p wording  ? manual  q" \
-        if G is not ASCII else "jk tune  1-9/enter jack in  w rabbit  r red pill  b blue pill  c resume  n notify  / filter  t theme  p wording  ? manual  q"
+    keys = f"↑↓ tune  1-9/⏎ jack in  o open plan  w rabbit  r red pill  b blue pill  c resume  n notify  / filter  t theme  ? manual  q" \
+        if G is not ASCII else "jk tune  1-9/enter jack in  o open plan  w rabbit  r red pill  b blue pill  c resume  n notify  / filter  t theme  ? manual  q"
     if filt:
         keys = f"/{filt}_   (esc clears)"
     if lim:
@@ -918,6 +920,10 @@ MANUAL = """
             per session: a burn gauge (which session eats most), never your bill.
 
   ↑↓ / j k  tune           select a session · 1-9 jack straight into row N
+  o         open           open the gate artifact in your IDE: plan.md (grill, plan review),
+                           plan.md + audit.md (diff review). ⏎ / 1-9 on a row parked at a human
+                           gate does this automatically. Editor: --editor code (saved), else a
+                           GUI $VISUAL/$EDITOR, else the IDE that owns the session, else `open`
   c         resume         copy `cd <cwd> && claude --resume <sid>` (bring a sentinel back)
   n         notify         desktop notification when a session starts ringing, or crosses
                            80% context (saved). macOS: brew install terminal-notifier for
@@ -1026,6 +1032,53 @@ def copy_resume(r):
             except Exception:
                 break
     return f"resume with: {cmd}"
+
+
+# ──────────────────────────────────────────────────────── open the gate artifact
+EDITOR = None
+GUI_EDITORS = {"code", "code-insiders", "cursor", "windsurf", "zed", "subl", "webstorm", "idea", "pycharm",
+               "phpstorm", "goland", "rubymine", "clion", "rider", "fleet", "mate", "atom", "nova"}
+
+
+def gate_files(r):
+    """The artifacts a human gate asks you to read, for this row's stage. Existing files only."""
+    root, task = r.get("root") or r.get("cwd") or "", r.get("task") or ""
+    if not root or not task:
+        return []
+    d = os.path.join(root, "feature-research", task)
+    want = {"grill": ["plan.md"], "plan_review": ["plan.md"], "diff_review": ["plan.md", "audit.md"],
+            "implement": ["audit.md"]}.get(r.get("stage") or "", ["plan.md"])
+    return [os.path.join(d, f) for f in want if os.path.isfile(os.path.join(d, f))]
+
+
+def editor_cmd(r, files):
+    """argv to open files: --editor / $FLEET_EDITOR / a GUI $VISUAL·$EDITOR, else the IDE owning the
+    session (macOS), else the OS default opener. None when nothing applies."""
+    for cand in (EDITOR, os.environ.get("FLEET_EDITOR"), os.environ.get("VISUAL"), os.environ.get("EDITOR")):
+        if cand and os.path.basename(cand.split()[0]) in GUI_EDITORS and shutil.which(cand.split()[0]):
+            return cand.split() + files
+    if sys.platform == "darwin":
+        app = _owner_app(r.get("pid")) if r.get("pid") else None
+        if app and app[0] not in ("Terminal", "iTerm2", "Warp", "Ghostty", "Alacritty", "kitty"):
+            return ["open", "-a", app[1]] + files
+        return ["open"] + files
+    if shutil.which("xdg-open"):
+        return ["xdg-open"] + files[:1]
+    return None
+
+
+def open_gate(r):
+    files = gate_files(r)
+    if not files:
+        return "nothing to open: no plan.md / audit.md for that row."
+    cmd = editor_cmd(r, files)
+    if not cmd:
+        return "no editor found: fleet --editor code   (or set $VISUAL)"
+    try:
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return f"opened {', '.join(os.path.basename(f) for f in files)} in {os.path.basename(cmd[0]) if cmd[0] != 'open' else (cmd[2].rsplit('/', 1)[-1] if cmd[1:2] == ['-a'] else 'default app')}"
+    except Exception as e:
+        return f"open failed: {e}"
 
 
 # ───────────────────────────────────────────────────────────────────── zoom
@@ -1244,7 +1297,10 @@ def run_tui(args):
                 sel = max(sel - 1, 0)
             elif k in (10, 13, curses.KEY_ENTER):
                 if rows:
-                    say(jack_in(rows[sel]))
+                    say(jack_in(rows[sel]) + gate_auto_open(rows[sel]))
+            elif k == ord("o"):
+                if rows:
+                    say(open_gate(rows[sel]))
             elif k == ord("w"):
                 ringing = [i for i, r in enumerate(rows) if r["status"] == "ring"]
                 if ringing:
@@ -1278,7 +1334,7 @@ def run_tui(args):
             elif ord("1") <= k <= ord("9"):
                 i = k - ord("1")
                 if i < len(rows):
-                    sel = i; say(jack_in(rows[sel]))
+                    sel = i; say(jack_in(rows[sel]) + gate_auto_open(rows[sel]))
             elif k == ord("c"):
                 if rows:
                     say(copy_resume(rows[sel]))
@@ -1432,6 +1488,13 @@ def _owner_app(pid):
     return None
 
 
+def gate_auto_open(r):
+    """Jacking into a session parked at a human gate also opens what the gate wants read."""
+    if r.get("gate") == "human" and gate_files(r):
+        return "  ·  " + open_gate(r)
+    return ""
+
+
 def jack_in(r):
     """⏎: bring that session to the front. tmux pane first; else the terminal tab owning the
     session's tty (macOS iTerm2 / Terminal.app via AppleScript); else say what would work."""
@@ -1535,6 +1598,13 @@ def main(argv):
         prefs["cost"] = True
     if "--no-cost" in args:
         prefs["cost"] = False
+    if "--editor" in args and args.index("--editor") + 1 < len(args):
+        prefs["editor"] = args[args.index("--editor") + 1]
+    for a in args:
+        if a.startswith("--editor="):
+            prefs["editor"] = a.split("=", 1)[1]
+    global EDITOR
+    EDITOR = prefs["editor"]
     if "--notify" in args:
         prefs["notify"] = True
     if "--no-notify" in args:
@@ -1543,7 +1613,7 @@ def main(argv):
     SHOW_COST = prefs["cost"]; NOTIFY = prefs["notify"]
     PLAIN = prefs["plain"]
     if theme in THEMES and "--selftest" not in args and "--once" not in args:
-        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"], zoom=prefs["zoom"], cost=prefs["cost"], notify=prefs["notify"])
+        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"], zoom=prefs["zoom"], cost=prefs["cost"], notify=prefs["notify"], editor=prefs["editor"])
     set_theme(theme or "matrix", calm=prefs["calm"])
     if "--themes" in args:
         for n, t in THEMES.items():

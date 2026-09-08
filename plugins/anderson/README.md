@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.32.2-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.33.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -566,6 +566,12 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
+- **0.33.0** — **Fleet: open the gate artifact in your IDE.** `o` opens what the current stage wants
+  read: `plan.md` for grill and plan review, `plan.md` + `audit.md` for diff review, `audit.md`
+  during implement. Jacking into a row parked at a human gate (`gate: human`) does it automatically,
+  so `⏎` lands you in the session *and* on the plan. Editor resolution: `fleet --editor code`
+  (saved), else a GUI `$VISUAL` / `$EDITOR` (code, cursor, zed, subl, webstorm, idea, pycharm…), else
+  the IDE that owns the session (WebStorm / VS Code integrated terminals), else the OS default opener.
 - **0.32.2** — **Fleet: reliable macOS notifications.** `osascript` banners are often swallowed on
   recent macOS and never register an app in System Settings. `notify()` now prefers
   `terminal-notifier` when installed (`brew install terminal-notifier`): banners show, the app is

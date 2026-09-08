@@ -30,6 +30,8 @@ curses, zero tokens); this command only installs the launcher and tells the huma
 
   keys:     ↑↓ tune · 1-9 / ⏎ jack in · w oldest waiting · r kill (asks) · b dismiss dead
             c copy `claude --resume` for the row · n desktop notification on ring
+            o open plan.md / audit.md in your IDE (automatic when ⏎ lands on a human gate;
+              editor: --editor code, else GUI $VISUAL/$EDITOR, else the IDE owning the session)
             / filter · t theme · p wording · +/- zoom (Terminal.app; iTerm2/IDE: ⌘+) · ? manual · q
 
   jack in:  ⏎ switches tmux to the session's pane. No tmux? On macOS it focuses the iTerm2 /
