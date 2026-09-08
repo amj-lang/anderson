@@ -806,7 +806,8 @@ MANUAL = """
             transcript's last usage when no heartbeat is wired
 
   ↑↓ / j k  tune           select a session
-  ⏎         jack in        switch tmux to that pane (run fleet inside tmux)
+  ⏎         jack in        tmux: switch to that pane · macOS without tmux: focus the
+                           iTerm2 / Terminal.app tab that owns the session
   w         white rabbit   jump to the oldest ringing session
   r         red pill       kill the session's process (asks first)
   b         blue pill      dismiss a sentinel row
@@ -1059,20 +1060,101 @@ def boot(scr, curses, col):
     scr.erase(); scr.refresh()
 
 
-def jack_in(r):
-    pane = r.get("tmux_pane")
-    if not pane:
-        return "no tmux pane for that session. run it inside tmux to jack in."
-    if not os.environ.get("TMUX"):
-        return f"not inside tmux. that session lives in pane {r.get('tmux_addr') or pane}."
+def _dev_tty(t):
+    t = (t or "").strip()
+    return f"/dev/{t}" if t and t not in ("??", "-", "?") else None
+
+
+def _tty_of(pid):
     try:
-        sess_name = subprocess.run(["tmux", "display", "-p", "-t", pane, "#S"], capture_output=True, text=True, timeout=3).stdout.strip()
-        subprocess.run(["tmux", "switch-client", "-t", sess_name], timeout=3)
-        subprocess.run(["tmux", "select-window", "-t", pane], timeout=3)
-        subprocess.run(["tmux", "select-pane", "-t", pane], timeout=3)
+        r = subprocess.run(["ps", "-o", "tty=", "-p", str(pid)], capture_output=True, text=True, timeout=3)
+        return _dev_tty(r.stdout)
+    except Exception:
+        return None
+
+
+FOCUS_ITERM = """tell application "iTerm2"
+  repeat with w in windows
+    repeat with t in tabs of w
+      repeat with s in sessions of t
+        if tty of s is "{tty}" then
+          select s
+          select t
+          set index of w to 1
+          activate
+          return "ok"
+        end if
+      end repeat
+    end repeat
+  end repeat
+end tell
+return "miss\""""
+
+FOCUS_TERMINAL = """tell application "Terminal"
+  repeat with w in windows
+    repeat with t in tabs of w
+      if tty of t is "{tty}" then
+        set selected tab of w to t
+        set index of w to 1
+        activate
+        return "ok"
+      end if
+    end repeat
+  end repeat
+end tell
+return "miss\""""
+
+
+def _focus_script(app, tty):
+    """AppleScript that brings the tab owning `tty` to the front in iTerm2 or Terminal.app."""
+    return (FOCUS_ITERM if app == "iTerm2" else FOCUS_TERMINAL).replace("{tty}", tty)
+
+
+def _focus_tty(tty):
+    """macOS: focus the iTerm2 / Terminal.app tab that owns this tty. True on success."""
+    if sys.platform != "darwin" or not tty:
+        return False
+    for app in ("iTerm2", "Terminal"):
+        try:
+            up = subprocess.run(["osascript", "-e", f'application "{app}" is running'],
+                                capture_output=True, text=True, timeout=3).stdout.strip()
+            if up != "true":
+                continue
+            r = subprocess.run(["osascript", "-e", _focus_script(app, tty)], capture_output=True, text=True, timeout=5)
+            if r.stdout.strip() == "ok":
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def jack_in(r):
+    """⏎: bring that session to the front. tmux pane first; else the terminal tab owning the
+    session's tty (macOS iTerm2 / Terminal.app via AppleScript); else say what would work."""
+    pane = r.get("tmux_pane")
+    if pane:
+        try:
+            sess_name = subprocess.run(["tmux", "display", "-p", "-t", pane, "#S"],
+                                       capture_output=True, text=True, timeout=3).stdout.strip()
+            if os.environ.get("TMUX"):
+                subprocess.run(["tmux", "switch-client", "-t", sess_name], timeout=3)
+            subprocess.run(["tmux", "select-window", "-t", pane], timeout=3)
+            subprocess.run(["tmux", "select-pane", "-t", pane], timeout=3)
+            if not os.environ.get("TMUX"):
+                # fleet runs outside tmux: also focus the terminal tab holding that tmux client
+                ct = subprocess.run(["tmux", "list-clients", "-t", sess_name, "-F", "#{client_tty}"],
+                                    capture_output=True, text=True, timeout=3).stdout.split()
+                if not any(_focus_tty(t) for t in ct):
+                    return f"pane {r.get('tmux_addr') or pane} selected. attach with: tmux attach -t {sess_name}"
+            return "Operator."
+        except Exception as e:
+            return f"jack in failed: {e}"
+    tty = _tty_of(r.get("pid")) if r.get("pid") else None
+    if tty and _focus_tty(tty):
         return "Operator."
-    except Exception as e:
-        return f"jack in failed: {e}"
+    if sys.platform == "darwin":
+        return "no tmux pane, and no iTerm2/Terminal.app tab owns that session. start it in tmux to jack in."
+    return "no tmux pane for that session. start it inside tmux to jack in."
 
 
 # ─────────────────────────────────────────────────────────────────── main
