@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.32.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.32.2-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -566,6 +566,12 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
+- **0.32.2** — **Fleet: reliable macOS notifications.** `osascript` banners are often swallowed on
+  recent macOS and never register an app in System Settings. `notify()` now prefers
+  `terminal-notifier` when installed (`brew install terminal-notifier`): banners show, the app is
+  listed under Notifications, and clicking one brings the terminal fleet runs in to the front.
+  Pressing `n` sends a test banner and, when the tool is missing, says how to install it;
+  `fleet install` prints the same hint on macOS.
 - **0.32.1** — **Fleet: context alert.** When a live session crosses 80% context the monitor toasts
   `context 84% on <repo> · <task>: /compact before it eats the budget`, and pings the desktop when
   `n` notifications are on. Once per crossing; a `/compact` that drops it below the line re-arms it.
