@@ -816,19 +816,48 @@ def next_step(r):
     return "working; come back when it rings"
 
 
-def detail_card(r, W, toast, t):
-    """Multi-line detail for the selected row. Labelled, one fact per line, no guessing needed."""
+def _wrap(txt, width, max_lines):
+    """Word-wrap to `width` cells, at most `max_lines` lines, the last one ellipsized."""
+    words, out, cur = str(txt).split(), [], ""
+    for w in words:
+        cand = (cur + " " + w) if cur else w
+        if dw(cand) <= width:
+            cur = cand
+        else:
+            out.append(cur); cur = w
+            if len(out) == max_lines:
+                break
+    if cur and len(out) < max_lines:
+        out.append(cur)
+    if len(out) > max_lines or (len(out) == max_lines and dw(" ".join(words)) > sum(dw(x) for x in out) + len(out) - 1):
+        out = out[:max_lines]; out[-1] = fit(out[-1] + " …", width).rstrip()
+    return out or [""]
+
+
+def detail_card(r, W, toast, t, airy=False):
+    """Multi-line detail for the selected row. Labelled, one fact per line, no guessing needed.
+    airy=True (16+ free lines): blank lines between groups, wider labels, `last` wraps to 2 lines."""
     d = G["det"]
     la, lr = r["lines"]
     head = r["task"] or (f"\"{r['title']}\"" if r.get("title") else r["repo"])
     who = f"{r['pglyph']} {r['persona']}" + (f" · {r['stage']}" if r.get("stage") else "") + (f" {r['iteration']}/{r['max_iter']}" if r.get("max_iter") else "")
     lines = []
+    lw = 11 if airy else 9
     def L(label, txt, kind="det"):
-        lines.append((kind, fit(f"{d} {label:<9}{txt}", W)))
+        body_w = W - dw(d) - 1 - lw
+        parts = _wrap(txt, body_w, 2 if (airy and label == "last") else 1)
+        lines.append((kind, fit(f"{d} {label:<{lw}}{parts[0]}", W)))
+        for extra in parts[1:]:
+            lines.append((kind, fit(f"{d} {'':<{lw}}{extra}", W)))
+    def gap():
+        if airy:
+            lines.append(("det", fit(d, W)))
+    gap()
     L("task", f"{head} · {r['repo']}" + (f" · ⎇ {r['branch']}" if r.get("branch") else ""))
     L("who", who + (f" · model {r['model']}" if r.get("model") else ""))
     if r.get("stage"):
         L("verdicts", f"plan {r['plan_verdict'] or '—'} · diff {r['diff_verdict'] or '—'} · gate {r.get('gate') or 'none'}")
+    gap()
     seen = age_str(r.get("last_seen")) if r.get("last_seen") else "—"
     L("status", f"{r['now']} · last activity {seen} ago · session age {age_str(r.get('start'))}")
     toks = f" ({r['ctx_tokens'] // 1000}k tokens)" if r.get("ctx_tokens") else ""
@@ -839,10 +868,12 @@ def detail_card(r, W, toast, t):
     L("context", f"{ctx}{hot}{pm}{cost}")
     where = r["tmux_addr"] or r["tmux_pane"] or "no tmux pane"
     L("where", f"{where} · pid {r['pid'] or '?'} · session {r['sid'][:8]}")
+    gap()
     if r.get("title") and r["task"]:
         L("prompt", f"\"{r['title']}\"")
     L("last", r["text"] or r["now"])
     L("next", next_step(r))
+    gap()
     q = quote_for(r, t)
     lines.append(("quote", fit(f"{d} {toast}" if toast else (f"{d} \"{q}\"" if q else f"{d} "), W)))
     return lines
@@ -883,7 +914,7 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
     if rows and 0 <= sel < len(rows):
         r = rows[sel]
         if room >= 10:
-            lines += detail_card(r, W, toast, t)
+            lines += detail_card(r, W, toast, t, airy=room >= 16)
         else:
             la, lr = r["lines"]
             pm = f"+{la} −{lr}" if la is not None else ""
