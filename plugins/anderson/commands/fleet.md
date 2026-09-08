@@ -24,8 +24,12 @@ curses, zero tokens); this command only installs the launcher and tells the huma
             ☎ waits on you   ▶ working   ✝ process gone   ⟲ rework loop
             ▲ ARCHITECT · ◇ INTERROGATOR · ◎ ORACLE · ● NEO · ▣ AGENT SMITH · ★ THE ONE · ○ no pipeline
 
-  keys:     ↑↓ tune · ⏎ jack in (tmux) · w oldest waiting · r kill (asks) · b dismiss dead
+  keys:     ↑↓ tune · ⏎ jack in · w oldest waiting · r kill (asks) · b dismiss dead
             / filter · t theme · p wording · ? manual · q
+
+  jack in:  ⏎ switches tmux to the session's pane. No tmux? On macOS it focuses the iTerm2 /
+            Terminal.app tab that owns the session instead. tmux is optional:
+            fleet install --with-tmux adds it (brew / apt / dnf) if you want panes.
 
   data:     found with no setup (ps + transcripts + state.md). This plugin's hooks add the exact
             waiting/working signal. $ and precise ctx need the statusline heartbeat: use

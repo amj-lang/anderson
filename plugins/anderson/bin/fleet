@@ -8,6 +8,9 @@
 #   fleet --window        inside tmux: open in a new window named "fleet"
 #   fleet --here          run in the current terminal, never touch tmux
 #   fleet install         put a stable `fleet` shim in ~/.local/bin (survives plugin updates)
+#   fleet install --with-tmux   same, plus install tmux (brew / apt / dnf) if missing. tmux is
+#                         optional: on macOS ⏎ jack-in also works without it (focuses the
+#                         iTerm2 / Terminal.app tab that owns the session)
 #   fleet uninstall       remove that shim
 #   fleet --demo | --theme zion | --plain | --calm | --no-intro | --once   -> fleet.py flags
 set -euo pipefail
@@ -48,11 +51,30 @@ EOF
   esac
   if command -v tmux >/dev/null 2>&1; then
     printf 'optional tmux hotkey (prefix+F):  echo '"'"'bind F split-window -h -l 45%% "%s --here"'"'"' >> ~/.tmux.conf && tmux source ~/.tmux.conf\n' "$shim"
+  else
+    printf 'tmux not found: optional. without it fleet runs plain, and on macOS ⏎ jack-in focuses the iTerm2/Terminal.app tab.\n'
+    printf 'for tmux panes:  fleet install --with-tmux   (runs: %s)\n' "$(tmux_hint)"
   fi
 }
 
+tmux_hint(){
+  if command -v brew >/dev/null 2>&1; then echo "brew install tmux"
+  elif command -v apt-get >/dev/null 2>&1; then echo "sudo apt-get install -y tmux"
+  elif command -v dnf >/dev/null 2>&1; then echo "sudo dnf install -y tmux"
+  else echo "install tmux with your package manager"; fi
+}
+
+install_tmux(){
+  command -v tmux >/dev/null 2>&1 && { printf 'tmux already installed\n'; return 0; }
+  hint="$(tmux_hint)"
+  case "$hint" in
+    brew*|sudo*) printf 'installing tmux: %s\n' "$hint"; eval "$hint" ;;
+    *)           die "no known package manager; $hint" ;;
+  esac
+}
+
 case "${1:-}" in
-  install)   install_shim; exit 0 ;;
+  install)   [ "${2:-}" = "--with-tmux" ] && install_tmux; install_shim; exit 0 ;;
   uninstall) rm -f "$shim" && printf 'removed %s\n' "$shim"; exit 0 ;;
 esac
 

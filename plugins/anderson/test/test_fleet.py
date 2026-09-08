@@ -240,5 +240,25 @@ class TestLauncher(unittest.TestCase):
             self.assertFalse(os.path.exists(shim))
 
 
+class TestJackIn(unittest.TestCase):
+    def test_dev_tty_parsing(self):
+        self.assertEqual(fleet._dev_tty(" ttys003\n"), "/dev/ttys003")
+        for bad in ("??", "-", "", None, "  "):
+            self.assertIsNone(fleet._dev_tty(bad))
+
+    def test_focus_scripts_target_the_tty(self):
+        for app in ("iTerm2", "Terminal"):
+            sc = fleet._focus_script(app, "/dev/ttys042")
+            self.assertIn('"/dev/ttys042"', sc)
+            self.assertNotIn("{tty}", sc)
+            self.assertTrue(sc.rstrip().endswith('return "miss"'))
+        self.assertIn("sessions of t", fleet._focus_script("iTerm2", "/dev/x"))
+        self.assertIn("selected tab of w", fleet._focus_script("Terminal", "/dev/x"))
+
+    def test_jack_in_without_pane_or_pid_explains(self):
+        msg = fleet.jack_in({"tmux_pane": None, "pid": None})
+        self.assertIn("tmux", msg)
+
+
 if __name__ == "__main__":
     unittest.main()
