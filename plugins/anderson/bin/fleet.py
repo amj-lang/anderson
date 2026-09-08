@@ -1004,8 +1004,9 @@ MANUAL = """
                            gate does this automatically. Editor: --editor code (saved), else a
                            GUI $VISUAL/$EDITOR, else the IDE that owns the session, else `open`
   c         resume         copy `cd <cwd> && claude --resume <sid>` (bring a sentinel back)
-  m         sound          the phone rings (synthesized ringback) when a session starts waiting
-                           (saved). Your own sound: replace ~/.claude/fleet/ring.wav
+  m         sound          the phone rings when a session starts waiting (saved): the Matrix
+                           phone, cut from the CC0 "Full Matrix" (skycarl, Freesound). Your own
+                           sound: drop a ~/.claude/fleet/ring.wav
   n         notify         desktop notification when a session starts ringing, or crosses
                            80% context (saved). macOS: brew install terminal-notifier for
                            reliable banners; clicking one brings this terminal forward
@@ -1080,7 +1081,21 @@ def notify(title, body):
 
 
 SOUND = False
-RING_WAV = os.path.join(FLEET_DIR, "ring.wav")
+RING_WAV = os.path.join(FLEET_DIR, "ring.wav")                       # yours, if you drop one here
+RING_BUNDLED = os.path.join(HERE, "..", "assets", "ring-matrix.wav")   # the phone from "Full Matrix" (CC0)
+
+
+def ring_path():
+    """Which sound rings: your ~/.claude/fleet/ring.wav, else the bundled Matrix phone, else a
+    synthesized ringback written once to the fleet dir."""
+    if os.path.isfile(RING_WAV):
+        return RING_WAV
+    if os.path.isfile(RING_BUNDLED):
+        return RING_BUNDLED
+    synth = os.path.join(FLEET_DIR, "ring-synth.wav")
+    if not os.path.isfile(synth):
+        make_ring_wav(synth)
+    return synth
 
 
 def make_ring_wav(path):
@@ -1105,11 +1120,10 @@ def make_ring_wav(path):
 def ring_sound():
     """Play the ring, fire-and-forget. macOS afplay; Linux paplay / aplay."""
     try:
-        if not os.path.isfile(RING_WAV):
-            make_ring_wav(RING_WAV)
+        path = ring_path()
         for player in (["afplay"], ["paplay"], ["aplay", "-q"]):
             if shutil.which(player[0]):
-                subprocess.Popen(player + [RING_WAV], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                subprocess.Popen(player + [path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 return True
     except Exception:
         pass
@@ -1462,7 +1476,7 @@ def run_tui(args):
             elif k == ord("m"):
                 SOUND = not SOUND; save_prefs(sound=SOUND)
                 if SOUND:
-                    say("sound on: the phone rings when a session waits on you.  (replace ~/.claude/fleet/ring.wav to change it)", 6)
+                    say("sound on: the phone rings when a session waits on you.  (your own: ~/.claude/fleet/ring.wav)", 6)
                     ring_sound()
                 else:
                     say("sound off.")

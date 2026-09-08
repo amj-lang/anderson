@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.34.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.34.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -566,6 +566,10 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
+- **0.34.1** — **Fleet: the Matrix phone.** The ring is now a 1.25 s cut of the telephone ring from
+  "Full Matrix" by skycarl (Freesound #210499, **CC0**), bundled as `assets/ring-matrix.wav` with
+  attribution in `assets/NOTICE.md`. Precedence: your `~/.claude/fleet/ring.wav`, else the bundled
+  phone, else the synthesized ringback.
 - **0.34.0** — **Fleet: the phone rings; honest usage numbers.** `m` (or `--sound`) plays a
   synthesized ringback tone (440 + 480 Hz, two bursts, stdlib-generated into
   `~/.claude/fleet/ring.wav`, replace the file for your own sound) when a session starts waiting on
