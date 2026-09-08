@@ -28,7 +28,8 @@ curses, zero tokens); this command only installs the launcher and tells the huma
             ☎ waits on you   ▶ working   ✝ process gone   ⟲ rework loop
             ▲ ARCHITECT · ◇ INTERROGATOR · ◎ ORACLE · ● NEO · ▣ AGENT SMITH · ★ THE ONE · ○ no pipeline
 
-  keys:     ↑↓ tune · ⏎ jack in · w oldest waiting · r kill (asks) · b dismiss dead
+  keys:     ↑↓ tune · 1-9 / ⏎ jack in · w oldest waiting · r kill (asks) · b dismiss dead
+            c copy `claude --resume` for the row · n desktop notification on ring
             / filter · t theme · p wording · +/- zoom (Terminal.app; iTerm2/IDE: ⌘+) · ? manual · q
 
   jack in:  ⏎ switches tmux to the session's pane. No tmux? On macOS it focuses the iTerm2 /

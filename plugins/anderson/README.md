@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.31.2-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.32.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -508,11 +508,15 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
   Detail pane: verdicts, lines ±, tmux pane, last words, a mood-matched line from `quotes.txt`.
   Runs **outside** Claude (python stdlib curses, zero tokens) in its own tmux pane; rows ring first.
 
-  Keys: `↑↓` tune · `⏎` **jack in** (switches tmux to that session's pane; without tmux, on macOS
+  Rows are numbered; sessions with no pipeline show their first prompt as a quoted title; ringing
+  rows say for how long (`☎ ring 12m`); the ctx cell turns red past 80%.
+
+  Keys: `↑↓` tune · `1`..`9` / `⏎` **jack in** (switches tmux to that session's pane; without tmux, on macOS
   it focuses the iTerm2 / Terminal.app tab that owns the session, or brings the owning IDE forward
   for integrated terminals, so tmux is optional: `fleet install --with-tmux` adds it via brew / apt /
   dnf if you want panes) · `w` white rabbit
-  (oldest ring) · `r` red pill (kill, asks first) · `b` blue pill (dismiss a sentinel) · `/` filter ·
+  (oldest ring) · `r` red pill (kill, asks first) · `b` blue pill (dismiss a sentinel) · `c` copy the
+  `claude --resume` command for that session · `n` desktop notification on ring · `/` filter ·
   `t` theme · `p` wording · `?` manual · `q`.
 
   **Five themes**, cycled live with `t` or set with `--theme <name>`, remembered per user in
@@ -562,6 +566,16 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
+- **0.32.0** — **Fleet: navigation and overview batch.** Sessions with no anderson pipeline show
+  their first prompt as a quoted title instead of `(no anderson task)` (a `/resume` summary wins when
+  Claude Code wrote one; titles survive on sentinels so you know what to resume). Ringing rows say
+  for how long: `☎ ring 12m`, `☎ permission Bash 3m`, `☎ idle 4h`. The ctx cell paints red past 80%
+  (`/compact` before the next review panel). Rows are numbered; `1`..`9` jack straight into row N.
+  `c` copies `cd <cwd> && claude --resume <sid>` to the clipboard (pbcopy / wl-copy / xclip, else
+  shown), so a sentinel is recoverable, not just dismissable. `⎇ branch` in the detail line now
+  comes from the transcript's `gitBranch` for every session, not only anderson ones. `n` (or
+  `--notify`) turns on a desktop notification when a session starts ringing (macOS Notification
+  Center, Linux `notify-send`), saved in prefs.
 - **0.31.2** — **Fleet: closed sessions die on screen.** A session whose emitter never recorded a
   usable pid (files written before 0.31.1, or a session older than the hooks) had no liveness
   signal, so closing it left the row up until the 24h expiry. Now: pid unknown + no `claude` process

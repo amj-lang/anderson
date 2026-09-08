@@ -18,6 +18,7 @@ Operator watching the screens.
     python3 bin/fleet.py --calm        # no motion in any theme (saved; --motion reverts)
     python3 bin/fleet.py --zoom 16     # Terminal.app: font size while fleet runs (saved; --no-zoom clears)
     python3 bin/fleet.py --cost        # show the api$ column on a subscription (saved; --no-cost hides)
+    python3 bin/fleet.py --notify      # desktop notification when a session starts ringing (saved)
 
 Data, richest first, each optional (the view degrades, never breaks):
   ~/.claude/fleet/<sid>.status.json   heartbeat from bin/heartbeat.py (statusline): $, ctx, model
@@ -203,7 +204,8 @@ def _tool_summary(name, inp):
 
 def read_transcript(path, tail_bytes=262144):
     """Tail-parse a session .jsonl -> dict(state, tool, tool_arg, text, ctx_tokens, model, ts, start)."""
-    out = dict(state=None, tool=None, tool_arg="", text="", ctx_tokens=None, model=None, ts=None, start=None)
+    out = dict(state=None, tool=None, tool_arg="", text="", ctx_tokens=None, model=None, ts=None, start=None,
+               title="", branch=None)
     if not path or not os.path.isfile(path):
         return out
     try:
@@ -220,8 +222,18 @@ def read_transcript(path, tail_bytes=262144):
             d = json.loads(ln)
         except Exception:
             continue
-        if d.get("timestamp"):
-            out["start"] = _iso(d["timestamp"]); break
+        if d.get("timestamp") and not out["start"]:
+            out["start"] = _iso(d["timestamp"])
+        if d.get("type") == "summary" and d.get("summary") and not out["title"]:
+            out["title"] = str(d["summary"]).strip()          # /resume title, when Claude Code wrote one
+        if d.get("type") == "user" and not d.get("isSidechain") and not d.get("isMeta") and not out["title"]:
+            c = (d.get("message") or {}).get("content")
+            txt = c if isinstance(c, str) else " ".join(b.get("text", "") for b in c if isinstance(b, dict) and b.get("type") == "text") if isinstance(c, list) else ""
+            txt = txt.strip()
+            if txt and not txt.startswith("<"):               # skip slash-command / caveat wrappers
+                out["title"] = txt.split("\n")[0][:120]
+        if out["start"] and out["title"]:
+            break
     recs = []
     for ln in reversed(tail[1:] if size > tail_bytes else tail):
         if not ln.strip():
@@ -238,6 +250,7 @@ def read_transcript(path, tail_bytes=262144):
         return out
     last = recs[0]
     out["ts"] = _iso(last.get("timestamp"))
+    out["branch"] = last.get("gitBranch") or None
     main = [r for r in recs if not r.get("isSidechain")]
     side_active = bool(last.get("isSidechain"))
     for r in main:                                   # newest main-chain assistant: usage, model, tools
@@ -437,23 +450,25 @@ def enrich(s, now):
     dead = ev.get("ended") or pid_alive is False or s.get("no_proc", False)
     ev_fresh = bool(ev) and (ev.get("ts") or 0) >= (tr.get("ts") or 0) - 1
     tool = tr.get("tool"); arg = tr.get("tool_arg") or ""
+    since = max([x for x in (tr.get("ts"), ev.get("ts")) if x] or [0])
+    wait = f" {age_str(since)}" if since else ""             # how long it has been waiting on you
     if dead:
         status, now_txt = "sentinel", f"{G['dead']} sentinel"
     elif ev_fresh and ev.get("waiting") is True:
         status = "ring"
         n = (ev.get("notification") or "")
         if "permission" in str(n).lower():
-            now_txt = f"{G['ring']} permission {tool or ''}".rstrip()
+            now_txt = f"{G['ring']} permission {tool or ''}".rstrip() + wait
         else:
-            now_txt = f"{G['ring']} ring"
+            now_txt = f"{G['ring']} ring" + wait
     elif ev_fresh and ev.get("waiting") is False and tr.get("state") != "tool":
         status, now_txt = "work", f"{G['run']} thinking"
     elif tr.get("state") == "idle":
-        status, now_txt = "ring", f"{G['ring']} ring"
+        status, now_txt = "ring", f"{G['ring']} ring" + wait
     elif tr.get("state") == "tool":
         status, now_txt = "work", f"{G['run']} {tool} {arg}".rstrip()
     elif tr.get("state") == "think" and tr.get("ts") and now - tr["ts"] > 15 * 60:
-        status, now_txt = "ring", f"{G['ring']} idle"       # interrupted turn: nothing ran for 15 min
+        status, now_txt = "ring", f"{G['ring']} idle" + wait   # interrupted turn: nothing ran for 15 min
     elif tr.get("state") == "think":
         status, now_txt = "work", f"{G['run']} thinking"
     else:
@@ -468,9 +483,9 @@ def enrich(s, now):
     return {
         "sid": s["sid"], "pid": s.get("pid"), "cwd": s.get("cwd") or "", "root": root,
         "repo": os.path.basename(root or s.get("cwd") or "") or "?",
-        "task": st.get("task") or "", "stage": stage, "persona": persona, "pglyph": PGLYPH[gk],
+        "task": st.get("task") or "", "title": tr.get("title") or "", "stage": stage, "persona": persona, "pglyph": PGLYPH[gk],
         "mood": mood, "model": model_spec, "iteration": it, "max_iter": mx,
-        "plan_verdict": st.get("plan_verdict"), "diff_verdict": st.get("diff_verdict"), "branch": st.get("branch"),
+        "plan_verdict": st.get("plan_verdict"), "diff_verdict": st.get("diff_verdict"), "branch": st.get("branch") or tr.get("branch"),
         "dejavu": bool(it and it.isdigit() and int(it) > 0),
         "status": status, "now": now_txt, "text": tr.get("text") or "",
         "cost": s.get("cost_usd"), "ctx_pct": ctx_pct,
@@ -561,7 +576,7 @@ def load_prefs():
     z = d.get("zoom")
     return {"theme": d.get("theme") or "matrix", "plain": bool(d.get("plain")), "calm": bool(d.get("calm")),
             "zoom": int(z) if isinstance(z, (int, float)) and 6 <= int(z) <= 72 else None,
-            "cost": bool(d.get("cost"))}
+            "cost": bool(d.get("cost")), "notify": bool(d.get("notify"))}
 
 
 def save_prefs(**kw):
@@ -691,6 +706,29 @@ def layout(width):
     return [(k, t, (rw if k == "repo" else tw if k == "task" else w), a) for k, t, w, a, _ in cols]
 
 
+HOT_CTX = 80     # % of context past which the ctx cell paints red: /compact before the next review
+
+
+def ctx_span(width):
+    """(x, cells) of the ctx column at this width, or None when it is hidden."""
+    x = PREFIX
+    for k, _, w, _ in layout(max(40, width)):
+        if k in ("ctx", "ctxp"):
+            return x, w
+        x += w + 2
+    return None
+
+
+def cell_index(line, x):
+    """Character index in `line` where display column x starts (wide chars aware)."""
+    used = 0
+    for i, ch in enumerate(line):
+        if used >= x:
+            return i
+        used += _cw(ch)
+    return len(line)
+
+
 def ctx_bar(pct, w=10):
     if pct is None:
         return G["trk"] * w + "   " + ("—" if G is not ASCII else "-").rjust(1)
@@ -711,7 +749,10 @@ def cell(row, key, frame):
     if key == "repo":
         return row["repo"]
     if key == "task":
-        return row["task"] or ("(no anderson task)" if row["status"] != "sentinel" else "")
+        if row["task"]:
+            return row["task"]
+        # the title survives death: you need it to know what a sentinel was, to resume it
+        return f"\"{row['title']}\"" if row.get("title") else ("(no anderson task)" if row["status"] != "sentinel" else "")
     if key == "persona":
         return f"{row['pglyph']} {row['persona']}"
     if key == "stage":
@@ -764,13 +805,14 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None):
         lines.append(("empty", fit("   " + words("empty"), W)))
     for i, r in enumerate(rows):
         cur = G["cur"] if i == sel else " "
+        num = str(i + 1) if i < 9 else " "
         if r["sid"] in burst:
             body = "".join(random.choice("01·10 1 0") for _ in range(W - PREFIX))
             kind = "burst"
         else:
             body = "  ".join(fit(cell(r, k, frame), w, a) for k, _, w, a in cols)
             kind = r["status"] + ("_sel" if i == sel else "")
-        lines.append((kind, fit(f" {cur} {body}", W)))
+        lines.append((kind, fit(f"{num}{cur} {body}", W)))
     lines.append(("rule", rule(W)))
     d = G["det"]
     if rows and 0 <= sel < len(rows):
@@ -780,7 +822,8 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None):
         it = f"iteration {r['iteration']}/{r['max_iter']} · " if r.get("max_iter") else ""
         where = r["tmux_addr"] or r["tmux_pane"] or (f"pid {r['pid']}" if r["pid"] else "no pane")
         br = f" · ⎇ {r['branch']}" if r.get("branch") else ""
-        l1 = f"{d} {r['task'] or r['repo']}{br} · {r['persona']} · {it}plan: {r['plan_verdict'] or '—'} · diff: {r['diff_verdict'] or '—'} · {pm} · {where}"
+        head_txt = r['task'] or (f"\"{r['title']}\"" if r.get("title") else r['repo'])
+        l1 = f"{d} {head_txt}{br} · {r['persona']} · {it}plan: {r['plan_verdict'] or '—'} · diff: {r['diff_verdict'] or '—'} · {pm} · {where}"
         l2 = f"{d} last: {r['text'] or r['now']}"
         q = quote_for(r, t)
         l3 = f"{d} {toast}" if toast else (f"{d} \"{q}\"" if q else f"{d} ")
@@ -792,8 +835,8 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None):
     lines.append(("rule", rule(W)))
     fleet = sum(r["cost"] or 0 for r in rows)
     lim = usage_limits()
-    keys = f"↑↓ tune  ⏎ jack in  w rabbit  r red pill  b blue pill  / filter  t theme  p wording  +/- zoom  ? manual  q" \
-        if G is not ASCII else "jk tune  enter jack in  w rabbit  r red pill  b blue pill  / filter  t theme  p wording  +/- zoom  ? manual  q"
+    keys = f"↑↓ tune  1-9/⏎ jack in  w rabbit  r red pill  b blue pill  c resume  n notify  / filter  t theme  p wording  ? manual  q" \
+        if G is not ASCII else "jk tune  1-9/enter jack in  w rabbit  r red pill  b blue pill  c resume  n notify  / filter  t theme  p wording  ? manual  q"
     if filt:
         keys = f"/{filt}_   (esc clears)"
     if lim:
@@ -848,7 +891,9 @@ MANUAL = """
 
   Every Claude Code session on this machine, one row each. Rows sort ringing first.
 
-  ☎  ring        the session waits on you (turn ended, or a permission prompt)
+  ☎  ring 12m    the session waits on you (turn ended, or a permission prompt), and for how long
+  red ctx        context past 80%: /compact before the next review panel eats the budget
+  "quoted" task  a session with no anderson pipeline shows its first prompt as the title
   ▶  work        model thinking, or a tool / subagent running
   ✝  sentinel    the process is gone; the row stays until you blue-pill it
   ⟲  déjà vu     the loop repeated (iteration > 0)
@@ -865,7 +910,9 @@ MANUAL = """
   api$      hidden on subscriptions. `$` (or --cost) shows Claude Code's list-price estimate
             per session: a burn gauge (which session eats most), never your bill.
 
-  ↑↓ / j k  tune           select a session
+  ↑↓ / j k  tune           select a session · 1-9 jack straight into row N
+  c         resume         copy `cd <cwd> && claude --resume <sid>` (bring a sentinel back)
+  n         notify         desktop notification when a session starts ringing (saved)
   ⏎         jack in        tmux: switch to that pane · macOS without tmux: focus the
                            iTerm2 / Terminal.app tab that owns the session, else bring the
                            owning app forward (WebStorm / VS Code / Cursor integrated terminals)
@@ -902,6 +949,53 @@ def _colors(curses):
         curses.init_pair(i, c256 if many else c8, -1)
         pairs[name] = curses.color_pair(i) | (curses.A_DIM if name == "dim" and not many else 0)
     return lambda name: pairs.get(name, 0)
+
+
+# ─────────────────────────────────────────────────────── notify · resume
+NOTIFY = False
+
+
+def notify(title, body):
+    """Desktop ping when a session starts waiting. macOS: Notification Center. Linux: notify-send.
+    Fire-and-forget; never blocks the UI."""
+    try:
+        if sys.platform == "darwin":
+            esc = lambda t: t.replace("\\", "\\\\").replace('"', '\\"')
+            subprocess.Popen(["osascript", "-e", f'display notification "{esc(body)}" with title "THE OPERATOR" subtitle "{esc(title)}"'],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        elif shutil.which("notify-send"):
+            subprocess.Popen(["notify-send", f"THE OPERATOR · {title}", body], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
+
+def resume_cmd(r):
+    sid = r.get("sid") or ""
+    if sid.startswith("pid:") or sid.startswith("demo") or len(sid) < 8:
+        return None
+    cwd = r.get("cwd") or ""
+    return (f"cd {shlex_quote(cwd)} && " if cwd else "") + f"claude --resume {sid}"
+
+
+def shlex_quote(s):
+    import shlex
+    return shlex.quote(s)
+
+
+def copy_resume(r):
+    """`c`: put `cd <cwd> && claude --resume <sid>` on the clipboard. Works for any row; the point is
+    bringing a sentinel back."""
+    cmd = resume_cmd(r)
+    if not cmd:
+        return "no session id for that row."
+    for tool in (["pbcopy"], ["wl-copy"], ["xclip", "-selection", "clipboard"]):
+        if shutil.which(tool[0]):
+            try:
+                subprocess.run(tool, input=cmd, text=True, timeout=3)
+                return f"copied: {cmd}"
+            except Exception:
+                break
+    return f"resume with: {cmd}"
 
 
 # ───────────────────────────────────────────────────────────────────── zoom
@@ -963,6 +1057,7 @@ def run_tui(args):
         return f"font {new}pt (saved; window restored to {zoom['orig']}pt on quit)"
 
     def app(scr):
+        global NOTIFY, SHOW_COST, PLAIN
         curses.curs_set(0)
         scr.timeout(100)
         col = _colors(curses)
@@ -1005,6 +1100,8 @@ def run_tui(args):
                     r = next(x for x in all_rows if x["sid"] == sid)
                     if last_scan and THEME["eggs"] != "quiet":
                         say(f"Wake up, Neo…  {r['repo']} · {r['task'] or 'session'} needs you.", 5)
+                    if last_scan and NOTIFY:
+                        notify(f"{r['repo']} · {r['task'] or r.get('title') or 'session'}", r["now"])
                 rung = new_ring
                 new_ship = {r["sid"] for r in all_rows if r["shipped"]}
                 for sid in new_ship - shipped:
@@ -1028,24 +1125,36 @@ def run_tui(args):
                 shown_toast = confirm or toast
                 lines = render(rows, w - 1, sel, frame, filt if filt_mode else "", shown_toast, set(burst), now)
                 painted = []
-                for kind, ln in lines[: h - 1]:
+                hot = set()
+                span = ctx_span(w - 1)
+                for y, (kind, ln) in enumerate(lines[: h - 1]):
                     a = A.get(kind, 0)
                     if kind == "ring" and THEME.get("pulse") and frame % 2:
                         a = col(THEME["ring"]) | DIM          # breathe, once a second
                     if kind == "quote" and confirm:
                         a = col("red") | BOLD
                     painted.append((ln, a))
-            key = ((h, w), painted)
+                    if span and 3 <= y < 3 + len(rows) and kind not in ("burst",):
+                        r = rows[y - 3]
+                        if r["ctx_pct"] is not None and r["ctx_pct"] >= HOT_CTX and r["status"] != "sentinel":
+                            hot.add(y)
+                hot_key = tuple(sorted(hot))
+            if manual:
+                hot, hot_key, span = set(), (), None
+            key = ((h, w), painted, hot_key)
             if key != prev:                                 # repaint only the lines that changed
                 full = prev is None or prev[0] != (h, w)
                 if full:
                     scr.erase()
                 old = prev[1] if not full else []
                 for y, (ln, a) in enumerate(painted):
-                    if y < len(old) and old[y] == (ln, a):
+                    if y < len(old) and old[y] == (ln, a) and (y in hot) == (prev and y in prev[2]):
                         continue
                     try:
                         scr.addstr(y, 0, ln, a)
+                        if y in hot and span:
+                            i0 = cell_index(ln, span[0]); i1 = cell_index(ln, span[0] + span[1])
+                            scr.addstr(y, span[0], ln[i0:i1], col("red") | BOLD | (REV if a & REV else 0))
                     except curses.error:
                         pass
                 for y in range(len(painted), len(old) if not full else h - 1):
@@ -1126,11 +1235,19 @@ def run_tui(args):
                 set_theme(nxt, calm); save_prefs(theme=nxt); prev = None
                 say(f"theme: {nxt} — {THEMES[nxt]['desc']}", 4)
             elif k == ord("p"):
-                global PLAIN
                 PLAIN = not PLAIN; save_prefs(plain=PLAIN); prev = None
                 say("plain english." if PLAIN else "welcome back to the Matrix.")
+            elif ord("1") <= k <= ord("9"):
+                i = k - ord("1")
+                if i < len(rows):
+                    sel = i; say(jack_in(rows[sel]))
+            elif k == ord("c"):
+                if rows:
+                    say(copy_resume(rows[sel]))
+            elif k == ord("n"):
+                NOTIFY = not NOTIFY; save_prefs(notify=NOTIFY)
+                say("desktop notifications on: a ring pings you wherever you are." if NOTIFY else "desktop notifications off.")
             elif k == ord("$"):
-                global SHOW_COST
                 SHOW_COST = not SHOW_COST; save_prefs(cost=SHOW_COST); prev = None
                 say("api$ shown: Claude Code's list-price estimate, a burn gauge, not your bill." if SHOW_COST else "api$ hidden.")
             elif k in (ord("+"), ord("=")):
@@ -1376,11 +1493,15 @@ def main(argv):
         prefs["cost"] = True
     if "--no-cost" in args:
         prefs["cost"] = False
-    global SHOW_COST
-    SHOW_COST = prefs["cost"]
+    if "--notify" in args:
+        prefs["notify"] = True
+    if "--no-notify" in args:
+        prefs["notify"] = False
+    global SHOW_COST, NOTIFY
+    SHOW_COST = prefs["cost"]; NOTIFY = prefs["notify"]
     PLAIN = prefs["plain"]
     if theme in THEMES and "--selftest" not in args and "--once" not in args:
-        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"], zoom=prefs["zoom"], cost=prefs["cost"])
+        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"], zoom=prefs["zoom"], cost=prefs["cost"], notify=prefs["notify"])
     set_theme(theme or "matrix", calm=prefs["calm"])
     if "--themes" in args:
         for n, t in THEMES.items():
