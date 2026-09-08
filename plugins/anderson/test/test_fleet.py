@@ -255,6 +255,11 @@ class TestJackIn(unittest.TestCase):
         self.assertIn("sessions of t", fleet._focus_script("iTerm2", "/dev/x"))
         self.assertIn("selected tab of w", fleet._focus_script("Terminal", "/dev/x"))
 
+    def test_owner_app_never_raises(self):
+        self.assertIn(type(fleet._owner_app(os.getpid())), (type(None), tuple))
+        self.assertIsNone(fleet._owner_app(1))
+        self.assertIsNone(fleet._owner_app(None))
+
     def test_jack_in_without_pane_or_pid_explains(self):
         msg = fleet.jack_in({"tmux_pane": None, "pid": None})
         self.assertIn("tmux", msg)

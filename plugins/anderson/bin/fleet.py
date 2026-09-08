@@ -807,7 +807,8 @@ MANUAL = """
 
   ↑↓ / j k  tune           select a session
   ⏎         jack in        tmux: switch to that pane · macOS without tmux: focus the
-                           iTerm2 / Terminal.app tab that owns the session
+                           iTerm2 / Terminal.app tab that owns the session, else bring the
+                           owning app forward (WebStorm / VS Code / Cursor integrated terminals)
   w         white rabbit   jump to the oldest ringing session
   r         red pill       kill the session's process (asks first)
   b         blue pill      dismiss a sentinel row
@@ -1128,6 +1129,24 @@ def _focus_tty(tty):
     return False
 
 
+def _owner_app(pid):
+    """macOS: the .app that owns this process (WebStorm, VS Code, Cursor, Warp...), via the ppid chain."""
+    try:
+        seen = 0
+        while pid and int(pid) > 1 and seen < 32:
+            r = subprocess.run(["ps", "-o", "ppid=,command=", "-p", str(pid)], capture_output=True, text=True, timeout=3)
+            parts = r.stdout.strip().split(None, 1)
+            if len(parts) < 2:
+                return None
+            m = re.search(r"(/[^\0]*?/([^/]+)\.app)/Contents/MacOS/", parts[1])
+            if m:
+                return m.group(2), m.group(1)
+            pid = parts[0]; seen += 1
+    except Exception:
+        pass
+    return None
+
+
 def jack_in(r):
     """⏎: bring that session to the front. tmux pane first; else the terminal tab owning the
     session's tty (macOS iTerm2 / Terminal.app via AppleScript); else say what would work."""
@@ -1153,6 +1172,14 @@ def jack_in(r):
     if tty and _focus_tty(tty):
         return "Operator."
     if sys.platform == "darwin":
+        app = _owner_app(r.get("pid")) if r.get("pid") else None
+        if app:
+            name, path = app
+            try:
+                subprocess.run(["open", "-a", path], timeout=5)
+                return f"Operator. ({name} integrated terminal: app focused, tab not selectable)"
+            except Exception:
+                pass
         return "no tmux pane, and no iTerm2/Terminal.app tab owns that session. start it in tmux to jack in."
     return "no tmux pane for that session. start it inside tmux to jack in."
 

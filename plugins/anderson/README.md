@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.29.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.29.2-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -509,8 +509,9 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
   Runs **outside** Claude (python stdlib curses, zero tokens) in its own tmux pane; rows ring first.
 
   Keys: `↑↓` tune · `⏎` **jack in** (switches tmux to that session's pane; without tmux, on macOS
-  it focuses the iTerm2 / Terminal.app tab that owns the session, so tmux is optional: `fleet
-  install --with-tmux` adds it via brew / apt / dnf if you want panes) · `w` white rabbit
+  it focuses the iTerm2 / Terminal.app tab that owns the session, or brings the owning IDE forward
+  for integrated terminals, so tmux is optional: `fleet install --with-tmux` adds it via brew / apt /
+  dnf if you want panes) · `w` white rabbit
   (oldest ring) · `r` red pill (kill, asks first) · `b` blue pill (dismiss a sentinel) · `/` filter ·
   `t` theme · `p` wording · `?` manual · `q`.
 
@@ -557,6 +558,10 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
+- **0.29.2** — **Fleet: jack in reaches IDE terminals.** When a session runs in an integrated
+  terminal (WebStorm, VS Code, Cursor, Warp...) no tab is scriptable, so `⏎` now walks the process
+  ancestry to the owning `.app` and brings it forward, with a toast saying the tab itself could not
+  be selected. Order stays: tmux pane → iTerm2/Terminal.app tab by tty → owning app.
 - **0.29.1** — **Fleet: jack in without tmux; tmux optional.** `⏎` now falls back to the session's
   tty: on macOS it focuses the iTerm2 / Terminal.app tab that owns the Claude process (AppleScript),
   so sessions started in plain terminal tabs are one keypress away too. When the monitor runs outside
