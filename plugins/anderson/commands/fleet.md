@@ -19,13 +19,14 @@ curses, zero tokens); this command only installs the launcher and tells the huma
             fleet --demo          four fake rows to try the UI   fleet --once     one plain frame
             fleet --theme zion    matrix · construct · zion · nebuchadnezzar · agent (saved)
             fleet --plain         plain header wording (saved)  fleet --calm     no motion (saved)
+            fleet --zoom 16       Terminal.app: bigger font while fleet runs, restored on quit (saved)
 
   row:      flags · repo · task · persona · stage n/max · model · now · $ · ctx · age
             ☎ waits on you   ▶ working   ✝ process gone   ⟲ rework loop
             ▲ ARCHITECT · ◇ INTERROGATOR · ◎ ORACLE · ● NEO · ▣ AGENT SMITH · ★ THE ONE · ○ no pipeline
 
   keys:     ↑↓ tune · ⏎ jack in · w oldest waiting · r kill (asks) · b dismiss dead
-            / filter · t theme · p wording · ? manual · q
+            / filter · t theme · p wording · +/- zoom (Terminal.app; iTerm2/IDE: ⌘+) · ? manual · q
 
   jack in:  ⏎ switches tmux to the session's pane. No tmux? On macOS it focuses the iTerm2 /
             Terminal.app tab that owns the session, or brings the owning IDE forward for

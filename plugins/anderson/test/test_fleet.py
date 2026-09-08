@@ -197,9 +197,9 @@ class TestPrefsAndWording(unittest.TestCase):
             old_dir, old_prefs, old_plain = fleet.FLEET_DIR, fleet.PREFS_FILE, fleet.PLAIN
             fleet.FLEET_DIR = tmp; fleet.PREFS_FILE = os.path.join(tmp, "prefs.json")
             try:
-                self.assertEqual(fleet.load_prefs(), {"theme": "matrix", "plain": False, "calm": False})
+                self.assertEqual(fleet.load_prefs(), {"theme": "matrix", "plain": False, "calm": False, "zoom": None})
                 fleet.save_prefs(theme="zion", plain=True)
-                self.assertEqual(fleet.load_prefs(), {"theme": "zion", "plain": True, "calm": False})
+                self.assertEqual(fleet.load_prefs(), {"theme": "zion", "plain": True, "calm": False, "zoom": None})
                 fleet.save_prefs(calm=True)                        # partial update keeps the rest
                 self.assertEqual(fleet.load_prefs()["theme"], "zion")
                 fleet.PLAIN = True
@@ -295,6 +295,29 @@ class TestUsageLimits(unittest.TestCase):
                 self.assertNotIn("5h", fleet.render([], 120)[-1][1])
             finally:
                 fleet.FLEET_DIR = old
+
+
+class TestZoom(unittest.TestCase):
+    def test_zoom_pref_roundtrip_and_bounds(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old = fleet.FLEET_DIR, fleet.PREFS_FILE
+            fleet.FLEET_DIR = tmp; fleet.PREFS_FILE = os.path.join(tmp, "prefs.json")
+            try:
+                self.assertIsNone(fleet.load_prefs()["zoom"])
+                fleet.save_prefs(zoom=16); self.assertEqual(fleet.load_prefs()["zoom"], 16)
+                fleet.save_prefs(zoom=None); self.assertIsNone(fleet.load_prefs()["zoom"])   # None clears
+                fleet.save_prefs(zoom=999); self.assertIsNone(fleet.load_prefs()["zoom"])    # out of range ignored
+            finally:
+                fleet.FLEET_DIR, fleet.PREFS_FILE = old
+
+    def test_font_control_only_in_terminal_app(self):
+        self.assertIsNone(fleet._terminal_font(None))
+        old = os.environ.get("TERM_PROGRAM"); os.environ["TERM_PROGRAM"] = "iTerm.app"
+        try:
+            self.assertIsNone(fleet._terminal_font("/dev/ttys000", 14))     # never calls osascript elsewhere
+        finally:
+            if old is None: os.environ.pop("TERM_PROGRAM", None)
+            else: os.environ["TERM_PROGRAM"] = old
 
 
 if __name__ == "__main__":

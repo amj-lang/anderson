@@ -16,6 +16,7 @@ Operator watching the screens.
     python3 bin/fleet.py --theme zion  # matrix · construct · zion · nebuchadnezzar · agent (saved)
     python3 bin/fleet.py --plain       # plain wording instead of Matrix lingo (saved; --lingo reverts)
     python3 bin/fleet.py --calm        # no motion in any theme (saved; --motion reverts)
+    python3 bin/fleet.py --zoom 16     # Terminal.app: font size while fleet runs (saved; --no-zoom clears)
 
 Data, richest first, each optional (the view degrades, never breaks):
   ~/.claude/fleet/<sid>.status.json   heartbeat from bin/heartbeat.py (statusline): $, ctx, model
@@ -544,11 +545,13 @@ def set_theme(name, calm=False):
 
 def load_prefs():
     d = jload(PREFS_FILE) or {}
-    return {"theme": d.get("theme") or "matrix", "plain": bool(d.get("plain")), "calm": bool(d.get("calm"))}
+    z = d.get("zoom")
+    return {"theme": d.get("theme") or "matrix", "plain": bool(d.get("plain")), "calm": bool(d.get("calm")),
+            "zoom": int(z) if isinstance(z, (int, float)) and 6 <= int(z) <= 72 else None}
 
 
 def save_prefs(**kw):
-    d = load_prefs(); d.update({k: v for k, v in kw.items() if v is not None})
+    d = load_prefs(); d.update({k: v for k, v in kw.items() if v is not None or k == "zoom"})
     try:
         os.makedirs(FLEET_DIR, exist_ok=True)
         with open(PREFS_FILE, "w") as f:
@@ -770,8 +773,8 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None):
     lines.append(("rule", rule(W)))
     fleet = sum(r["cost"] or 0 for r in rows)
     lim = usage_limits()
-    keys = f"↑↓ tune  ⏎ jack in  w rabbit  r red pill  b blue pill  / filter  t theme  p wording  ? manual  q" \
-        if G is not ASCII else "jk tune  enter jack in  w rabbit  r red pill  b blue pill  / filter  t theme  p wording  ? manual  q"
+    keys = f"↑↓ tune  ⏎ jack in  w rabbit  r red pill  b blue pill  / filter  t theme  p wording  +/- zoom  ? manual  q" \
+        if G is not ASCII else "jk tune  enter jack in  w rabbit  r red pill  b blue pill  / filter  t theme  p wording  +/- zoom  ? manual  q"
     if filt:
         keys = f"/{filt}_   (esc clears)"
     tot = f"{THEME['name']} · {words('fleet')} ${fleet:.2f}" + (f" · {lim}" if lim else "")
@@ -842,6 +845,8 @@ MANUAL = """
   /         filter         substring on repo · task ; esc clears
   t         theme          matrix · construct · zion · nebuchadnezzar · agent (saved)
   p         wording        Matrix lingo (zion · jacked in · ringing · sentinel) or plain (saved)
+  + / -     zoom           Terminal.app: grow/shrink this window's font while fleet runs (saved,
+                           restored on quit; --zoom 16 sets it, --no-zoom clears). iTerm2 / IDE: ⌘+
   ?         this           q quits
 
   prefs: ~/.claude/fleet/prefs.json (theme · plain · calm; --theme/--plain/--calm set them)
@@ -868,12 +873,63 @@ def _colors(curses):
     return lambda name: pairs.get(name, 0)
 
 
+# ───────────────────────────────────────────────────────────────────── zoom
+# Font size is the terminal's, not ours. Terminal.app exposes it per window over AppleScript, so
+# on macOS fleet can grow its own window while it runs and put it back on exit. iTerm2 and IDE
+# terminals have no such API: we print the shortcut instead (⌘+ / ⌘-).
+def _own_tty():
+    try:
+        return os.ttyname(sys.stdout.fileno())
+    except Exception:
+        return None
+
+
+def _terminal_font(tty, size=None):
+    """Terminal.app only. size None -> read current size; int -> set it. Returns int or None."""
+    if sys.platform != "darwin" or os.environ.get("TERM_PROGRAM") != "Apple_Terminal" or not tty:
+        return None
+    action = f"set font size of w to {int(size)}\n          " if size else ""
+    script = f"""tell application "Terminal"
+  repeat with w in windows
+    repeat with t in tabs of w
+      if tty of t is "{tty}" then
+          {action}return font size of w
+      end if
+    end repeat
+  end repeat
+end tell
+return """""
+    try:
+        r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=4)
+        out = r.stdout.strip()
+        return int(out) if out.isdigit() else None
+    except Exception:
+        return None
+
+
 def run_tui(args):
     import curses
     demo = "--demo" in args
     intro = "--no-intro" not in args
     calm = load_prefs()["calm"]
     dismissed_path = os.path.join(FLEET_DIR, "dismissed")
+    tty = _own_tty()
+    zoom = {"size": load_prefs()["zoom"], "orig": None}
+    if zoom["size"]:
+        zoom["orig"] = _terminal_font(tty)
+        if zoom["orig"]:
+            _terminal_font(tty, zoom["size"])
+
+    def zoom_by(delta):
+        cur = _terminal_font(tty)
+        if cur is None:
+            return ("no font control here: Terminal.app only. iTerm2 / IDE: ⌘+ and ⌘-"
+                    if sys.platform == "darwin" else "no font control here: use your terminal's zoom (ctrl+shift+= / ctrl+-)")
+        if zoom["orig"] is None:
+            zoom["orig"] = cur
+        new = max(6, min(72, cur + delta))
+        _terminal_font(tty, new); save_prefs(zoom=new); zoom["size"] = new
+        return f"font {new}pt (saved; window restored to {zoom['orig']}pt on quit)"
 
     def app(scr):
         curses.curs_set(0)
@@ -1042,6 +1098,10 @@ def run_tui(args):
                 global PLAIN
                 PLAIN = not PLAIN; save_prefs(plain=PLAIN); prev = None
                 say("plain english." if PLAIN else "welcome back to the Matrix.")
+            elif k in (ord("+"), ord("=")):
+                say(zoom_by(+1)); prev = None
+            elif k in (ord("-"), ord("_")):
+                say(zoom_by(-1)); prev = None
             elif k == ord("/"):
                 filt_mode = True; filt = ""
             elif k == ord("?"):
@@ -1051,7 +1111,11 @@ def run_tui(args):
                 if typed == "neo" and THEME["eggs"] != "quiet":
                     say("I know kung fu.", 4)
 
-    curses.wrapper(app)
+    try:
+        curses.wrapper(app)
+    finally:
+        if zoom["orig"]:
+            _terminal_font(tty, zoom["orig"])
 
 
 def boot(scr, curses, col):
@@ -1266,9 +1330,16 @@ def main(argv):
         prefs["calm"] = True
     if "--motion" in args:
         prefs["calm"] = False
+    for a in args:
+        if a.startswith("--zoom="):
+            prefs["zoom"] = int(a.split("=", 1)[1]) if a.split("=", 1)[1].isdigit() else None
+    if "--zoom" in args and args.index("--zoom") + 1 < len(args) and args[args.index("--zoom") + 1].isdigit():
+        prefs["zoom"] = int(args[args.index("--zoom") + 1])
+    if "--no-zoom" in args:
+        prefs["zoom"] = None
     PLAIN = prefs["plain"]
     if theme in THEMES and "--selftest" not in args and "--once" not in args:
-        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"])
+        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"], zoom=prefs["zoom"])
     set_theme(theme or "matrix", calm=prefs["calm"])
     if "--themes" in args:
         for n, t in THEMES.items():

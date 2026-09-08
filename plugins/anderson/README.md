@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.30.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.30.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -528,6 +528,8 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
   `p` (or `--plain`) swaps the header lingo (`zion · 3 jacked in · 1 ringing · 0 sentinels`) for
   plain English (`fleet · 3 live · 1 waiting · 0 dead`); `--calm` removes motion from any theme.
+  `+` / `-` (or `--zoom 16`) grow the font while fleet runs and restore it on quit: Terminal.app
+  only, since it is the one terminal with a font-size API; iTerm2 and IDE terminals use ⌘+ / ⌘-.
   The boot screen (0.7s of rain, then `Loading anderson…` and a line that rotates every launch) is
   skipped with `--no-intro`. `--demo` adds four fake rows, `--once` prints one plain frame,
   `--ascii` uses single-byte glyphs, `--selftest` proves every line equals the terminal width at
@@ -560,6 +562,10 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
+- **0.30.1** — **Fleet: zoom.** Font size belongs to the terminal, and Terminal.app exposes it per
+  window over AppleScript, so `fleet --zoom 16` (or `+` / `-` while running) grows the window's font
+  for the monitor and restores the original size on quit. Saved in `prefs.json`; `--no-zoom` clears.
+  iTerm2 and IDE terminals have no font API: the toast says ⌘+ / ⌘-.
 - **0.30.0** — **Slugs with a slash stay flat; ship on that branch.** Pasting a branch name as the
   slug (Linear style, `user/ar-2587-ui-polish`) used to nest the state dir
   (`feature-research/user/ar-2587-…/`), invisible to the statusline, the scheduler, `/anderson:status`
