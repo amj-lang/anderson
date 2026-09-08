@@ -397,6 +397,9 @@ def discover(include_ps=True):
         if tp:
             claimed.add(tp)
         sess[sid] = {"sid": sid, "src": {"ps"}, "cwd": cwd, "pid": pid, "transcript_path": tp}
+    for o in orphans:                 # still no process after adoption, and ps could see processes: gone
+        if ps:
+            o["no_proc"] = True
     for s in sess.values():
         if s.get("pid") and not s.get("tmux_pane") and ps:
             s["tmux_pane"], s["tmux_addr"] = _pane_for(s["pid"], parents, panes)
@@ -431,7 +434,7 @@ def enrich(s, now):
         model_spec = _short_model(s.get("model") or tr.get("model") or "")
     # status: dead? then hook event if fresher than the transcript, else transcript inference
     pid_alive = alive(s.get("pid"))
-    dead = ev.get("ended") or pid_alive is False
+    dead = ev.get("ended") or pid_alive is False or s.get("no_proc", False)
     ev_fresh = bool(ev) and (ev.get("ts") or 0) >= (tr.get("ts") or 0) - 1
     tool = tr.get("tool"); arg = tr.get("tool_arg") or ""
     if dead:
