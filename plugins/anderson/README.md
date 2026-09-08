@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.31.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.31.2-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -562,6 +562,10 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
+- **0.31.2** — **Fleet: closed sessions die on screen.** A session whose emitter never recorded a
+  usable pid (files written before 0.31.1, or a session older than the hooks) had no liveness
+  signal, so closing it left the row up until the 24h expiry. Now: pid unknown + no `claude` process
+  in that cwd = `✝ sentinel`. `b` still dismisses it.
 - **0.31.1** — **Fleet: real pids, no duplicate rows, idle detection, column caps.** The heartbeat
   and hook emitters reported pid 1: the backgrounded emitter is reparented to launchd, so `getppid()`
   lied. Effects: sessions never became sentinels, `ps` discovery added a duplicate row for the same

@@ -358,5 +358,21 @@ class TestPidResolution(unittest.TestCase):
             self.assertEqual(fleet.dw(ln), 300)
 
 
+class TestNoProcess(unittest.TestCase):
+    def test_unknown_pid_with_no_matching_process_is_sentinel(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            json.dump({"session_id": "gone", "cwd": tmp, "pid": None, "ts": time.time()},
+                      open(os.path.join(tmp, "gone.status.json"), "w"))
+            old = fleet.FLEET_DIR; fleet.FLEET_DIR = tmp
+            try:
+                rows = fleet.discover(include_ps=True)      # ps sees processes, none in this cwd
+            finally:
+                fleet.FLEET_DIR = old
+            mine = [r for r in rows if r["sid"] == "gone"]
+            self.assertEqual(len(mine), 1)
+            if fleet._ps():                                 # only meaningful where ps works
+                self.assertEqual(mine[0]["status"], "sentinel")
+
+
 if __name__ == "__main__":
     unittest.main()
