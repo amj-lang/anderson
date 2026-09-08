@@ -197,9 +197,9 @@ class TestPrefsAndWording(unittest.TestCase):
             old_dir, old_prefs, old_plain = fleet.FLEET_DIR, fleet.PREFS_FILE, fleet.PLAIN
             fleet.FLEET_DIR = tmp; fleet.PREFS_FILE = os.path.join(tmp, "prefs.json")
             try:
-                self.assertEqual(fleet.load_prefs(), {"theme": "matrix", "plain": False, "calm": False, "zoom": None, "cost": False})
+                self.assertEqual(fleet.load_prefs(), {"theme": "matrix", "plain": False, "calm": False, "zoom": None, "cost": False, "notify": False})
                 fleet.save_prefs(theme="zion", plain=True)
-                self.assertEqual(fleet.load_prefs(), {"theme": "zion", "plain": True, "calm": False, "zoom": None, "cost": False})
+                self.assertEqual(fleet.load_prefs(), {"theme": "zion", "plain": True, "calm": False, "zoom": None, "cost": False, "notify": False})
                 fleet.save_prefs(calm=True)                        # partial update keeps the rest
                 self.assertEqual(fleet.load_prefs()["theme"], "zion")
                 fleet.PLAIN = True
