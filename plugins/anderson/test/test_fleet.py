@@ -329,5 +329,34 @@ class TestZoom(unittest.TestCase):
             else: os.environ["TERM_PROGRAM"] = old
 
 
+class TestPidResolution(unittest.TestCase):
+    def test_orphaned_emitter_reports_no_pid_not_pid_1(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {**os.environ, "ANDERSON_FLEET_DIR": tmp, "FLEET_PID": "1"}
+            r = subprocess.run(["python3", str(BIN / "heartbeat.py")], input=json.dumps({"session_id": "orph", "cwd": tmp}),
+                               text=True, env=env, capture_output=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIsNone(json.load(open(os.path.join(tmp, "orph.status.json")))["pid"])
+
+    def test_fleet_treats_pid_1_as_unknown_not_alive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            json.dump({"session_id": "s1", "cwd": tmp, "pid": 1, "ts": time.time(), "cost_usd": 0.1},
+                      open(os.path.join(tmp, "s1.status.json"), "w"))
+            old = fleet.FLEET_DIR; fleet.FLEET_DIR = tmp
+            try:
+                rows = fleet.discover(include_ps=False)
+            finally:
+                fleet.FLEET_DIR = old
+            self.assertEqual(len(rows), 1)
+            self.assertIsNone(rows[0]["pid"])
+            self.assertNotEqual(rows[0]["status"], "sentinel")
+
+    def test_layout_caps_elastic_columns(self):
+        widths = {k: w for k, _, w, _ in fleet.layout(300)}
+        self.assertLessEqual(widths["repo"], 28); self.assertLessEqual(widths["task"], 56)
+        for kind, ln in fleet.render(fleet.demo_rows(), 300):
+            self.assertEqual(fleet.dw(ln), 300)
+
+
 if __name__ == "__main__":
     unittest.main()

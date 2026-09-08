@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.31.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.31.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -562,6 +562,14 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
+- **0.31.1** — **Fleet: real pids, no duplicate rows, idle detection, column caps.** The heartbeat
+  and hook emitters reported pid 1: the backgrounded emitter is reparented to launchd, so `getppid()`
+  lied. Effects: sessions never became sentinels, `ps` discovery added a duplicate row for the same
+  session matched to a stale transcript, jack-in by pid failed. Emitters now walk the ppid chain to
+  the real `claude` process (`FLEET_PID` handed down by the statusline shells); fleet treats pid ≤ 1
+  as unknown and adopts the `ps` process in that cwd instead of duplicating. A "thinking" session
+  with no transcript activity for 15 minutes is shown as `☎ idle` (interrupted turn, waiting on you).
+  Repo/task columns cap at 28/56 cells so ultra-wide terminals stay readable.
 - **0.31.0** — **Fleet: usage in words, `$` opt-in, `fleet` runs in place.** Footer now reads
   `session 46% · 4h07 left │ week 41% · resets Fri 19:00` (the `/usage` windows: the rolling 5-hour
   "current session" and the 7-day all-models window; Claude Code exposes no per-model weekly number

@@ -8,6 +8,6 @@
 set -uo pipefail
 _in="$(cat 2>/dev/null || true)"
 _dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-[ -n "$_in" ] && { printf '%s' "$_in" | python3 "$_dir/heartbeat.py" >/dev/null 2>&1 & }
+[ -n "$_in" ] && { printf '%s' "$_in" | FLEET_PID=$PPID python3 "$_dir/heartbeat.py" >/dev/null 2>&1 & }
 [ "$#" -gt 0 ] && printf '%s' "$_in" | "$@"
 exit 0
