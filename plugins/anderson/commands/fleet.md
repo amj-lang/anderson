@@ -13,15 +13,18 @@ curses, zero tokens); this command only installs the launcher and tells the huma
 ```
 ⌐■-■  THE OPERATOR — every Claude Code session on this machine, one row each
 
-  launch:   fleet                 in tmux: this pane · outside: opens tmux session "fleet" · no tmux: plain
+  launch:   fleet                 right here, in the current terminal (tmux or not)
+            fleet --tmux          outside tmux: a persistent tmux session "fleet", status bar hidden
             fleet --pane          in tmux: 45% side pane        fleet --window   in tmux: new window
-            fleet --here          current terminal, never touches tmux
             fleet --demo          four fake rows to try the UI   fleet --once     one plain frame
             fleet --theme zion    matrix · construct · zion · nebuchadnezzar · agent (saved)
             fleet --plain         plain header wording (saved)  fleet --calm     no motion (saved)
             fleet --zoom 16       Terminal.app: bigger font while fleet runs, restored on quit (saved)
 
-  row:      flags · repo · task · persona · stage n/max · model · now · $ · ctx · age
+  footer:   session 46% · 4h07 left │ week 41% · resets Fri 19:00   (the /usage windows: your plan
+            is a flat fee, these percentages are the cost; api$ estimate hidden, `$` or --cost shows it)
+
+  row:      flags · repo · task · persona · stage n/max · model · now · ctx · age
             ☎ waits on you   ▶ working   ✝ process gone   ⟲ rework loop
             ▲ ARCHITECT · ◇ INTERROGATOR · ◎ ORACLE · ● NEO · ▣ AGENT SMITH · ★ THE ONE · ○ no pipeline
 
