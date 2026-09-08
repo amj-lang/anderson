@@ -363,7 +363,7 @@ def discover(include_ps=True):
         kind = "status" if p.endswith(".status.json") else "event"
         s["src"].add(kind)
         for k in ("cwd", "transcript_path", "tmux_pane", "pid"):
-            if d.get(k):
+            if d.get(k) and not (k == "pid" and int(d[k]) <= 1):   # pid 1 = orphaned emitter, unknown
                 s.setdefault(k, d[k])
         if kind == "status":
             s.update({k: d.get(k) for k in ("model", "cost_usd", "duration_ms", "lines_added",
@@ -376,11 +376,18 @@ def discover(include_ps=True):
     panes = _tmux_panes() if ps else {}
     known_pids = {s.get("pid") for s in sess.values()}
     claimed = {s.get("transcript_path") for s in sess.values()}
+    orphans = [s for s in sess.values() if not s.get("pid") and s.get("cwd")]
     for pid, _, cmd in ps:
         if pid == os.getpid() or not _is_claude(cmd) or pid in known_pids:
             continue
         cwd = _cwd_of(pid)
         if not cwd:
+            continue
+        # a heartbeat/hook session with no usable pid in this cwd: this is its process, not a new row
+        mine = [o for o in orphans if o["cwd"] == cwd]
+        if mine:
+            o = min(mine, key=lambda o: -(o.get("hb_ts") or (o.get("ev") or {}).get("ts") or 0))
+            o["pid"] = pid; orphans.remove(o); known_pids.add(pid)
             continue
         cands = sorted(glob.glob(os.path.join(PROJECTS, enc_cwd(cwd), "*.jsonl")),
                        key=os.path.getmtime, reverse=True)
@@ -442,6 +449,8 @@ def enrich(s, now):
         status, now_txt = "ring", f"{G['ring']} ring"
     elif tr.get("state") == "tool":
         status, now_txt = "work", f"{G['run']} {tool} {arg}".rstrip()
+    elif tr.get("state") == "think" and tr.get("ts") and now - tr["ts"] > 15 * 60:
+        status, now_txt = "ring", f"{G['ring']} idle"       # interrupted turn: nothing ran for 15 min
     elif tr.get("state") == "think":
         status, now_txt = "work", f"{G['run']} thinking"
     else:
@@ -675,7 +684,7 @@ def layout(width):
         fixed = sum(c[2] for c in cols if c[2]) + 2 * (len(cols) - 1) + PREFIX
         free = width - fixed
     free = max(free, 4)
-    rw = max(2, int(free * 0.4)); tw = max(2, free - rw)
+    rw = max(2, min(28, int(free * 0.4))); tw = max(2, min(56, free - rw))   # caps: wide terminals stay readable
     return [(k, t, (rw if k == "repo" else tw if k == "task" else w), a) for k, t, w, a, _ in cols]
 
 
