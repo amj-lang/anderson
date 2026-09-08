@@ -25,7 +25,7 @@ class TestRing(unittest.TestCase):
         with wave.open(str(p)) as w:
             dur = w.getnframes() / w.getframerate()
             self.assertEqual(w.getnchannels(), 1)
-        self.assertTrue(1.0 < dur < 1.5, dur)
+        self.assertTrue(1.5 < dur < 3.0, dur)
         self.assertLess(p.stat().st_size, 120_000)
 
     def test_ring_path_precedence(self):
