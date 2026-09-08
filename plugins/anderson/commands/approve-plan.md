@@ -2,7 +2,9 @@
 description: "Approve the plan, run implement then diff-review, then halt."
 argument-hint: <task-slug>
 ---
-Task slug = "$ARGUMENTS". In state.md set plan_verdict=ship, gate=none, iteration += 1.
+Task slug = "$ARGUMENTS"; the task key (state dir name) is its LAST `/`-segment, so a pasted
+branch name like `user/ar-123-title` resolves to `feature-research/ar-123-title/`.
+In state.md set plan_verdict=ship, gate=none, iteration += 1.
 If iteration > max_iterations, print `■ EXIT · hit max_iterations` and STOP.
 
 REVIEW MODEL: the diff-review gate runs on the model in state.md `review_model:` (`fable` default,

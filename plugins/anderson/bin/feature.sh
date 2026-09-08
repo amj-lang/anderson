@@ -12,7 +12,12 @@
 # --opus (on `start`, at the end) runs the two review gates on Opus instead of the default Fable;
 # the choice persists in state.md, so the review model carries across the resumed sub-commands.
 set -euo pipefail
-ROOT="feature-research"; task="${2:-}"; dir="$ROOT/$task"; state="$dir/state.md"
+ROOT="feature-research"; slug="${2:-}"
+# Task key = last `/`-segment: a pasted branch name (Linear: user/ar-123-title) keeps the state
+# dir flat, which is what the statusline, scheduler and fleet monitor glob. The full slug, when it
+# had a `/`, is recorded as `branch:` and used verbatim at ship time.
+task="${slug##*/}"; dir="$ROOT/$task"; state="$dir/state.md"
+BRANCH_SEED=""; case "$slug" in */*) BRANCH_SEED="$slug" ;; esac
 RM_SEED=fable; for _a in "$@"; do [ "$_a" = "--opus" ] && RM_SEED=opus; done
 
 seed_state() {
@@ -22,7 +27,8 @@ seed_state() {
 # Pipeline state
 <!-- STATE:START -->
 task:            $task
-stage:           plan
+${BRANCH_SEED:+branch:          $BRANCH_SEED
+}stage:           plan
 gate:            none
 iteration:       0
 max_iterations:  2
@@ -94,7 +100,7 @@ ship() {
 
   branch="$current"
   if [ "$current" = "$default" ] || [ "$current" = "HEAD" ]; then
-    branch="anderson/$task"
+    branch="$(get branch)"; [ -n "$branch" ] || branch="anderson/$task"
     if git show-ref --verify --quiet "refs/heads/$branch"; then git switch "$branch"; else git switch -c "$branch"; fi
   fi
   echo ">>> Branch: $branch (base: $default)"

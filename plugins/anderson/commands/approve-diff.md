@@ -54,9 +54,13 @@ step. NEVER force-push; never touch an existing branch destructively.
    - `current=$(git rev-parse --abbrev-ref HEAD)`.
    - default = remote head if present (`git symbolic-ref --short refs/remotes/origin/HEAD`
      with leading `origin/` stripped); else `main` if it exists, else `master`.
-   - If `current` == default (on main/master): create + switch to slug branch:
-     `git switch -c "anderson/$ARGUMENTS"` — but if that branch already exists,
-     `git switch "anderson/$ARGUMENTS"` instead (don't clobber). Tell me the branch name.
+   - Task key = last `/`-segment of "$ARGUMENTS" (a pasted branch name resolves to the flat
+     `feature-research/<key>/`; use the key wherever `$ARGUMENTS` names that dir below).
+     Branch name = state.md `branch:` if present (the slug as given at start, e.g. a Linear
+     branch `user/ar-123-title`), else `anderson/<key>`.
+   - If `current` == default (on main/master): create + switch to that branch:
+     `git switch -c "<branch>"` — but if it already exists, `git switch "<branch>"` instead
+     (don't clobber). Tell me the branch name.
    - Else (already on a feature branch): commit on current branch, as-is.
 
 3. Commit cleanly (your git identity — no Claude co-author trailer in your repo):

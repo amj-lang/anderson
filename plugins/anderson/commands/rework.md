@@ -2,7 +2,9 @@
 description: "Loop the implementer on the checker's blocking findings, then diff-review and halt."
 argument-hint: <task-slug>
 ---
-Task slug = "$ARGUMENTS". Blocking findings are already in state.md "Still open".
+Task slug = "$ARGUMENTS"; the task key (state dir name) is its LAST `/`-segment, so a pasted
+branch name like `user/ar-123-title` resolves to `feature-research/ar-123-title/`.
+Blocking findings are already in state.md "Still open".
 Run exactly the implement → diff_review → halt sequence from approve-plan,
 incrementing iteration and stopping if it exceeds max_iterations.
 

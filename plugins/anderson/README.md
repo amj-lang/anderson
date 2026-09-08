@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.29.3-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.30.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -560,6 +560,14 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
+- **0.30.0** — **Slugs with a slash stay flat; ship on that branch.** Pasting a branch name as the
+  slug (Linear style, `user/ar-2587-ui-polish`) used to nest the state dir
+  (`feature-research/user/ar-2587-…/`), invisible to the statusline, the scheduler, `/anderson:status`
+  and the fleet monitor. The task key is now the LAST `/`-segment, so the dir is always
+  `feature-research/<key>/`. When the slug had a `/` it is recorded as `branch:` in state.md and
+  `approve-diff` / `feature.sh --approve-diff` ship on it verbatim instead of `anderson/<key>`, so
+  the branch matches the ticket. Every command resolves the key the same way; fleet's detail line
+  shows `⎇ <branch>`. `test/test_feature_slug.py` proves flat dir, `branch:` seed, and ship branch.
 - **0.29.3** — **Fleet: subscription usage in the footer; honest `$`.** The heartbeat now records
   Claude Code's `rate_limits` (the `/usage` numbers: 5-hour and 7-day windows, used % and reset time)
   and the footer shows them: `zion $115.28 · 5h 20% ↻4h33 · 7d 37% ↻Fri`. Account-wide, so the

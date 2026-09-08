@@ -1,13 +1,13 @@
 ---
 description: "Show the loop dashboard for a task and the subagent model override."
 argument-hint: <task-slug>
-allowed-tools: Bash(echo:*), Bash(cat:*)
+allowed-tools: Bash(echo:*), Bash(cat:*), Bash(basename:*)
 ---
 Subagent model override (in effect over agent frontmatter when set):
 !`echo "CLAUDE_CODE_SUBAGENT_MODEL=${CLAUDE_CODE_SUBAGENT_MODEL:-<unset>}"`
 
-State for "$ARGUMENTS":
-!`cat "feature-research/$ARGUMENTS/state.md" 2>/dev/null | sed -n '/STATE:START/,/STATE:END/p'`
+State for "$ARGUMENTS" (task key = last `/`-segment, so a pasted branch name resolves to the flat dir):
+!`cat "feature-research/$(basename "$ARGUMENTS")/state.md" 2>/dev/null | sed -n '/STATE:START/,/STATE:END/p'`
 
 Summarize for me: current stage, which agent runs next and at what model/effort (diff-review
 is `high`, or `xhigh` when the plan Scorecard has Risk ≥ 8 or auto-mode tier is hard/critical),

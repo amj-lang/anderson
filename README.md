@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.29.3-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.30.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -94,7 +94,7 @@ Drive the gates in plain text — "approved, go" / "ship it" / "rework the block
 
 ## Commands
 
-All commands are namespaced `/anderson:<command>` — bare `/anderson` does not resolve. They take **positional arguments** — the first word is the `<slug>` / `<task-id>` (the on-disk state-dir key), the rest is the goal/title — plus one optional flag: **`--fable`** on `start` / `auto` (place it at the end). It runs the two critique gates (plan-review + diff-review/arbiter) on **Fable** instead of Opus — the stronger critical analyst — while the generative stages (planner, implementer) stay on Opus/Sonnet. The choice persists in `state.md`, so it carries across `approve-plan` / `rework`. Every command just reads the same `feature-research/<slug>/state.md`, so once a flow is running you can also drive it in plain text ("approved, go" / "ship it" / "rework the blockers").
+All commands are namespaced `/anderson:<command>` — bare `/anderson` does not resolve. They take **positional arguments** — the first word is the `<slug>` / `<task-id>` (the on-disk state-dir key), the rest is the goal/title — plus one optional flag: **`--fable`** on `start` / `auto` (place it at the end). It runs the two critique gates (plan-review + diff-review/arbiter) on **Fable** instead of Opus — the stronger critical analyst — while the generative stages (planner, implementer) stay on Opus/Sonnet. The choice persists in `state.md`, so it carries across `approve-plan` / `rework`. A slug with a `/` (a pasted Linear branch name like `user/ar-2587-ui-polish`) is fine: the state dir is the last segment (`feature-research/ar-2587-ui-polish/`, always flat) and ship uses the full slug as the branch name. Every command just reads the same `feature-research/<slug>/state.md`, so once a flow is running you can also drive it in plain text ("approved, go" / "ship it" / "rework the blockers").
 
 | Command        | Invoke                                           | What it does                                                                                                                                                               | When to use                                            |
 | -------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
