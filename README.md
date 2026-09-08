@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.33.1-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.34.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -130,7 +130,7 @@ You run anderson in several repos at once. **THE OPERATOR** is the terminal that
 
 - **Who is on the job**: the persona comes from that repo's `feature-research/*/state.md` — ▲ ARCHITECT · ◇ INTERROGATOR · ◎ ORACLE · ● NEO · ▣ AGENT SMITH · ★ THE ONE · ○ T. ANDERSON (a session with no pipeline yet).
 - **What it is doing**: `▶ Bash pytest -q`, `▶ Agent implementer`, `☎ ring` (waits on you), `☎ permission Bash`, `✝ sentinel` (process gone), `⟲` (rework loop). Plus `$`, context bar, lines ±, age, last words.
-- **Jack in**: `1`..`9` or `⏎` switches tmux to that session's pane; without tmux, on macOS it focuses the iTerm2 / Terminal.app tab that owns the session, or brings the owning IDE forward for integrated terminals. `w` jumps to the oldest one waiting. `r` kills (asks first). `b` dismisses a dead row. `c` copies the `claude --resume` command to bring it back. `o` opens the plan or audit in your IDE, automatically when `⏎` lands on a human gate. `n` pings you with a desktop notification when a session starts waiting or crosses 80% context. `/` filters. `?` manual.
+- **Jack in**: `1`..`9` or `⏎` switches tmux to that session's pane; without tmux, on macOS it focuses the iTerm2 / Terminal.app tab that owns the session, or brings the owning IDE forward for integrated terminals. `w` jumps to the oldest one waiting. `r` kills (asks first). `b` dismisses a dead row. `c` copies the `claude --resume` command to bring it back. `o` opens the plan or audit in your IDE, automatically when `⏎` lands on a human gate. `n` pings you with a desktop notification when a session starts waiting or crosses 80% context. `m` makes the phone ring (a synthesized ringback tone; drop your own `ring.wav` in `~/.claude/fleet/`). `/` filters. `?` manual.
 - **Readable at a glance**: a labelled detail card for the selected session (task, who, verdicts, status, context, where, last words, and **next**: the one thing you do now) when the terminal has room; rows are numbered; sessions with no pipeline show their first prompt as the title; ringing rows say for how long (`☎ ring 12m`); the context cell turns red past 80%.
 - **tmux is optional**: `fleet` runs plain without it. `fleet install --with-tmux` adds it (brew / apt / dnf) if you want the pane workflow.
 - **Usage at a glance**: footer shows your `/usage` windows in words: `session 46% · 4h07 left │ week 41% · resets Fri 19:00`. On a flat-fee plan those percentages are the cost; the API-price estimate per session is hidden (`$` or `--cost` shows it as a burn gauge). API-key users see the estimate by default.

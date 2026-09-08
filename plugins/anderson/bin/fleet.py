@@ -19,6 +19,7 @@ Operator watching the screens.
     python3 bin/fleet.py --zoom 16     # Terminal.app: font size while fleet runs (saved; --no-zoom clears)
     python3 bin/fleet.py --cost        # show the api$ column on a subscription (saved; --no-cost hides)
     python3 bin/fleet.py --notify      # desktop notification when a session starts ringing (saved)
+    python3 bin/fleet.py --sound       # the phone rings when a session starts waiting (saved; --no-sound)
     python3 bin/fleet.py --editor code # what opens plan.md / audit.md on `o` or at a gate (saved)
 
 Data, richest first, each optional (the view degrades, never breaks):
@@ -578,7 +579,8 @@ def load_prefs():
     z = d.get("zoom")
     return {"theme": d.get("theme") or "matrix", "plain": bool(d.get("plain")), "calm": bool(d.get("calm")),
             "zoom": int(z) if isinstance(z, (int, float)) and 6 <= int(z) <= 72 else None,
-            "cost": bool(d.get("cost")), "notify": bool(d.get("notify")), "editor": d.get("editor") or None}
+            "cost": bool(d.get("cost")), "notify": bool(d.get("notify")), "editor": d.get("editor") or None,
+            "sound": bool(d.get("sound"))}
 
 
 def save_prefs(**kw):
@@ -954,6 +956,9 @@ def usage_limits():
             best, best_ts = d["limits"], d["ts"]
     if not best:
         return ""
+    age = time.time() - best_ts
+    if age > 6 * 3600:
+        return ""                                     # nobody has talked to the API in hours: no number beats a wrong one
     parts = []
     for key, label in (("five_hour", "session"), ("seven_day", "week"), ("spend_limit", "spend")):
         w = best.get(key) or {}
@@ -962,7 +967,8 @@ def usage_limits():
         r = _reset_str(w.get("resets_at"))
         parts.append(f"{label} {int(w['pct'])}%" + (f" · {r}" if r else ""))
     sep = " │ " if G is not ASCII else " | "
-    return sep.join(parts)
+    stale = f" (as of {age_str(best_ts)} ago)" if age > 120 else ""   # numbers come from the last API reply any session saw
+    return sep.join(parts) + stale
 
 
 MANUAL = """
@@ -984,7 +990,8 @@ MANUAL = """
   ctx       from the statusline heartbeat (bin/heartbeat.py); falls back to the transcript's
             last usage when no heartbeat is wired
   footer    session 46% · 4h07 left │ week 41% · resets Fri 19:00   (red past 90%: extra-usage
-            credits are next; queue sessions or wait for the reset)
+            credits are next). Numbers are the last API reply any session saw: fleet cannot ask
+            the API itself, so "(as of 4m ago)" appears when they are older than two minutes.
             session = the rolling 5-hour window (/usage "Current session"), week = the 7-day
             window for all models. Your plan is a flat fee: these percentages ARE the cost.
             Claude Code does not expose the per-model weekly number.
@@ -997,6 +1004,8 @@ MANUAL = """
                            gate does this automatically. Editor: --editor code (saved), else a
                            GUI $VISUAL/$EDITOR, else the IDE that owns the session, else `open`
   c         resume         copy `cd <cwd> && claude --resume <sid>` (bring a sentinel back)
+  m         sound          the phone rings (synthesized ringback) when a session starts waiting
+                           (saved). Your own sound: replace ~/.claude/fleet/ring.wav
   n         notify         desktop notification when a session starts ringing, or crosses
                            80% context (saved). macOS: brew install terminal-notifier for
                            reliable banners; clicking one brings this terminal forward
@@ -1068,6 +1077,43 @@ def notify(title, body):
             subprocess.Popen(["notify-send", f"THE OPERATOR · {title}", body], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception:
         pass
+
+
+SOUND = False
+RING_WAV = os.path.join(FLEET_DIR, "ring.wav")
+
+
+def make_ring_wav(path):
+    """Synthesize the phone: classic ringback (440 + 480 Hz), two 0.35s bursts. Drop your own
+    ring.wav at the same path to replace it. Stdlib only."""
+    import math, struct, wave
+    rate, amp = 22050, 0.35
+    frames = bytearray()
+    def tone(sec, on):
+        n = int(rate * sec)
+        for i in range(n):
+            t = i / rate
+            v = amp * (math.sin(2 * math.pi * 440 * t) + math.sin(2 * math.pi * 480 * t)) / 2 if on else 0.0
+            env = min(1.0, i / (rate * 0.01), (n - i) / (rate * 0.03)) if on else 0.0     # click-free edges
+            frames.extend(struct.pack("<h", int(v * env * 32767)))
+    tone(0.35, True); tone(0.18, False); tone(0.35, True)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with wave.open(path, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(rate); w.writeframes(bytes(frames))
+
+
+def ring_sound():
+    """Play the ring, fire-and-forget. macOS afplay; Linux paplay / aplay."""
+    try:
+        if not os.path.isfile(RING_WAV):
+            make_ring_wav(RING_WAV)
+        for player in (["afplay"], ["paplay"], ["aplay", "-q"]):
+            if shutil.which(player[0]):
+                subprocess.Popen(player + [RING_WAV], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return True
+    except Exception:
+        pass
+    return False
 
 
 def notify_hint():
@@ -1212,7 +1258,7 @@ def run_tui(args):
         return f"font {new}pt (saved; window restored to {zoom['orig']}pt on quit)"
 
     def app(scr):
-        global NOTIFY, SHOW_COST, PLAIN
+        global NOTIFY, SHOW_COST, PLAIN, SOUND
         curses.curs_set(0)
         scr.timeout(100)
         col = _colors(curses)
@@ -1258,6 +1304,8 @@ def run_tui(args):
                         say(f"Wake up, Neo…  {r['repo']} · {r['task'] or 'session'} needs you.", 5)
                     if last_scan and NOTIFY:
                         notify(f"{r['repo']} · {r['task'] or r.get('title') or 'session'}", r["now"])
+                    if last_scan and SOUND:
+                        ring_sound()
                 rung = new_ring
                 new_hot = hot_rows(all_rows)
                 for sid in new_hot - hot_seen:
@@ -1411,6 +1459,13 @@ def run_tui(args):
             elif k == ord("c"):
                 if rows:
                     say(copy_resume(rows[sel]))
+            elif k == ord("m"):
+                SOUND = not SOUND; save_prefs(sound=SOUND)
+                if SOUND:
+                    say("sound on: the phone rings when a session waits on you.  (replace ~/.claude/fleet/ring.wav to change it)", 6)
+                    ring_sound()
+                else:
+                    say("sound off.")
             elif k == ord("n"):
                 NOTIFY = not NOTIFY; save_prefs(notify=NOTIFY)
                 if NOTIFY:
@@ -1683,11 +1738,15 @@ def main(argv):
         prefs["notify"] = True
     if "--no-notify" in args:
         prefs["notify"] = False
-    global SHOW_COST, NOTIFY
-    SHOW_COST = prefs["cost"]; NOTIFY = prefs["notify"]
+    if "--sound" in args:
+        prefs["sound"] = True
+    if "--no-sound" in args:
+        prefs["sound"] = False
+    global SHOW_COST, NOTIFY, SOUND
+    SHOW_COST = prefs["cost"]; NOTIFY = prefs["notify"]; SOUND = prefs["sound"]
     PLAIN = prefs["plain"]
     if theme in THEMES and "--selftest" not in args and "--once" not in args:
-        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"], zoom=prefs["zoom"], cost=prefs["cost"], notify=prefs["notify"], editor=prefs["editor"])
+        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"], zoom=prefs["zoom"], cost=prefs["cost"], notify=prefs["notify"], editor=prefs["editor"], sound=prefs["sound"])
     set_theme(theme or "matrix", calm=prefs["calm"])
     if "--themes" in args:
         for n, t in THEMES.items():
