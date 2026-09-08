@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.32.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.32.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -566,6 +566,9 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
+- **0.32.1** — **Fleet: context alert.** When a live session crosses 80% context the monitor toasts
+  `context 84% on <repo> · <task>: /compact before it eats the budget`, and pings the desktop when
+  `n` notifications are on. Once per crossing; a `/compact` that drops it below the line re-arms it.
 - **0.32.0** — **Fleet: navigation and overview batch.** Sessions with no anderson pipeline show
   their first prompt as a quoted title instead of `(no anderson task)` (a `/resume` summary wins when
   Claude Code wrote one; titles survive on sentinels so you know what to resume). Ringing rows say
