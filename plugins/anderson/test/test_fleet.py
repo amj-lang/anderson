@@ -265,5 +265,37 @@ class TestJackIn(unittest.TestCase):
         self.assertIn("tmux", msg)
 
 
+class TestUsageLimits(unittest.TestCase):
+    def test_heartbeat_stores_limits_and_footer_shows_them(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {**os.environ, "ANDERSON_FLEET_DIR": tmp}
+            hb = {"session_id": "lim", "cwd": tmp, "rate_limits": {
+                "five_hour": {"used_percentage": 20.4, "resets_at": time.time() + 4 * 3600 + 33 * 60},
+                "seven_day": {"used_percentage": 37.9, "resets_at": time.time() + 3 * 86400}}}
+            r = subprocess.run(["python3", str(BIN / "heartbeat.py")], input=json.dumps(hb), text=True, env=env, capture_output=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            st = json.load(open(os.path.join(tmp, "lim.status.json")))
+            self.assertEqual(st["limits"]["five_hour"]["pct"], 20.4)
+            old = fleet.FLEET_DIR; fleet.FLEET_DIR = tmp
+            try:
+                lim = fleet.usage_limits()
+                self.assertIn("5h 20%", lim); self.assertIn("7d 37%", lim); self.assertRegex(lim, r"4h3[23]")
+                foot = fleet.render([], 140)[-1][1]
+                self.assertIn("5h 20%", foot)
+                for kind, ln in fleet.render(fleet.demo_rows(), 140):
+                    self.assertEqual(fleet.dw(ln), 140)
+            finally:
+                fleet.FLEET_DIR = old
+
+    def test_no_limits_no_footer_noise(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old = fleet.FLEET_DIR; fleet.FLEET_DIR = tmp
+            try:
+                self.assertEqual(fleet.usage_limits(), "")
+                self.assertNotIn("5h", fleet.render([], 120)[-1][1])
+            finally:
+                fleet.FLEET_DIR = old
+
+
 if __name__ == "__main__":
     unittest.main()
