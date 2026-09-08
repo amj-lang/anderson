@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.33.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.33.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -566,6 +566,16 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
+- **0.33.1** — **Fleet: detail card; red footer at 90% usage; test fix.** When the terminal has
+  ten or more free lines below the table, the selected session gets a labelled card instead of three
+  dense lines: `task` (with repo and `⎇ branch`), `who` (persona · stage · model), `verdicts` (plan,
+  diff, gate), `status` (what it does now, last activity, session age), `context` (bar, tokens,
+  lines ±, `← /compact` past 80%), `where` (pane, pid, session id), `prompt` (first prompt when an
+  anderson task is running), `last` (last words), **`next`** (the one thing you do now: which command,
+  which file). Small terminals keep the compact form. The footer paints red when any `/usage` window
+  passes 90%, since extra-usage credits come right after. 0.33.0 shipped with one failing test (an
+  exact-dict prefs assertion that predates the `editor` pref); fixed, and the release pipeline now
+  merges only on green CI.
 - **0.33.0** — **Fleet: open the gate artifact in your IDE.** `o` opens what the current stage wants
   read: `plan.md` for grill and plan review, `plan.md` + `audit.md` for diff review, `audit.md`
   during implement. Jacking into a row parked at a human gate (`gate: human`) does it automatically,

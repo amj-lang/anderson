@@ -490,7 +490,7 @@ def enrich(s, now):
         "gate": (st.get("gate") or "").lower(),
         "dejavu": bool(it and it.isdigit() and int(it) > 0),
         "status": status, "now": now_txt, "text": tr.get("text") or "",
-        "cost": s.get("cost_usd"), "ctx_pct": ctx_pct,
+        "cost": s.get("cost_usd"), "ctx_pct": ctx_pct, "ctx_tokens": toks,
         "lines": (s.get("lines_added"), s.get("lines_removed")),
         "start": start, "last_seen": last_seen,
         "tmux_pane": s.get("tmux_pane"), "tmux_addr": s.get("tmux_addr"),
@@ -793,7 +793,60 @@ def header_tail(frame):
     return ""
 
 
-def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None):
+def next_step(r):
+    """What the human does next for this row, in one line."""
+    st, gate, task = r.get("stage") or "", r.get("gate") or "", r.get("task") or ""
+    if r["status"] == "sentinel":
+        return "c copies the resume command · b dismisses the row"
+    if st == "grill":
+        return "answer the interrogation in the session (⏎), it hardens plan.md"
+    if st == "plan_review" and gate == "human":
+        return f"read plan.md (o) → /anderson:approve-plan {task}  · or say what to change"
+    if st == "diff_review" and gate == "human":
+        v = r.get("diff_verdict") or ""
+        return f"read plan.md + audit.md (o) → /anderson:approve-diff {task}" + (f"  · verdict {v}: /anderson:rework {task}" if v == "fix_first" else "")
+    if st == "implement":
+        return "NEO is writing code; nothing to do until diff review"
+    if st == "done":
+        return "shipped. PR is up; read what you merged"
+    if r["status"] == "ring":
+        return "the session waits for your next prompt (⏎)"
+    return "working; come back when it rings"
+
+
+def detail_card(r, W, toast, t):
+    """Multi-line detail for the selected row. Labelled, one fact per line, no guessing needed."""
+    d = G["det"]
+    la, lr = r["lines"]
+    head = r["task"] or (f"\"{r['title']}\"" if r.get("title") else r["repo"])
+    who = f"{r['pglyph']} {r['persona']}" + (f" · {r['stage']}" if r.get("stage") else "") + (f" {r['iteration']}/{r['max_iter']}" if r.get("max_iter") else "")
+    lines = []
+    def L(label, txt, kind="det"):
+        lines.append((kind, fit(f"{d} {label:<9}{txt}", W)))
+    L("task", f"{head} · {r['repo']}" + (f" · ⎇ {r['branch']}" if r.get("branch") else ""))
+    L("who", who + (f" · model {r['model']}" if r.get("model") else ""))
+    if r.get("stage"):
+        L("verdicts", f"plan {r['plan_verdict'] or '—'} · diff {r['diff_verdict'] or '—'} · gate {r.get('gate') or 'none'}")
+    seen = age_str(r.get("last_seen")) if r.get("last_seen") else "—"
+    L("status", f"{r['now']} · last activity {seen} ago · session age {age_str(r.get('start'))}")
+    toks = f" ({r['ctx_tokens'] // 1000}k tokens)" if r.get("ctx_tokens") else ""
+    ctx = f"{ctx_bar(r['ctx_pct'])}{toks}" if r.get("ctx_pct") is not None else "unknown (no heartbeat yet)"
+    hot = "  ← /compact" if (r.get("ctx_pct") or 0) >= HOT_CTX and r["status"] != "sentinel" else ""
+    pm = f" · lines +{la} −{lr}" if la is not None else ""
+    cost = f" · api est ${r['cost']:.2f}" if (SHOW_COST and r.get("cost") is not None) else ""
+    L("context", f"{ctx}{hot}{pm}{cost}")
+    where = r["tmux_addr"] or r["tmux_pane"] or "no tmux pane"
+    L("where", f"{where} · pid {r['pid'] or '?'} · session {r['sid'][:8]}")
+    if r.get("title") and r["task"]:
+        L("prompt", f"\"{r['title']}\"")
+    L("last", r["text"] or r["now"])
+    L("next", next_step(r))
+    q = quote_for(r, t)
+    lines.append(("quote", fit(f"{d} {toast}" if toast else (f"{d} \"{q}\"" if q else f"{d} "), W)))
+    return lines
+
+
+def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, height=None):
     """Pure: -> list of (kind, line). Every line is exactly `width` cells (see --selftest)."""
     t = time.time() if t is None else t
     W = max(40, width)
@@ -823,23 +876,28 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None):
         lines.append((kind, fit(f"{num}{cur} {body}", W)))
     lines.append(("rule", rule(W)))
     d = G["det"]
+    # detail: a labelled card when the terminal has room (>= 10 free lines), else the 3-line compact form
+    room = (height - len(lines) - 3) if height else 3
     if rows and 0 <= sel < len(rows):
         r = rows[sel]
-        la, lr = r["lines"]
-        pm = f"+{la} −{lr}" if la is not None else ""
-        it = f"iteration {r['iteration']}/{r['max_iter']} · " if r.get("max_iter") else ""
-        where = r["tmux_addr"] or r["tmux_pane"] or (f"pid {r['pid']}" if r["pid"] else "no pane")
-        br = f" · ⎇ {r['branch']}" if r.get("branch") else ""
-        head_txt = r['task'] or (f"\"{r['title']}\"" if r.get("title") else r['repo'])
-        l1 = f"{d} {head_txt}{br} · {r['persona']} · {it}plan: {r['plan_verdict'] or '—'} · diff: {r['diff_verdict'] or '—'} · {pm} · {where}"
-        l2 = f"{d} last: {r['text'] or r['now']}"
-        q = quote_for(r, t)
-        l3 = f"{d} {toast}" if toast else (f"{d} \"{q}\"" if q else f"{d} ")
+        if room >= 10:
+            lines += detail_card(r, W, toast, t)
+        else:
+            la, lr = r["lines"]
+            pm = f"+{la} −{lr}" if la is not None else ""
+            it = f"iteration {r['iteration']}/{r['max_iter']} · " if r.get("max_iter") else ""
+            where = r["tmux_addr"] or r["tmux_pane"] or (f"pid {r['pid']}" if r["pid"] else "no pane")
+            br = f" · ⎇ {r['branch']}" if r.get("branch") else ""
+            head_txt = r['task'] or (f"\"{r['title']}\"" if r.get("title") else r['repo'])
+            l1 = f"{d} {head_txt}{br} · {r['persona']} · {it}plan: {r['plan_verdict'] or '—'} · diff: {r['diff_verdict'] or '—'} · {pm} · {where}"
+            l2 = f"{d} last: {r['text'] or r['now']}"
+            q = quote_for(r, t)
+            l3 = f"{d} {toast}" if toast else (f"{d} \"{q}\"" if q else f"{d} ")
+            lines += [("det", fit(l1, W)), ("det", fit(l2, W)), ("quote", fit(l3, W))]
     else:
         l1 = f"{d} " + ("filter: " + filt if filt else "")
         l2 = f"{d} {toast}" if toast else f"{d} "
-        l3 = f"{d} "
-    lines += [("det", fit(l1, W)), ("det", fit(l2, W)), ("quote", fit(l3, W))]
+        lines += [("det", fit(l1, W)), ("det", fit(l2, W)), ("quote", fit(f"{d} ", W))]
     lines.append(("rule", rule(W)))
     fleet = sum(r["cost"] or 0 for r in rows)
     lim = usage_limits()
@@ -851,7 +909,7 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None):
         tot = f"{THEME['name']} · {lim}" + (f" · api est ${fleet:.2f}" if SHOW_COST else "")
     else:
         tot = f"{THEME['name']} · api est ${fleet:.2f}"
-    lines.append(("foot", fit(fit(keys, max(0, W - dw(tot) - 1)) + " " + tot, W)))
+    lines.append(("foot_hot" if (lim and usage_hot()) else "foot", fit(fit(keys, max(0, W - dw(tot) - 1)) + " " + tot, W)))
     return lines
 
 
@@ -867,6 +925,19 @@ def _reset_str(ts):
     if left < 86400:
         return f"{left // 3600}h{(left % 3600) // 60:02d} left"
     return time.strftime("resets %a %H:%M", time.localtime(ts))
+
+
+USAGE_HOT = 90   # % of a subscription window past which the footer paints red: credits are next
+
+
+def usage_hot():
+    """True when any /usage window is past USAGE_HOT."""
+    best, best_ts = None, 0
+    for p in glob.glob(os.path.join(FLEET_DIR, "*.status.json")):
+        d = jload(p) or {}
+        if d.get("limits") and (d.get("ts") or 0) > best_ts:
+            best, best_ts = d["limits"], d["ts"]
+    return bool(best) and any((w or {}).get("pct") is not None and w["pct"] >= USAGE_HOT for w in best.values())
 
 
 def usage_limits():
@@ -912,7 +983,8 @@ MANUAL = """
             AGENT SMITH diff_review, THE ONE shipped, T. ANDERSON: no pipeline yet
   ctx       from the statusline heartbeat (bin/heartbeat.py); falls back to the transcript's
             last usage when no heartbeat is wired
-  footer    session 46% · 4h07 left │ week 41% · resets Fri 19:00
+  footer    session 46% · 4h07 left │ week 41% · resets Fri 19:00   (red past 90%: extra-usage
+            credits are next; queue sessions or wait for the reset)
             session = the rolling 5-hour window (/usage "Current session"), week = the 7-day
             window for all models. Your plan is a flat fee: these percentages ARE the cost.
             Claude Code does not expose the per-model weekly number.
@@ -1154,6 +1226,7 @@ def run_tui(args):
                 "ring": col(T["ring"]) | BOLD, "ring_sel": col(T["ring"]) | BOLD | REV,
                 "sentinel": col(T["dead"]) | DIM, "sentinel_sel": DIM | REV,
                 "burst": col(T["accent"]) | BOLD, "det": 0, "quote": col(T["quote"]) | DIM, "foot": DIM,
+                "foot_hot": col("red") | BOLD,
             }
 
         if intro:
@@ -1214,7 +1287,7 @@ def run_tui(args):
                            for y, ln in enumerate(MANUAL.strip("\n").split("\n")[: h - 1])]
             else:
                 shown_toast = confirm or toast
-                lines = render(rows, w - 1, sel, frame, filt if filt_mode else "", shown_toast, set(burst), now)
+                lines = render(rows, w - 1, sel, frame, filt if filt_mode else "", shown_toast, set(burst), now, height=h - 1)
                 painted = []
                 hot = set()
                 span = ctx_span(w - 1)
@@ -1555,7 +1628,8 @@ def selftest():
                                  ctx_pct=random.choice([None, 0, 61, 100]), lines=(1, 2), start=time.time() - 100,
                                  last_seen=time.time(), tmux_pane=None, tmux_addr=None, shipped=False, hb_ts=None))
             for lines in (render(rows, width, sel=3, frame=2, toast="Wake up, Neo…", burst={"s1"}),
-                          render([], width), render(rows, width, filt="abc")):
+                          render(rows, width, sel=3, frame=2, height=50), render([], width, height=50),
+                          render(rows, width, filt="abc")):
                 for kind, ln in lines:
                     if dw(ln) != max(40, width):
                         fails += 1
