@@ -19,6 +19,26 @@ class TestRing(unittest.TestCase):
             self.assertTrue(0.7 < dur < 1.2, dur)
             self.assertLess(os.path.getsize(p), 100_000)
 
+    def test_bundled_matrix_ring_is_valid_and_short(self):
+        p = BIN.parent / "assets" / "ring-matrix.wav"
+        self.assertTrue(p.is_file())
+        with wave.open(str(p)) as w:
+            dur = w.getnframes() / w.getframerate()
+            self.assertEqual(w.getnchannels(), 1)
+        self.assertTrue(1.0 < dur < 1.5, dur)
+        self.assertLess(p.stat().st_size, 120_000)
+
+    def test_ring_path_precedence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old = fleet.FLEET_DIR, fleet.RING_WAV
+            fleet.FLEET_DIR = tmp; fleet.RING_WAV = os.path.join(tmp, "ring.wav")
+            try:
+                self.assertTrue(fleet.ring_path().endswith("ring-matrix.wav"))     # bundled by default
+                fleet.make_ring_wav(fleet.RING_WAV)
+                self.assertEqual(fleet.ring_path(), fleet.RING_WAV)                 # yours wins
+            finally:
+                fleet.FLEET_DIR, fleet.RING_WAV = old
+
     def test_sound_pref_roundtrip(self):
         with tempfile.TemporaryDirectory() as tmp:
             old = fleet.FLEET_DIR, fleet.PREFS_FILE
