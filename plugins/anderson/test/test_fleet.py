@@ -222,5 +222,23 @@ class TestPrefsAndWording(unittest.TestCase):
         self.assertEqual(fleet.set_theme("neo-tokyo")["name"], "matrix")
 
 
+class TestLauncher(unittest.TestCase):
+    def test_install_shim_then_run_once_then_uninstall(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {**os.environ, "FLEET_BIN_DIR": tmp, "ANDERSON_FLEET_DIR": tmp}
+            r = subprocess.run(["bash", str(BIN / "fleet"), "install"], env=env, capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            shim = os.path.join(tmp, "fleet")
+            self.assertTrue(os.access(shim, os.X_OK))
+            r = subprocess.run(["bash", shim, "--once", "--demo", "--width=90"], env=env, capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("T H E  O P E R A T O R", r.stdout)
+            for ln in r.stdout.rstrip("\n").split("\n"):
+                self.assertEqual(fleet.dw(ln), 90)
+            r = subprocess.run(["bash", str(BIN / "fleet"), "uninstall"], env=env, capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertFalse(os.path.exists(shim))
+
+
 if __name__ == "__main__":
     unittest.main()

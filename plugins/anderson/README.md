@@ -494,7 +494,12 @@ input-side saving, not a dramatic one.
 
 Optional flourishes in `bin/` — run them in a real terminal (the in-loop banners are plain text and don't animate):
 
-- **`python3 bin/fleet.py`** — **THE OPERATOR**, the cross-repo fleet monitor. Every Claude Code
+- **`fleet`** — **THE OPERATOR**, the cross-repo fleet monitor. Install once with `/anderson:fleet`
+  (writes a `fleet` shim to `~/.local/bin` that resolves the newest installed anderson at run time,
+  so plugin updates never break it), then in any terminal: `fleet` (inside tmux: this pane; outside:
+  opens/attaches a tmux session named `fleet`; no tmux: runs plain), `fleet --pane` (45% side
+  pane), `fleet --window`, `fleet --here` (never touches tmux). The installer also prints an
+  optional `prefix+F` tmux hotkey line. Every Claude Code
   session on the machine, one row each: repo · anderson task · **persona on the job** (▲ ARCHITECT,
   ◇ INTERROGATOR, ◎ ORACLE, ● NEO, ▣ AGENT SMITH, ★ THE ONE, ○ T. ANDERSON = no pipeline yet) ·
   stage `n/max` · model · **now** (`▶ Bash pytest -q`, `▶ Agent implementer`, `☎ ring` = waits on
@@ -559,7 +564,7 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
   `nebuchadnezzar`, `agent`), Matrix-or-plain wording and motion are per-user prefs in
   `~/.claude/fleet/prefs.json`. Repaints only changed lines (no flicker). Alignment is a tested
   invariant (`--selftest`, `test/test_fleet.py`). Boot screen with a line that rotates every launch.
-  `/anderson:fleet` prints the launch card. Loop unchanged.
+  `/anderson:fleet` installs the `fleet` launcher (tmux-aware, stable across plugin updates) and prints the card. Loop unchanged.
 - **0.28.0** — **Fable is the default critic; `--fable` becomes `--opus`.** The `reviewer` and
   `plan-reviewer` agents now declare `model: fable` in frontmatter, and `review_model` seeds to
   `fable`; the inverse flag `--opus` (on `start`, `auto`, `feature.sh start`) runs both critique
