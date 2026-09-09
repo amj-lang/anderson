@@ -981,7 +981,15 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
     lim = usage_limits(bars=True)
     if lim:                                      # the plan's windows: the number to keep an eye on, so it lives up here
         lines.append(("usage_hot" if usage_hot() else "usage", fit(f"{G['det']} {THEME['name']} · {lim}", W)))
+    foot = footer(rows, W, filt)
+    # tall terminal (16+ free lines after the list and the footer): blank lines around the rules, so it breathes
+    airy = bool(height) and height - (len(lines) + len(rows) + 4 + len(foot)) >= 16
+    def sp():
+        if airy:
+            lines.append(("empty", fit("", W)))
+    sp()
     lines.append(("rule", rule(W)))
+    sp()
     hdr = " " * PREFIX + "  ".join(fit(tt, w, a) for _, tt, w, a in cols)
     lines.append(("colhdr", fit(hdr, W)))
     if not rows:
@@ -997,15 +1005,15 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
             body = "  ".join(fit(cell(r, k, frame), w, a) for k, _, w, a in cols)
             kind = ("hidden" if r.get("hidden") else r["status"]) + ("_sel" if i == sel else "")
         lines.append((kind, fit(f"{num}{cur} {body}", W)))
+    sp()
     lines.append(("rule", rule(W)))
     d = G["det"]
     # detail: a labelled card when the terminal has room (>= 10 free lines), else the 3-line compact form
-    foot = footer(rows, W, filt)
     room = (height - len(lines) - len(foot)) if height else 3
     if rows and 0 <= sel < len(rows):
         r = rows[sel]
         if room >= 10:
-            lines += detail_card(r, W, toast, t, airy=room >= 16)
+            lines += detail_card(r, W, toast, t, airy=airy or room >= 16)
         else:
             la, lr = r["lines"]
             pm = f"+{la} −{lr}" if la is not None else ""

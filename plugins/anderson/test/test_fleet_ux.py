@@ -207,5 +207,19 @@ class TestLookingAt(unittest.TestCase):
         self.assertIsNone(fleet._dev_tty("??"))
 
 
+class TestBreathingRoom(unittest.TestCase):
+    def test_tall_terminal_gets_spacers_short_one_does_not(self):
+        rows = fleet.demo_rows()
+        tall = [k for k, _ in fleet.render(rows, 140, sel=1, height=45)]
+        i = tall.index("colhdr")
+        self.assertEqual(tall[i - 1], "empty"); self.assertEqual(tall[i - 2], "rule"); self.assertEqual(tall[i - 3], "empty")
+        self.assertEqual(tall[i + len(rows) + 1], "empty")                     # gap between the list and its rule
+        self.assertEqual(len(tall), 45)
+        short = [k for k, _ in fleet.render(rows, 140, sel=1, height=22)]
+        j = short.index("colhdr")
+        self.assertEqual(short[j - 1], "rule"); self.assertNotIn("empty", short[:j])
+        self.assertEqual(len(short), 22)
+
+
 if __name__ == "__main__":
     unittest.main()
