@@ -399,6 +399,20 @@ class TestNoDuplicateRows(unittest.TestCase):
             rows = self._discover(tmp, ps)
             self.assertEqual(sorted(r["pid"] for r in rows), [100, 400])
 
+    def test_hook_sourced_child_sessions_are_folded_too(self):
+        """Claude Code's bg daemon (claude daemon -> bg-spare / bg-pty-host) fires hooks under its own session ids."""
+        with tempfile.TemporaryDirectory() as tmp:
+            now = time.time()
+            json.dump({"session_id": "main", "cwd": tmp, "pid": 100, "ts": now}, open(os.path.join(tmp, "main.status.json"), "w"))
+            json.dump({"session_id": "spare", "cwd": tmp, "pid": 300, "ts": now, "event": "SessionStart"},
+                      open(os.path.join(tmp, "spare.event.json"), "w"))
+            json.dump({"session_id": "pty", "cwd": tmp, "pid": 400, "ts": now, "event": "PostToolUse"},
+                      open(os.path.join(tmp, "pty.event.json"), "w"))
+            ps = [(100, 1, "claude"), (200, 100, "/Users/x/.local/bin/claude daemon run --origin transient"),
+                  (300, 200, "claude bg-spare --bg-spare /tmp/cc-daemon/spare/a"), (400, 200, "/x/ClaudeCode.app/Contents/MacOS/claude bg-pty-host")]
+            rows = self._discover(tmp, ps)
+            self.assertEqual([r["sid"] for r in rows], ["main"])
+
     def test_same_pid_keeps_only_the_freshest_session_id(self):
         with tempfile.TemporaryDirectory() as tmp:
             now = time.time()
