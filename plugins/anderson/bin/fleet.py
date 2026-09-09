@@ -457,6 +457,10 @@ def discover(include_ps=True, hidden=None):
     ps = _ps() if include_ps else []
     parents = {pid: ppid for pid, ppid, _ in ps}
     claude_pids = {pid for pid, _, cmd in ps if _is_claude(cmd)}
+    # a session whose process descends from another claude is that session's machinery (the bg
+    # daemon's spare / pty-host, a `claude -p` review run): its hooks and heartbeat fire too, but it is not a row
+    for sid in [k for k, v in sess.items() if v.get("pid") and _under_claude(v["pid"], parents, claude_pids)]:
+        del sess[sid]
     panes = _tmux_panes() if ps else {}
     # one process, several session ids (/clear, /resume): only the freshest one is that process now
     by_pid = {}
