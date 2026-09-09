@@ -1007,6 +1007,7 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
         lines.append((kind, fit(f"{num}{cur} {body}", W)))
     sp()
     lines.append(("rule", rule(W)))
+    sp()                                        # one more before the card: the rule, air, then the task
     d = G["det"]
     # detail: a labelled card when the terminal has room (>= 10 free lines), else the 3-line compact form
     room = (height - len(lines) - len(foot)) if height else 3

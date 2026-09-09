@@ -214,6 +214,7 @@ class TestBreathingRoom(unittest.TestCase):
         i = tall.index("colhdr")
         self.assertEqual(tall[i - 1], "empty"); self.assertEqual(tall[i - 2], "rule"); self.assertEqual(tall[i - 3], "empty")
         self.assertEqual(tall[i + len(rows) + 1], "empty")                     # gap between the list and its rule
+        self.assertEqual(tall[i + len(rows) + 2], "rule"); self.assertEqual(tall[i + len(rows) + 3], "empty")   # and after it
         self.assertEqual(len(tall), 45)
         short = [k for k, _ in fleet.render(rows, 140, sel=1, height=22)]
         j = short.index("colhdr")
