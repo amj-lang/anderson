@@ -44,6 +44,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 STALE_S = 24 * 3600          # forget sessions with no sign of life for a day
 CTX_WINDOW = 200_000         # fallback when the heartbeat has no context_window_size
 REFRESH_S = 2.0
+FULL_REPAINT_S = 10.0        # erase + redraw the whole screen this often; the diff repaint cannot see what the terminal lost
 
 # ──────────────────────────────────────────────────────────────────────── glyphs
 UNI = dict(eyes="⌐■-■", cur="▸", ring="☎", dead="✝", loop="⟲", run="▶", ship="★", hid="◌",
@@ -1182,6 +1183,7 @@ MANUAL = """
   r         red pill       kill the session's process (asks first); the row is hidden with it
   b         blue pill      hide the row, any row; the process is left alone. On a hidden row: un-hide
   h         hidden         show the hidden rows too (◌, dim), so you can bring one back with b
+  ctrl-L    redraw         repaint the whole screen (also automatic every 10 s and on resize)
   /         filter         substring on repo · task ; esc clears
   t         theme          matrix · construct · zion · nebuchadnezzar · agent (saved)
   p         wording        Matrix lingo (zion · jacked in · ringing · sentinel) or plain (saved)
@@ -1489,6 +1491,7 @@ def run_tui(args):
         typed = ""
         rung, shipped, burst, hot_seen = set(), set(), {}, set()
         last_scan = 0
+        last_full = 0          # a full repaint every FULL_REPAINT_S: a Space swipe or an app switch can leave stale cells
         prev = None            # last painted (size, lines-with-attrs): repaint only on change
 
         def say(msg, secs=3):
@@ -1537,6 +1540,8 @@ def run_tui(args):
             if toast and now > toast_until:
                 toast = ""
             h, w = scr.getmaxyx()
+            if now - last_full > FULL_REPAINT_S:
+                prev = None; last_full = now
             A = attrs()
             if manual:
                 painted = [(fit(ln, w - 1), A["hdr"] if y == 0 else 0)
@@ -1566,7 +1571,7 @@ def run_tui(args):
             if key != prev:                                 # repaint only the lines that changed
                 full = prev is None or prev[0] != (h, w)
                 if full:
-                    scr.erase()
+                    scr.erase(); scr.redrawwin()        # redrawwin: resend every cell, even ones curses believes are on screen
                 old = prev[1] if not full else []
                 for y, (ln, a) in enumerate(painted):
                     if y < len(old) and old[y] == (ln, a) and (y in hot) == (prev and y in prev[2]):
@@ -1591,8 +1596,8 @@ def run_tui(args):
                 return
             if k == -1:
                 continue
-            if k == curses.KEY_RESIZE:
-                prev = None; continue
+            if k == curses.KEY_RESIZE or k == 12:       # resize, or ctrl-L: redraw everything now
+                prev = None; last_full = now; continue
             if manual:
                 manual = False; continue
             if confirm:
