@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.39.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.40.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -114,6 +114,10 @@ Living spec: `plugins/anderson/docs/auto-mode.md`. Design context: `plugins/ande
 ## What a real run looks like
 
 ![anderson — digital-rain intro](../../assets/anderson-demo.gif)
+
+The fleet terminal boots into the same rain:
+
+![fleet — Loading anderson…](../../assets/fleet-loading.png)
 
 ## Personas
 
@@ -492,6 +496,8 @@ The read-heavy review agents are scoped to the plan plus the files it names
 input-side saving, not a dramatic one.
 
 ## Extras (terminal)
+
+![fleet — THE OPERATOR: every Claude Code session on one screen](../../assets/fleet-operator.png)
 
 Optional flourishes in `bin/` — run them in a real terminal (the in-loop banners are plain text and don't animate):
 
