@@ -19,21 +19,41 @@ class TestRing(unittest.TestCase):
             self.assertTrue(0.7 < dur < 1.2, dur)
             self.assertLess(os.path.getsize(p), 100_000)
 
-    def test_bundled_matrix_ring_is_valid_and_short(self):
-        p = BIN.parent / "assets" / "ring-matrix.wav"
-        self.assertTrue(p.is_file())
-        with wave.open(str(p)) as w:
-            dur = w.getnframes() / w.getframerate()
-            self.assertEqual(w.getnchannels(), 1)
-        self.assertTrue(1.5 < dur < 3.0, dur)
-        self.assertLess(p.stat().st_size, 120_000)
+    def test_bundled_sounds_are_short_valid_mono_wavs(self):
+        names = fleet.sound_names()
+        self.assertEqual(names[0], "phone")
+        self.assertTrue({"snare", "hitech", "freeze", "blip", "rift", "jump"} <= set(names), names)
+        for n in names:
+            p = pathlib.Path(fleet.sound_file(n))
+            with wave.open(str(p)) as w:
+                self.assertEqual(w.getnchannels(), 1, n)
+                dur = w.getnframes() / w.getframerate()
+            self.assertTrue(0.1 < dur <= 2.5, (n, dur))
+            self.assertLess(p.stat().st_size, 120_000, n)
+
+    def test_pick_a_sound_and_fall_back_to_phone(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old = fleet.FLEET_DIR, fleet.RING_WAV, fleet.SOUNDS_USER, fleet.RING
+            fleet.FLEET_DIR = tmp; fleet.RING_WAV = os.path.join(tmp, "ring.wav")
+            fleet.SOUNDS_USER = os.path.join(tmp, "sounds")
+            try:
+                fleet.RING = "snare"
+                self.assertTrue(fleet.ring_path().endswith("snare.wav"))
+                fleet.RING = "no-such-sound"
+                self.assertTrue(fleet.ring_path().endswith("phone.wav"))
+                os.makedirs(fleet.SOUNDS_USER); fleet.make_ring_wav(os.path.join(fleet.SOUNDS_USER, "mine.wav"))
+                self.assertIn("mine", fleet.sound_names())
+                fleet.RING = "mine"
+                self.assertEqual(fleet.ring_path(), os.path.join(fleet.SOUNDS_USER, "mine.wav"))
+            finally:
+                fleet.FLEET_DIR, fleet.RING_WAV, fleet.SOUNDS_USER, fleet.RING = old
 
     def test_ring_path_precedence(self):
         with tempfile.TemporaryDirectory() as tmp:
             old = fleet.FLEET_DIR, fleet.RING_WAV
             fleet.FLEET_DIR = tmp; fleet.RING_WAV = os.path.join(tmp, "ring.wav")
             try:
-                self.assertTrue(fleet.ring_path().endswith("ring-matrix.wav"))     # bundled by default
+                self.assertTrue(fleet.ring_path().endswith("phone.wav"))           # bundled by default
                 fleet.make_ring_wav(fleet.RING_WAV)
                 self.assertEqual(fleet.ring_path(), fleet.RING_WAV)                 # yours wins
             finally:
@@ -47,6 +67,9 @@ class TestRing(unittest.TestCase):
                 self.assertFalse(fleet.load_prefs()["sound"])
                 fleet.save_prefs(sound=True)
                 self.assertTrue(fleet.load_prefs()["sound"])
+                self.assertEqual(fleet.load_prefs()["ring"], "phone")
+                save = fleet.save_prefs(ring="jump")
+                self.assertEqual(fleet.load_prefs()["ring"], "jump")
             finally:
                 fleet.FLEET_DIR, fleet.PREFS_FILE = old
 
