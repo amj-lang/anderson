@@ -36,11 +36,13 @@ curses, zero tokens); this command only installs the launcher and tells the huma
             m sound on/off · s next ring sound (phone · snare · hitech · freeze · blip · rift · jump;
               fleet --play all auditions them, --ring NAME picks, own .wav in ~/.claude/fleet/sounds/)
             o read plan.md / audit.md right here (glow, else less; q returns)
+            a page the newest subagent's transcript as a readable log (running ones first)
             O open them in your IDE (automatic when ⏎ lands on a human gate and an IDE applies;
               editor: --editor code, else GUI $VISUAL/$EDITOR, else the IDE owning the session)
             / filter · t theme · p wording · +/- zoom (Terminal.app; iTerm2/IDE: ⌘+) · ? manual · q
 
-  card:     task · who · verdicts · status · context · agents (subagents sent / running / last) · where
+  card:     task · who · verdicts · status · context · agents (sent / running, then one live line per
+            running subagent: type, task, current tool, age) · where
             · prompt · last · next; footer pinned to the floor: keys line, then usage line
 
   jack in:  ⏎ switches tmux to the session's pane. No tmux? On macOS it focuses the iTerm2 /

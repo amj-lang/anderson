@@ -230,6 +230,102 @@ def subagents(transcript_path, now=None):
     return (len(files), running, last.strip())
 
 
+def _agent_dir(transcript_path):
+    return os.path.join(os.path.dirname(transcript_path), os.path.basename(transcript_path)[:-6], "subagents")
+
+
+def agent_rows(transcript_path, now=None, limit=3, running_only=True):
+    """What the subagents are doing: [{type, desc, model, now, age, path}], newest first. Each subagent
+    has its own transcript, same format as the session's, so the same tail-parser reads it."""
+    if not transcript_path:
+        return []
+    now = now or time.time()
+    files = sorted(glob.glob(os.path.join(_agent_dir(transcript_path), "agent-*.jsonl")), key=os.path.getmtime, reverse=True)
+    out = []
+    for f in files:
+        touched = now - os.path.getmtime(f)
+        if running_only and touched >= 20:
+            continue
+        meta = jload(f[:-6] + ".meta.json") or {}
+        tr = read_transcript(f)
+        if tr.get("tool"):
+            doing = f"{G['run']} {tr['tool']} {tr.get('tool_arg') or ''}".rstrip()
+        elif touched < 20:
+            doing = f"{G['run']} thinking"
+        else:
+            doing = "done" + (f": {tr['text']}" if tr.get("text") else "")
+        out.append({"type": meta.get("agentType") or "agent", "desc": meta.get("description") or "",
+                    "model": meta.get("model") or "", "now": doing,
+                    "age": age_str(tr["start"]) if tr.get("start") else age_str(os.path.getmtime(f)), "path": f})
+        if len(out) >= limit:
+            break
+    return out
+
+
+def agent_log(path):
+    """A subagent transcript as a readable ANSI log: its words, the tools it called, a line of each result."""
+    B, D, G_, R = "\033[1m", "\033[2m", "\033[32m", "\033[0m"
+    meta = jload(path[:-6] + ".meta.json") or {}
+    out = [B + G_ + f"{meta.get('agentType') or 'agent'}  {meta.get('description') or ''}  ({meta.get('model') or '?'})" + R, ""]
+    try:
+        lines = open(path, errors="replace").read().split("\n")
+    except Exception as e:
+        return f"cannot read {path}: {e}"
+    for ln in lines:
+        try:
+            d = json.loads(ln)
+        except Exception:
+            continue
+        msg = d.get("message") or {}
+        content = msg.get("content")
+        if d.get("type") == "assistant" and isinstance(content, list):
+            for b in content:
+                if not isinstance(b, dict):
+                    continue
+                if b.get("type") == "text" and b.get("text", "").strip():
+                    out.append(b["text"].strip()); out.append("")
+                elif b.get("type") == "tool_use":
+                    out.append(G_ + f"{G['run']} {b.get('name')} " + R + D + _tool_summary(b.get("name"), b.get("input"))[:160] + R)
+        elif d.get("type") == "user" and isinstance(content, list):
+            for b in content:
+                if isinstance(b, dict) and b.get("type") == "tool_result":
+                    c = b.get("content")
+                    txt = c if isinstance(c, str) else " ".join(x.get("text", "") for x in c if isinstance(x, dict)) if isinstance(c, list) else ""
+                    first = txt.strip().split("\n")[0][:160]
+                    if first:
+                        out.append(D + "   ← " + first + R)
+        elif d.get("type") == "user" and isinstance(content, str) and content.strip() and len(out) == 2:
+            out.append(D + "prompt: " + content.strip()[:600] + R); out.append("")
+    return "\n".join(out)
+
+
+def view_agent(r, scr=None):
+    """`a`: page the newest (running first) subagent's transcript as a log; the TUI resumes on q."""
+    import curses
+    agents = agent_rows(r.get("transcript_path"), running_only=True, limit=1) or agent_rows(r.get("transcript_path"), running_only=False, limit=1)
+    if not agents:
+        return "no subagent transcripts for that session yet."
+    a = agents[0]
+    tmp = os.path.join(FLEET_DIR, "view-agent.log")
+    try:
+        os.makedirs(FLEET_DIR, exist_ok=True)
+        with open(tmp, "w") as f:
+            f.write(agent_log(a["path"]))
+        if scr is not None:
+            curses.endwin()
+        subprocess.run(["less", "-R", "-P", f"{a['type']} {a['desc'][:40]}  (q back to fleet)", tmp])
+    except Exception as e:
+        return f"viewer failed: {e}"
+    finally:
+        try:
+            os.remove(tmp)
+        except Exception:
+            pass
+        if scr is not None:
+            scr.refresh()
+    return f"read {a['type']} {a['desc']}"
+
+
 def read_transcript(path, tail_bytes=262144):
     """Tail-parse a session .jsonl -> dict(state, tool, tool_arg, text, ctx_tokens, model, ts, start)."""
     out = dict(state=None, tool=None, tool_arg="", text="", ctx_tokens=None, model=None, ts=None, start=None,
@@ -581,6 +677,7 @@ def enrich(s, now):
         "lines": (s.get("lines_added"), s.get("lines_removed")),
         "start": start, "last_seen": last_seen, "agents": subagents(s.get("transcript_path"), now),
         "idle": status == "ring" and bool(since) and now - since > IDLE_S,
+        "transcript_path": s.get("transcript_path"),
         "tmux_pane": s.get("tmux_pane"), "tmux_addr": s.get("tmux_addr"),
         "shipped": stage == "done", "hb_ts": s.get("hb_ts"),
     }
@@ -958,7 +1055,11 @@ def detail_card(r, W, toast, t, airy=False):
     total, running, last_agent = r.get("agents") or (0, 0, "")
     if total:
         run = f" · {running} running" if running else ""
-        L("agents", f"{total} sent{run}" + (f" · last {last_agent}" if last_agent else ""))
+        live = agent_rows(r.get("transcript_path"), t) if (airy and running) else []
+        L("agents", f"{total} sent{run}" + ("" if live else (f" · last {last_agent}" if last_agent else "")) + ("  (a: log)" if total else ""))
+        for a in live:
+            desc = f' "{a["desc"]}"' if a["desc"] else ""
+            L("", f"↳ {a['type']}{desc} · {a['now']} · {a['age']}")
     where = r["tmux_addr"] or r["tmux_pane"] or "no tmux pane"
     L("where", f"{where} · pid {r['pid'] or '?'} · session {r['sid'][:8]}")
     gap()
@@ -1049,9 +1150,9 @@ def footer(rows, W, filt=""):
     d = G["det"]
     fleet = sum(r["cost"] or 0 for r in rows)
     lim = usage_limits()
-    keys = ("↑↓ tune · 1-9/⏎ jack in · o read plan · O in IDE · w rabbit · 🔴 r kill · 🔵 b hide · 👻 h hidden · c resume · "
+    keys = ("↑↓ tune · 1-9/⏎ jack in · o read plan · O in IDE · a agent log · w rabbit · 🔴 r kill · 🔵 b hide · 👻 h hidden · c resume · "
             "🔔 n notify · 🔊 m sound · 🎵 s ring · $ cost · +/- zoom · 🔍 / filter · 🎨 t theme · p wording · ? manual · q quit") \
-        if G is not ASCII else ("jk tune · 1-9/enter jack in · o read plan · O in IDE · w rabbit · r kill · b hide · h hidden · c resume · "
+        if G is not ASCII else ("jk tune · 1-9/enter jack in · o read plan · O in IDE · a agent log · w rabbit · r kill · b hide · h hidden · c resume · "
                                 "n notify · m sound · s ring · $ cost · +/- zoom · / filter · t theme · p wording · ? manual · q quit")
     if filt:
         keys = f"/{filt}_   (esc clears)"
@@ -1062,7 +1163,7 @@ def footer(rows, W, filt=""):
         usage = f"api est ${fleet:.2f} (the plan is a flat fee; this is what the tokens would cost on the API)"
     out = [("rule", rule(W))]
     kw, groups = W - dw(d) - 1, keys.split(" · ")
-    optional = ["$ cost", "+/- zoom", "p wording", "🎨 t theme", "t theme", "c resume", "O in IDE", "o read plan", "w rabbit",
+    optional = ["$ cost", "+/- zoom", "p wording", "🎨 t theme", "t theme", "c resume", "O in IDE", "a agent log", "o read plan", "w rabbit",
                 "👻 h hidden", "h hidden", "🔵 b hide", "b hide", "🔴 r kill", "r kill"]
     while True:
         klines, cur = [], ""
@@ -1177,6 +1278,9 @@ MANUAL = """
   O         open in IDE    same files in your IDE: --editor code (saved), else a GUI
                            $VISUAL/$EDITOR, else the IDE that owns the session. ⏎ / 1-9 on a row
                            parked at a human gate does this automatically when an IDE applies
+  a         agent log      page the newest subagent's transcript as a readable log (its words,
+                           the tools it called, a line of each result); running ones first. The card
+                           lists running subagents live (↳ type "task" · ▶ tool · age) on tall terminals
   c         resume         copy `cd <cwd> && claude --resume <sid>` (bring a sentinel back)
   m         sound          on/off (saved): the picked sound plays when a session starts waiting
   s         ring sound     next sound, previewed and saved: phone (the Matrix call) · snare ·
@@ -1721,6 +1825,9 @@ def run_tui(args):
             elif k == ord("O"):
                 if rows:
                     say(open_gate(rows[sel]))
+            elif k == ord("a"):
+                if rows:
+                    say(view_agent(rows[sel], scr), 4); prev = None; last_full = now
             elif k == ord("w"):
                 ringing = [i for i, r in enumerate(rows) if r["status"] == "ring"]
                 if ringing:
