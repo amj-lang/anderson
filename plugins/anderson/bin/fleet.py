@@ -1994,22 +1994,6 @@ def _focus_script(app, tty):
     return (FOCUS_ITERM if app == "iTerm2" else FOCUS_TERMINAL).replace("{tty}", tty)
 
 
-AXRAISE = """tell application "System Events" to tell process "{app}"
-  set frontmost to true
-  perform action "AXRaise" of window 1
-end tell"""
-
-
-def _axraise(app):
-    """Ask the window server to raise that app's front window. Needs Accessibility permission, so it
-    is best effort: without it osascript errors and we are no worse off than before."""
-    try:
-        subprocess.run(["osascript", "-e", AXRAISE.replace("{app}", app)],
-                       capture_output=True, text=True, timeout=4)
-    except Exception:
-        pass
-
-
 def _wait_focused(tty, secs):
     """Poll until `tty` is the frontmost tab, or `secs` elapse. True as soon as it lands."""
     end = time.time() + secs
@@ -2024,7 +2008,9 @@ def _focus_tty(tty):
     """macOS: bring the iTerm2 / Terminal.app tab owning `tty` to the front, and check that it got
     there. Selecting a tab succeeds even when its window stays put (another Space, or a full-screen
     window in the way), so the AppleScript's "ok" is not the answer: the frontmost tab is.
-    Returns "ok" (in front), "unraised" (selected, window did not come over) or None (no such tab)."""
+    Returns "ok" (in front), "unraised" (selected, window did not come over) or None (no such tab).
+    ponytail: no AXRaise fallback. It cannot pull a window off another Space anyway, and aiming it
+    needs a window title, which in Terminal carries the running command and changes under you."""
     if sys.platform != "darwin" or not tty:
         return None
     found = False
@@ -2041,10 +2027,9 @@ def _focus_tty(tty):
             # Same-Space raises land in ~0.15s. A window on another Space costs a full-screen
             # Spaces animation first (~1s, and it is not interruptible), so give it room: the poll
             # exits the moment the tab is in front, and only a real failure pays the whole wait.
-            if _wait_focused(tty, 1.4):
-                return "ok"
-            _axraise(app)
-            if _wait_focused(tty, 1.6):
+            # A same-Space raise lands in ~0.15s. Crossing Spaces plays a full-screen animation
+            # first, so allow for that; the poll leaves the moment the tab is in front.
+            if _wait_focused(tty, 2.0):
                 return "ok"
         except Exception:
             continue

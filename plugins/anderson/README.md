@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.40.3-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.40.4-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -587,6 +587,13 @@ missing; `fleet install --extras` installs the first two, `--with-tmux` the thir
 
 ## Changelog
 
+- **0.40.4** — **Fleet: the AXRaise fallback goes.** 0.40.2 retried a failed raise through System
+Events AXRaise. Measured against a real cross-Space window it never helped: AXRaise cannot pull a
+window off another Space, and aiming it needs a window title, which in Terminal carries the running
+command and changes between the lookup and the raise (`Can't get window 1 of process`). One 2 s wait
+replaces the two-stage retry, and when the window really did stay put the message carries the whole
+one-time fix, `killall Dock` included: without that restart the `workspaces-auto-swoosh` default is
+written but not live, which is exactly how a jack in needed two presses.
 - **0.40.3** — **Fleet: ⏎ across Spaces lands on the first press.** Raising a window that lives on
 another Space costs a full-screen Spaces animation first, about a second, and the 0.6 s check added
 in 0.40.2 gave up before it finished: the first ⏎ reported that the window had stayed behind, and a
