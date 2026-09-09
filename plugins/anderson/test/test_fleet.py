@@ -266,6 +266,38 @@ class TestJackIn(unittest.TestCase):
         msg = fleet.jack_in({"tmux_pane": None, "pid": None})
         self.assertIn("tmux", msg)
 
+    def test_jack_in_reports_each_focus_outcome(self):
+        """A selected tab whose window stayed behind is not a jack in, and must not read like one."""
+        old = fleet._tty_of, fleet._focus_tty
+        try:
+            fleet._tty_of = lambda pid: "/dev/ttys999"
+            row = {"tmux_pane": None, "pid": 42}
+
+            fleet._focus_tty = lambda tty: "ok"
+            self.assertEqual(fleet.jack_in(row), "Operator.")
+
+            fleet._focus_tty = lambda tty: "unraised"
+            msg = fleet.jack_in(row)
+            self.assertIn("another Space", msg)
+            self.assertIn("workspaces-auto-swoosh", msg)
+
+            fleet._focus_tty = lambda tty: None          # no tab owns it: the old fallbacks apply
+            self.assertNotIn("Operator.", fleet.jack_in(row))
+        finally:
+            fleet._tty_of, fleet._focus_tty = old
+
+    def test_jack_in_on_a_dead_row_says_the_process_is_gone(self):
+        msg = fleet.jack_in({"tmux_pane": None, "pid": 999999, "status": "sentinel"})
+        self.assertIn("process is gone", msg)
+        self.assertNotIn("tmux", msg)
+
+    def test_focus_scripts_activate_before_reordering_windows(self):
+        """The app has to be frontmost before its window order is changed, or its own front window
+        wins the raise. One tab per window (six Terminal windows) is where this shows up."""
+        for app in ("Terminal", "iTerm2"):
+            script = fleet._focus_script(app, "/dev/x")
+            self.assertLess(script.index("activate"), script.index("set index of w to 1"), app)
+
 
 class TestUsageLimits(unittest.TestCase):
     def test_heartbeat_stores_limits_and_footer_shows_them(self):
