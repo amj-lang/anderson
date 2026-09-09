@@ -2088,8 +2088,12 @@ def _owner_app(pid):
 
 
 def gate_auto_open(r):
-    """Jacking into a session parked at a human gate also opens what the gate wants read."""
-    if r.get("gate") == "human" and gate_files(r):
+    """Jacking into a session parked at a human gate also opens what the gate wants read.
+    ponytail: silent when no GUI editor applies. ⏎ means "move me to that terminal", and
+    "no IDE owns that session" tacked onto a successful jack in reads like the jack in failed.
+    `O` asks for the IDE on purpose, so it still says why nothing opened."""
+    files = gate_files(r) if r.get("gate") == "human" else None
+    if files and editor_cmd(r, files):
         return "  ·  " + open_gate(r)
     return ""
 

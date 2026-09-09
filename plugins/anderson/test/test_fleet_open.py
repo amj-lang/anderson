@@ -54,6 +54,17 @@ class TestGateOpen(unittest.TestCase):
         self.assertEqual(fleet.gate_auto_open({**self.row, "gate": "none"}), "")
         self.assertEqual(fleet.gate_auto_open({**self.row, "task": "missing"}), "")
 
+    def test_auto_open_silent_when_no_editor_applies(self):
+        """⏎ on a plain-terminal session must not report an IDE failure over a good jack in."""
+        old = fleet.editor_cmd
+        try:
+            fleet.editor_cmd = lambda r, files: None
+            self.assertEqual(fleet.gate_auto_open(self.row), "")
+            fleet.editor_cmd = lambda r, files: ["true"] + files
+            self.assertIn("plan.md", fleet.gate_auto_open(self.row))
+        finally:
+            fleet.editor_cmd = old
+
     def test_editor_pref_roundtrip(self):
         with tempfile.TemporaryDirectory() as tmp:
             old = fleet.FLEET_DIR, fleet.PREFS_FILE
