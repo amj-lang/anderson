@@ -6,6 +6,8 @@
   "scripts": {
     "studio": "remotion studio",
     "render": "remotion render Anderson out/anderson.mp4 --concurrency=4",
+    "portrait": "remotion render AndersonPortrait out/anderson-portrait.mp4 --concurrency=4",
+    "square": "remotion render AndersonSquare out/anderson-square.mp4 --concurrency=4",
     "still": "remotion still Anderson out/frame.png"
   },
   "dependencies": {
