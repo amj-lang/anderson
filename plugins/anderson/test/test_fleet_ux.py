@@ -36,7 +36,9 @@ class TestUxBatch(unittest.TestCase):
     def test_ctx_span_and_cell_index_are_cell_accurate(self):
         span = fleet.ctx_span(150)
         self.assertIsNotNone(span)
-        line = fleet.render(fleet.demo_rows(), 150)[3][1]
+        lines = fleet.render(fleet.demo_rows(), 150)
+        top = [k for k, _ in lines].index("colhdr") + 1
+        line = lines[top][1]
         i0 = fleet.cell_index(line, span[0]); i1 = fleet.cell_index(line, span[0] + span[1])
         self.assertIn("%", line[i0:i1])                       # the slice is the ctx cell
         self.assertEqual(fleet.cell_index("日本x", 4), 2)        # two wide chars = 4 cells
@@ -44,8 +46,9 @@ class TestUxBatch(unittest.TestCase):
 
     def test_rows_are_numbered(self):
         lines = fleet.render(fleet.demo_rows(), 150)
-        self.assertTrue(lines[3][1].startswith("1"))
-        self.assertTrue(lines[4][1].startswith("2"))
+        top = [k for k, _ in lines].index("colhdr") + 1
+        self.assertTrue(lines[top][1].startswith("1"))
+        self.assertTrue(lines[top + 1][1].startswith("2"))
 
     def test_resume_cmd(self):
         self.assertIsNone(fleet.resume_cmd({"sid": "pid:12", "cwd": "/x"}))

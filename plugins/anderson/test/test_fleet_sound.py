@@ -100,6 +100,28 @@ class TestUsageStaleness(unittest.TestCase):
     def test_ancient_numbers_are_dropped(self):
         self.assertEqual(self._run(self._with_limits(7 * 3600), fleet.usage_limits), "")
 
+    def test_usage_line_sits_under_the_title_with_bars(self):
+        tmp = self._with_limits(10)
+        def go():
+            lines = fleet.render(fleet.demo_rows(), 140, height=40)
+            kinds = [k for k, _ in lines]
+            self.assertEqual(kinds[0], "hdr"); self.assertEqual(kinds[1], "usage")
+            self.assertIn("session " + fleet.G["bar"] * 4 + fleet.G["trk"] * 6 + " 42%", lines[1][1])
+            self.assertEqual(len(lines), 40)
+            foot = [ln for k, ln in lines if k in ("foot", "foot_hot")]
+            self.assertFalse(any("session" in ln for ln in foot))        # not repeated at the bottom
+            for _, ln in lines:
+                self.assertEqual(fleet.dw(ln), 140)
+        self._run(tmp, go)
+
+    def test_no_limits_means_api_estimate_in_the_footer_only(self):
+        tmp = tempfile.mkdtemp()
+        def go():
+            lines = fleet.render(fleet.demo_rows(), 140, height=30)
+            self.assertNotIn("usage", [k for k, _ in lines])
+            self.assertIn("api est $", lines[-1][1])
+        self._run(tmp, go)
+
     def test_usage_hot_threshold(self):
         tmp = tempfile.mkdtemp()
         json.dump({"session_id": "h", "ts": time.time(), "limits": {"five_hour": {"pct": 91}}},

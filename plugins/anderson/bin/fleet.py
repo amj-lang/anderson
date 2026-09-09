@@ -978,6 +978,9 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
     left = f"{G['eyes']}  T H E  O P E R A T O R"
     right = f"{words('fleet')} · {n_live} {words('live')} · {n_ring} {words('ring')} · {n_dead} {words('deads' if n_dead != 1 else 'dead')}{f' · {n_hid} hidden' if n_hid else ''}{header_tail(frame)}"
     lines.append(("hdr", fit(fit(left, max(0, W - dw(right) - 1)) + " " + right, W)))
+    lim = usage_limits(bars=True)
+    if lim:                                      # the plan's windows: the number to keep an eye on, so it lives up here
+        lines.append(("usage_hot" if usage_hot() else "usage", fit(f"{G['det']} {THEME['name']} · {lim}", W)))
     lines.append(("rule", rule(W)))
     hdr = " " * PREFIX + "  ".join(fit(tt, w, a) for _, tt, w, a in cols)
     lines.append(("colhdr", fit(hdr, W)))
@@ -1036,10 +1039,11 @@ def footer(rows, W, filt=""):
                                 "n notify · m sound · s ring · $ cost · +/- zoom · / filter · t theme · p wording · ? manual · q quit")
     if filt:
         keys = f"/{filt}_   (esc clears)"
-    if lim:
-        usage = f"{THEME['name']} · {lim}" + (f" · api est ${fleet:.2f}" if SHOW_COST else "")
-    else:
+    usage = ""
+    if not lim:
         usage = f"{THEME['name']} · api est ${fleet:.2f}"
+    elif SHOW_COST:
+        usage = f"api est ${fleet:.2f} (the plan is a flat fee; this is what the tokens would cost on the API)"
     out = [("rule", rule(W))]
     kw, groups = W - dw(d) - 1, keys.split(" · ")
     optional = ["$ cost", "+/- zoom", "p wording", "🎨 t theme", "t theme", "c resume", "o open plan", "w rabbit",
@@ -1057,7 +1061,8 @@ def footer(rows, W, filt=""):
             break
         groups.remove(optional.pop(0)) if optional[0] in groups else optional.pop(0)
     out += [("foot", fit(f"{d} {k}", W)) for k in klines[:3]]
-    out.append(("foot_hot" if (lim and usage_hot()) else "foot", fit(f"{d} {usage}", W)))
+    if usage:
+        out.append(("foot", fit(f"{d} {usage}", W)))
     return out
 
 
@@ -1088,10 +1093,11 @@ def usage_hot():
     return bool(best) and any((w or {}).get("pct") is not None and w["pct"] >= USAGE_HOT for w in best.values())
 
 
-def usage_limits():
+def usage_limits(bars=False):
     """Subscription windows from the freshest heartbeat that carries them (account-wide, so any
     session's copy is the truth), in words:
       'session 46% · 4h07 left │ week 41% · resets Fri 19:00'
+    bars=True adds a 10-cell bar before each percentage (the header line).
     session = the rolling 5-hour window /usage calls "Current session"; week = the 7-day window
     for all models. Claude Code does not expose the per-model weekly number. Empty when no
     heartbeat has limits (API-key users)."""
@@ -1111,7 +1117,9 @@ def usage_limits():
         if w.get("pct") is None:
             continue
         r = _reset_str(w.get("resets_at"))
-        parts.append(f"{label} {int(w['pct'])}%" + (f" · {r}" if r else ""))
+        n = max(0, min(10, int(round(float(w["pct"]) / 10))))
+        bar = (G["bar"] * n + G["trk"] * (10 - n) + " ") if bars else ""
+        parts.append(f"{label} {bar}{int(w['pct'])}%" + (f" · {r}" if r else ""))
     sep = " │ " if G is not ASCII else " | "
     stale = f" (as of {age_str(best_ts)} ago)" if age > 120 else ""   # numbers come from the last API reply any session saw
     return sep.join(parts) + stale
@@ -1454,6 +1462,7 @@ def run_tui(args):
             T = THEME
             return {
                 "hdr": col(T["hdr"]) | BOLD, "rule": col(T["accent"]) | DIM, "colhdr": DIM, "empty": col(T["hdr"]),
+                "usage": col(T["hdr"]) | BOLD, "usage_hot": col("red") | BOLD,
                 "work": 0, "work_sel": REV,
                 "ring": col(T["ring"]) | BOLD, "ring_sel": col(T["ring"]) | BOLD | REV,
                 "sentinel": col(T["dead"]) | DIM, "sentinel_sel": DIM | REV,
@@ -1529,6 +1538,7 @@ def run_tui(args):
                 painted = []
                 hot = set()
                 span = ctx_span(w - 1)
+                top = next((i for i, (k, _) in enumerate(lines) if k == "colhdr"), 2) + 1   # first row's line
                 for y, (kind, ln) in enumerate(lines[: h - 1]):
                     a = A.get(kind, 0)
                     if kind == "ring" and THEME.get("pulse") and frame % 2:
@@ -1536,8 +1546,8 @@ def run_tui(args):
                     if kind == "quote" and confirm:
                         a = col("red") | BOLD
                     painted.append((ln, a))
-                    if span and 3 <= y < 3 + len(rows) and kind not in ("burst",):
-                        r = rows[y - 3]
+                    if span and top <= y < top + len(rows) and kind not in ("burst",):
+                        r = rows[y - top]
                         if r["ctx_pct"] is not None and r["ctx_pct"] >= HOT_CTX and r["status"] != "sentinel":
                             hot.add(y)
                 hot_key = tuple(sorted(hot))
