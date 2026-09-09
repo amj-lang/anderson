@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.34.4-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.35.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -516,7 +516,7 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
   for integrated terminals, so tmux is optional: `fleet install --with-tmux` adds it via brew / apt /
   dnf if you want panes) · `w` white rabbit
   (oldest ring) · `r` red pill (kill, asks first) · `b` blue pill (dismiss a sentinel) · `c` copy the
-  `claude --resume` command for that session · `n` desktop notification on ring · `/` filter ·
+  `claude --resume` command for that session · `n` desktop notification on ring · `m` sound · `s` next ring sound · `/` filter ·
   `t` theme · `p` wording · `?` manual · `q`.
 
   **Five themes**, cycled live with `t` or set with `--theme <name>`, remembered per user in
@@ -566,7 +566,12 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
-- **0.34.4** — **Fleet: one process, one row.** Headless `claude -p` children spawned inside a session (reviewers, hooks) no longer show up as a second session of the same repo, and after `/clear` or `/resume` only the process's current session id is listed.
+- **0.35.0** — **Fleet: pick your ring.** Seven bundled sounds in `assets/sounds/` (phone, the Matrix call, stays the default;
+plus snare, hitech, freeze, blip, rift, jump, each cut to its loudest ≤2.5 s and normalized). `s` cycles with a
+preview and saves the pick, `--ring NAME` / `--rings` from the shell, and any `.wav` you drop in
+`~/.claude/fleet/sounds/` joins the list by name. `~/.claude/fleet/ring.wav` still overrides everything.
+Licenses in `assets/NOTICE.md`.
+- **0.35.0** — **Fleet: one process, one row.** Headless `claude -p` children spawned inside a session (reviewers, hooks) no longer show up as a second session of the same repo, and after `/clear` or `/resume` only the process's current session id is listed.
 - **0.34.3** — **Fleet: room to breathe.** With 16 or more free lines the detail card goes airy:
   blank lines between the three groups (task · who · verdicts │ status · context · where │ prompt ·
   last · next), an 11-cell label column, and `last` wraps to two lines instead of truncating. Ten to

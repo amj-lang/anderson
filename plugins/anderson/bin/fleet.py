@@ -19,7 +19,8 @@ Operator watching the screens.
     python3 bin/fleet.py --zoom 16     # Terminal.app: font size while fleet runs (saved; --no-zoom clears)
     python3 bin/fleet.py --cost        # show the api$ column on a subscription (saved; --no-cost hides)
     python3 bin/fleet.py --notify      # desktop notification when a session starts ringing (saved)
-    python3 bin/fleet.py --sound       # the phone rings when a session starts waiting (saved; --no-sound)
+    python3 bin/fleet.py --sound       # the ring plays when a session starts waiting (saved; --no-sound)
+    python3 bin/fleet.py --ring snare  # pick the ring sound (--rings lists them; `s` cycles in the TUI)
     python3 bin/fleet.py --editor code # what opens plan.md / audit.md on `o` or at a gate (saved)
 
 Data, richest first, each optional (the view degrades, never breaks):
@@ -604,7 +605,7 @@ def load_prefs():
     return {"theme": d.get("theme") or "matrix", "plain": bool(d.get("plain")), "calm": bool(d.get("calm")),
             "zoom": int(z) if isinstance(z, (int, float)) and 6 <= int(z) <= 72 else None,
             "cost": bool(d.get("cost")), "notify": bool(d.get("notify")), "editor": d.get("editor") or None,
-            "sound": bool(d.get("sound"))}
+            "sound": bool(d.get("sound")), "ring": d.get("ring") or "phone"}
 
 
 def save_prefs(**kw):
@@ -1059,9 +1060,11 @@ MANUAL = """
                            gate does this automatically. Editor: --editor code (saved), else a
                            GUI $VISUAL/$EDITOR, else the IDE that owns the session, else `open`
   c         resume         copy `cd <cwd> && claude --resume <sid>` (bring a sentinel back)
-  m         sound          the phone rings when a session starts waiting (saved): the Matrix
-                           phone, cut from the CC0 "Full Matrix" (skycarl, Freesound). Your own
-                           sound: drop a ~/.claude/fleet/ring.wav
+  m         sound          on/off (saved): the picked sound plays when a session starts waiting
+  s         ring sound     next sound, previewed and saved: phone (the Matrix call) · snare ·
+                           hitech · freeze · blip · rift · jump. --ring NAME picks, --rings lists.
+                           Your own: drop .wav files in ~/.claude/fleet/sounds/ (picked by name),
+                           or ~/.claude/fleet/ring.wav to override everything
   n         notify         desktop notification when a session starts ringing, or crosses
                            80% context (saved). macOS: brew install terminal-notifier for
                            reliable banners; clicking one brings this terminal forward
@@ -1136,17 +1139,41 @@ def notify(title, body):
 
 
 SOUND = False
-RING_WAV = os.path.join(FLEET_DIR, "ring.wav")                       # yours, if you drop one here
-RING_BUNDLED = os.path.join(HERE, "..", "assets", "ring-matrix.wav")   # the phone from "Full Matrix" (CC0)
+RING = "phone"                                                        # which bundled/own sound rings
+RING_WAV = os.path.join(FLEET_DIR, "ring.wav")                       # yours, if you drop one here: always wins
+SOUNDS_BUNDLED = os.path.join(HERE, "..", "assets", "sounds")        # phone, snare, hitech, freeze, blip, rift, jump
+SOUNDS_USER = os.path.join(FLEET_DIR, "sounds")                      # drop more .wav here; picked by name like the bundled ones
+
+
+def sound_names():
+    """Ring sounds you can pick from: bundled first (phone leads), then your ~/.claude/fleet/sounds/*.wav."""
+    names = []
+    for d in (SOUNDS_BUNDLED, SOUNDS_USER):
+        for f in sorted(glob.glob(os.path.join(d, "*.wav"))):
+            n = os.path.basename(f)[:-4]
+            if n not in names:
+                names.append(n)
+    if "phone" in names:
+        names.remove("phone"); names.insert(0, "phone")
+    return names
+
+
+def sound_file(name):
+    for d in (SOUNDS_USER, SOUNDS_BUNDLED):
+        f = os.path.join(d, name + ".wav")
+        if os.path.isfile(f):
+            return f
+    return None
 
 
 def ring_path():
-    """Which sound rings: your ~/.claude/fleet/ring.wav, else the bundled Matrix phone, else a
-    synthesized ringback written once to the fleet dir."""
+    """Which sound rings: your ~/.claude/fleet/ring.wav, else the picked sound (RING; `s` cycles,
+    --ring NAME), else the bundled phone, else a synthesized ringback written once to the fleet dir."""
     if os.path.isfile(RING_WAV):
         return RING_WAV
-    if os.path.isfile(RING_BUNDLED):
-        return RING_BUNDLED
+    f = sound_file(RING) or sound_file("phone")
+    if f:
+        return f
     synth = os.path.join(FLEET_DIR, "ring-synth.wav")
     if not os.path.isfile(synth):
         make_ring_wav(synth)
@@ -1327,7 +1354,7 @@ def run_tui(args):
         return f"font {new}pt (saved; window restored to {zoom['orig']}pt on quit)"
 
     def app(scr):
-        global NOTIFY, SHOW_COST, PLAIN, SOUND
+        global NOTIFY, SHOW_COST, PLAIN, SOUND, RING
         curses.curs_set(0)
         scr.timeout(100)
         col = _colors(curses)
@@ -1531,10 +1558,18 @@ def run_tui(args):
             elif k == ord("m"):
                 SOUND = not SOUND; save_prefs(sound=SOUND)
                 if SOUND:
-                    say("sound on: the phone rings when a session waits on you.  (your own: ~/.claude/fleet/ring.wav)", 6)
+                    say(f"sound on: '{RING}' rings when a session waits on you.  s picks another sound", 6)
                     ring_sound()
                 else:
                     say("sound off.")
+            elif k == ord("s"):
+                names = sound_names() or ["phone"]
+                RING = names[(names.index(RING) + 1) % len(names)] if RING in names else names[0]
+                save_prefs(ring=RING)
+                if not SOUND:
+                    SOUND = True; save_prefs(sound=True)
+                say(f"ring: {RING}  ({names.index(RING) + 1}/{len(names)}) · s again for the next · own .wav: ~/.claude/fleet/sounds/", 6)
+                ring_sound()
             elif k == ord("n"):
                 NOTIFY = not NOTIFY; save_prefs(notify=NOTIFY)
                 if NOTIFY:
@@ -1811,11 +1846,20 @@ def main(argv):
         prefs["sound"] = True
     if "--no-sound" in args:
         prefs["sound"] = False
-    global SHOW_COST, NOTIFY, SOUND
-    SHOW_COST = prefs["cost"]; NOTIFY = prefs["notify"]; SOUND = prefs["sound"]
+    if "--ring" in args and len(args) > args.index("--ring") + 1:
+        prefs["ring"] = args[args.index("--ring") + 1]; prefs["sound"] = True
+    for a in args:
+        if a.startswith("--ring="):
+            prefs["ring"] = a.split("=", 1)[1]; prefs["sound"] = True
+    global SHOW_COST, NOTIFY, SOUND, RING
+    SHOW_COST = prefs["cost"]; NOTIFY = prefs["notify"]; SOUND = prefs["sound"]; RING = prefs["ring"]
+    if "--rings" in args:
+        for n in sound_names():
+            print(f"  {n:8} {'◂ current' if n == RING else ''}  {sound_file(n)}")
+        return 0
     PLAIN = prefs["plain"]
     if theme in THEMES and "--selftest" not in args and "--once" not in args:
-        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"], zoom=prefs["zoom"], cost=prefs["cost"], notify=prefs["notify"], editor=prefs["editor"], sound=prefs["sound"])
+        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"], zoom=prefs["zoom"], cost=prefs["cost"], notify=prefs["notify"], editor=prefs["editor"], sound=prefs["sound"], ring=prefs["ring"])
     set_theme(theme or "matrix", calm=prefs["calm"])
     if "--themes" in args:
         for n, t in THEMES.items():
