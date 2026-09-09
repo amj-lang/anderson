@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.38.4-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.39.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -581,6 +581,10 @@ missing; `fleet install --extras` installs the first two, `--with-tmux` the thir
 
 ## Changelog
 
+- **0.39.0** — **Fleet: see what the subagents are doing.** On a tall terminal the card lists the running subagents
+live under `agents` (`↳ anderson:reviewer "Diff-review AR-2598" · ▶ Grep process_order · 40s`), read from their
+own transcripts in `<session>/subagents/`. `a` pages the newest one (running first) as a readable log: its words,
+the tools it called, a line of each result. `q` returns.
 - **0.38.4** — **Fleet: one row per session, really.** Claude Code's background daemon (`claude daemon` →
 `bg-spare`, `bg-pty-host`) runs under your session with its own session ids and fires the same hooks, so a
 session could show up three times. Any session whose process descends from another claude process is now

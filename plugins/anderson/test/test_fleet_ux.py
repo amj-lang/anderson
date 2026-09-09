@@ -243,5 +243,50 @@ class TestIdleGoesWhite(unittest.TestCase):
             self.assertTrue(row(fleet.IDLE_S + 1)["idle"]); self.assertEqual(row(fleet.IDLE_S + 1)["status"], "ring")
 
 
+class TestAgentRows(unittest.TestCase):
+    def _session(self, tmp):
+        import time
+        tp = os.path.join(tmp, "s1.jsonl"); open(tp, "w").write("")
+        d = os.path.join(tmp, "s1", "subagents"); os.makedirs(d)
+        recs = [{"type": "user", "timestamp": "2026-09-09T10:00:00Z", "message": {"role": "user", "content": "Review the diff for AR-1"}},
+                {"type": "assistant", "timestamp": "2026-09-09T10:00:05Z", "message": {"role": "assistant", "content": [
+                    {"type": "text", "text": "Looking at the callers first."},
+                    {"type": "tool_use", "name": "Grep", "input": {"pattern": "process_order"}}]}}]
+        p = os.path.join(d, "agent-a1.jsonl")
+        open(p, "w").write("\n".join(json.dumps(r) for r in recs) + "\n")     # Grep still running: no result yet
+        json.dump({"agentType": "anderson:reviewer", "description": "Diff-review AR-1", "model": "fable"},
+                  open(os.path.join(d, "agent-a1.meta.json"), "w"))
+        return tp, p
+
+    def test_running_agent_row_shows_tool_and_log_is_readable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tp, p = self._session(tmp)
+            rows = fleet.agent_rows(tp)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["type"], "anderson:reviewer"); self.assertIn("Grep process_order", rows[0]["now"])
+            open(p, "a").write(json.dumps({"type": "user", "timestamp": "2026-09-09T10:00:06Z", "message": {"role": "user", "content": [
+                {"type": "tool_result", "content": "orders.py:12: def process_order\norders.py:40"}]}}) + "\n")
+            self.assertIn("thinking", fleet.agent_rows(tp)[0]["now"])            # result in: the tool is done
+            log = fleet.agent_log(p)
+            self.assertIn("anderson:reviewer  Diff-review AR-1  (fable)", log)
+            self.assertIn("Looking at the callers first.", log); self.assertIn("Grep", log); self.assertIn("orders.py:12", log)
+            os.utime(p, (1, 1))                                  # old: not running
+            self.assertEqual(fleet.agent_rows(tp), [])
+            self.assertEqual(fleet.agent_rows(tp, running_only=False)[0]["now"], "done: Looking at the callers first.")
+
+    def test_card_lists_running_agents_when_airy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tp, p = self._session(tmp)
+            r = {**fleet.demo_rows()[1], "agents": (1, 1, "anderson:reviewer"), "transcript_path": tp}
+            card = "\n".join(ln for _, ln in fleet.detail_card(r, 160, "", 0, airy=True))
+            self.assertIn("↳ anderson:reviewer \"Diff-review AR-1\"", card); self.assertIn("Grep process_order", card)
+            self.assertIn("(a: log)", card)
+            compact = "\n".join(ln for _, ln in fleet.detail_card(r, 160, "", 0, airy=False))
+            self.assertNotIn("↳", compact)
+
+    def test_view_agent_without_agents_says_so(self):
+        self.assertIn("no subagent", fleet.view_agent({"transcript_path": "/nonexistent/x.jsonl"}))
+
+
 if __name__ == "__main__":
     unittest.main()
