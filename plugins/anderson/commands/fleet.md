@@ -36,6 +36,9 @@ curses, zero tokens); this command only installs the launcher and tells the huma
               editor: --editor code, else GUI $VISUAL/$EDITOR, else the IDE owning the session)
             / filter · t theme · p wording · +/- zoom (Terminal.app; iTerm2/IDE: ⌘+) · ? manual · q
 
+  card:     task · who · verdicts · status · context · agents (subagents sent / running / last) · where
+            · prompt · last · next; footer pinned to the floor: keys line, then usage line
+
   jack in:  ⏎ switches tmux to the session's pane. No tmux? On macOS it focuses the iTerm2 /
             Terminal.app tab that owns the session, or brings the owning IDE forward for
             integrated terminals (WebStorm, VS Code, Cursor). tmux is optional:

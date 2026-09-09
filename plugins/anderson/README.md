@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.35.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.36.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -566,13 +566,18 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
-- **0.35.1** — `fleet --play all` auditions every ring sound from the shell (`--play NAME` for one); `--rings` says so.
-- **0.35.1** — **Fleet: pick your ring.** Seven bundled sounds in `assets/sounds/` (phone, the Matrix call, stays the default;
+- **0.36.0** — **Fleet: the footer moves to the floor.** Keys and usage now sit on the last lines of the terminal, each on
+its own line (keys wrap between groups, never truncate; usage reads alone). The detail card keeps the whole middle.
+New `agents` line in the card: how many subagents the session sent, how many are running, and the last one
+(`4 sent · 1 running · last anderson:reviewer "Diff-review AR-2598" (fable)`), read from the transcript's
+`subagents/` folder.
+- **0.36.0** — `fleet --play all` auditions every ring sound from the shell (`--play NAME` for one); `--rings` says so.
+- **0.36.0** — **Fleet: pick your ring.** Seven bundled sounds in `assets/sounds/` (phone, the Matrix call, stays the default;
 plus snare, hitech, freeze, blip, rift, jump, each cut to its loudest ≤2.5 s and normalized). `s` cycles with a
 preview and saves the pick, `--ring NAME` / `--rings` from the shell, and any `.wav` you drop in
 `~/.claude/fleet/sounds/` joins the list by name. `~/.claude/fleet/ring.wav` still overrides everything.
 Licenses in `assets/NOTICE.md`.
-- **0.35.1** — **Fleet: one process, one row.** Headless `claude -p` children spawned inside a session (reviewers, hooks) no longer show up as a second session of the same repo, and after `/clear` or `/resume` only the process's current session id is listed.
+- **0.36.0** — **Fleet: one process, one row.** Headless `claude -p` children spawned inside a session (reviewers, hooks) no longer show up as a second session of the same repo, and after `/clear` or `/resume` only the process's current session id is listed.
 - **0.34.3** — **Fleet: room to breathe.** With 16 or more free lines the detail card goes airy:
   blank lines between the three groups (task · who · verdicts │ status · context · where │ prompt ·
   last · next), an 11-cell label column, and `last` wraps to two lines instead of truncating. Ten to

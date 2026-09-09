@@ -64,5 +64,48 @@ class TestUxBatch(unittest.TestCase):
         self.assertEqual(fleet.cell(row, "task", 0), '"old work"')
 
 
+class TestPinnedFooter(unittest.TestCase):
+    def test_footer_sits_on_the_last_lines_and_keys_never_truncate(self):
+        for W, H in ((150, 40), (80, 24), (60, 20)):
+            lines = fleet.render(fleet.demo_rows(), W, sel=1, height=H)
+            self.assertEqual(len(lines), H, (W, H))
+            kinds = [k for k, _ in lines]
+            self.assertEqual(kinds[-1] in ("foot", "foot_hot"), True)
+            foot_txt = " ".join(ln for k, ln in lines if k == "foot")
+            for key in ("s ring", "m sound", "q quit", "? manual"):
+                self.assertIn(key, foot_txt, (W, H, key))
+            for _, ln in lines:
+                self.assertEqual(fleet.dw(ln), W)
+
+    def test_no_height_means_no_filler(self):
+        lines = fleet.render(fleet.demo_rows(), 120)
+        self.assertLess(len(lines), 30)
+        self.assertEqual(lines[-1][0], "foot")
+
+
+class TestSubagents(unittest.TestCase):
+    def test_counts_and_last_meta(self):
+        import time
+        with tempfile.TemporaryDirectory() as tmp:
+            tp = os.path.join(tmp, "abc.jsonl"); open(tp, "w").write("")
+            self.assertEqual(fleet.subagents(tp), (0, 0, ""))
+            d = os.path.join(tmp, "abc", "subagents"); os.makedirs(d)
+            for i, name in enumerate(("agent-a1", "agent-b2", "agent-c3")):
+                open(os.path.join(d, name + ".jsonl"), "w").write("{}")
+                os.utime(os.path.join(d, name + ".jsonl"), (time.time() - 600 + i, time.time() - 600 + i))
+            json.dump({"agentType": "anderson:reviewer", "description": "Diff-review AR-1", "model": "fable"},
+                      open(os.path.join(d, "agent-c3.meta.json"), "w"))
+            self.assertEqual(fleet.subagents(tp), (3, 0, 'anderson:reviewer "Diff-review AR-1" (fable)'))
+            os.utime(os.path.join(d, "agent-c3.jsonl"), None)                 # touched now: running
+            self.assertEqual(fleet.subagents(tp)[1], 1)
+
+    def test_card_shows_agents_line_only_when_any(self):
+        r = {**fleet.demo_rows()[1], "agents": (4, 1, "anderson:reviewer (fable)")}
+        card = " ".join(ln for _, ln in fleet.detail_card(r, 140, "", 0, airy=True))
+        self.assertIn("agents", card); self.assertIn("4 sent · 1 running · last anderson:reviewer (fable)", card)
+        r["agents"] = (0, 0, "")
+        self.assertNotIn("agents", " ".join(ln for _, ln in fleet.detail_card(r, 140, "", 0, airy=True)))
+
+
 if __name__ == "__main__":
     unittest.main()
