@@ -2010,6 +2010,16 @@ def _axraise(app):
         pass
 
 
+def _wait_focused(tty, secs):
+    """Poll until `tty` is the frontmost tab, or `secs` elapse. True as soon as it lands."""
+    end = time.time() + secs
+    while time.time() < end:
+        time.sleep(0.1)
+        if _focused_now(tty):
+            return True
+    return False
+
+
 def _focus_tty(tty):
     """macOS: bring the iTerm2 / Terminal.app tab owning `tty` to the front, and check that it got
     there. Selecting a tab succeeds even when its window stays put (another Space, or a full-screen
@@ -2028,13 +2038,14 @@ def _focus_tty(tty):
             if r.stdout.strip() != "ok":
                 continue
             found = True
-            for attempt in (0, 1):
-                for _ in range(6):                 # lands in ~0.15s locally; allow 0.6s before retrying
-                    time.sleep(0.1)
-                    if _focused_now(tty):
-                        return "ok"
-                if attempt == 0:
-                    _axraise(app)
+            # Same-Space raises land in ~0.15s. A window on another Space costs a full-screen
+            # Spaces animation first (~1s, and it is not interruptible), so give it room: the poll
+            # exits the moment the tab is in front, and only a real failure pays the whole wait.
+            if _wait_focused(tty, 1.4):
+                return "ok"
+            _axraise(app)
+            if _wait_focused(tty, 1.6):
+                return "ok"
         except Exception:
             continue
     return "unraised" if found else None

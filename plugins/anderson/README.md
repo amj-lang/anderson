@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.40.2-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.40.3-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -587,6 +587,12 @@ missing; `fleet install --extras` installs the first two, `--with-tmux` the thir
 
 ## Changelog
 
+- **0.40.3** — **Fleet: ⏎ across Spaces lands on the first press.** Raising a window that lives on
+another Space costs a full-screen Spaces animation first, about a second, and the 0.6 s check added
+in 0.40.2 gave up before it finished: the first ⏎ reported that the window had stayed behind, and a
+second ⏎ then worked because the Space had already changed. The check now waits up to 1.4 s, retries
+through AXRaise, and waits 1.6 s more, exiting the instant the tab is in front — a same-Space jack in
+still returns in about 0.3 s.
 - **0.40.2** — **Fleet: ⏎ actually moves you there.** Three fixes to the jack in. The focus script
 now `activate`s the terminal *before* reordering its windows: with one tab per window (six Terminal
 windows, say) activating afterwards handed the raise back to the app's own front window. The result
