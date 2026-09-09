@@ -282,8 +282,11 @@ class TestUsageLimits(unittest.TestCase):
             try:
                 lim = fleet.usage_limits()
                 self.assertIn("session 20%", lim); self.assertIn("week 37%", lim); self.assertRegex(lim, r"4h3[23] left")
-                foot = fleet.render([], 140)[-1][1]
-                self.assertIn("session 20%", foot); self.assertNotIn("api est", foot)     # subscription: no $
+                lines = fleet.render([], 140)
+                head = lines[1][1]; foot = lines[-1][1]
+                self.assertEqual(lines[1][0], "usage")
+                self.assertIn("session ", head); self.assertIn(" 20%", head)              # up top, with a bar
+                self.assertNotIn("api est", foot); self.assertNotIn("session", foot)      # subscription: no $, not repeated
                 self.assertNotIn("cost", {k for k, *_ in fleet.layout(200)})            # api$ column hidden
                 fleet.SHOW_COST = True
                 try:

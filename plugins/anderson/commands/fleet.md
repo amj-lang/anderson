@@ -21,8 +21,9 @@ curses, zero tokens); this command only installs the launcher and tells the huma
             fleet --plain         plain header wording (saved)  fleet --calm     no motion (saved)
             fleet --zoom 16       Terminal.app: bigger font while fleet runs, restored on quit (saved)
 
-  footer:   session 46% · 4h07 left │ week 41% · resets Fri 19:00   (the /usage windows: your plan
-            is a flat fee, these percentages are the cost; api$ estimate hidden, `$` or --cost shows it)
+  header:   matrix · session ▓▓▓▓░░░░░░ 42% · 3h39 left │ week ▓▓▓▓▓░░░░░ 52% · resets Fri 19:00
+            (the /usage windows, red past 90%: your plan is a flat fee, these percentages are the
+            cost; the api$ estimate is hidden, `$` or --cost shows it in the footer)
 
   row:      flags · repo · task · persona · stage n/max · model · now · ctx · age
             ☎ waits on you   ▶ working   ✝ process gone   ⟲ rework loop
