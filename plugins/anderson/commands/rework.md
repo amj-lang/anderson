@@ -12,10 +12,20 @@ REVIEW MODEL: the diff-review gate runs on the model in state.md `review_model:`
 `opus` if the pipeline was started with `--opus`; missing field → treat as `fable`). Read it
 fresh; the implementer is unaffected.
 
-REVIEW EFFORT: the reviewer runs at `high` (its frontmatter default). Raise to `xhigh` only when
-the plan's `## 📈 Scorecard` shows Risk ≥ 8 or the change touches security, auth, memory/resource
-management, concurrency, or OS/filesystem/process boundaries — pass `effort xhigh` as the
-per-invocation override and print `<review_effort>` = `xhigh` in the banner; else `high`.
+REVIEW EFFORT: derived from state.md `tier`, never from a flag.
+RE-TIER FIRST — before reading the effort, re-tier against the ACTUAL diff and take the MAX (tier
+only ever escalates, never drops). `git diff --stat` showing ≥150 lines OR ≥8 files → at least
+HARD; a diff touching security, auth, memory/resource management, concurrency, or
+OS/filesystem/process boundaries → at least HARD. Write the resulting `tier:` back to state.md.
+Then read the effort off it:
+  | tier     | DIFF_REVIEW effort |
+  | trivial  | medium             |
+  | normal   | medium             |
+  | hard     | high               |
+  | critical | xhigh              |
+Missing or `pending` tier (a pipeline started before tiering existed) → treat as `hard`. Never
+`max`, never `low`. Pass the resolved value as the per-invocation effort override and print it as
+`<review_effort>` in the banner.
 
 BANNER RULE: finish setup and state.md edits, then print the banner as the last line before
 the agent call. Both stages get one — IMPLEMENT before the implementer, DIFF_REVIEW before
