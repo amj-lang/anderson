@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.40.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.40.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -587,6 +587,15 @@ missing; `fleet install --extras` installs the first two, `--with-tmux` the thir
 
 ## Changelog
 
+- **0.40.1** — **Fleet: ⏎ means move me there.** Jacking into a session parked at a human gate no longer
+reports "no IDE owns that session" when a plain terminal owns it: the auto-open is silent unless a GUI
+editor actually applies, so a successful jack in stops reading like a failure. `O` still says why nothing
+opened, since asking for the IDE is the point of that key. Landing images in both READMEs are now real
+stills of the fleet boot screen and the live board (`assets/*.tape` re-records them with VHS), replacing
+the hand-maintained ASCII mock.
+- **0.40.0** — **Tiered review effort in start mode.** The gated loop derives plan-review and diff-review
+effort from the plan Scorecard instead of running both at a fixed xhigh: a trivial tier skips plan-review,
+critical runs both gates at xhigh.
 - **0.39.0** — **Fleet: see what the subagents are doing.** On a tall terminal the card lists the running subagents
 live under `agents` (`↳ anderson:reviewer "Diff-review AR-2598" · ▶ Grep process_order · 40s`), read from their
 own transcripts in `<session>/subagents/`. `a` pages the newest one (running first) as a readable log: its words,
