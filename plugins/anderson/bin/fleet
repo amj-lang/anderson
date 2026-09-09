@@ -11,6 +11,8 @@
 #   fleet install --with-tmux   same, plus install tmux (brew / apt / dnf) if missing. tmux is
 #                         optional: on macOS ⏎ jack-in also works without it (focuses the
 #                         iTerm2 / Terminal.app tab that owns the session)
+#   fleet install --extras      same, plus the optional tools fleet can use: glow (o renders
+#                         markdown) and, on macOS, terminal-notifier (n desktop banners)
 #   fleet uninstall       remove that shim
 #   fleet --demo | --theme zion | --plain | --calm | --no-intro | --once   -> fleet.py flags
 set -euo pipefail
@@ -49,9 +51,7 @@ EOF
     *":$bin_dir:"*) ;;
     *) printf 'add to PATH (once):  echo '"'"'export PATH="%s:$PATH"'"'"' >> ~/.zshrc && source ~/.zshrc\n' "$bin_dir" ;;
   esac
-  if [ "$(uname -s)" = "Darwin" ] && ! command -v terminal-notifier >/dev/null 2>&1; then
-    printf 'optional desktop notifications (n key): brew install terminal-notifier   (osascript banners are unreliable on recent macOS)\n'
-  fi
+  extras_report
   if command -v tmux >/dev/null 2>&1; then
     printf 'optional tmux hotkey (prefix+F):  echo '"'"'bind F split-window -h -l 45%% "%s --here"'"'"' >> ~/.tmux.conf && tmux source ~/.tmux.conf\n' "$shim"
   else
@@ -59,6 +59,41 @@ EOF
     printf 'for tmux panes:  fleet install --with-tmux   (runs: %s)\n' "$(tmux_hint)"
   fi
 }
+
+# optional tools: name -> what it gives; extras_report prints ✓ / missing + the install line
+extra_use(){
+  case "$1" in
+    glow) echo "o renders plan.md / audit.md as markdown (else less with a light colouring)" ;;
+    terminal-notifier) echo "n desktop banners on macOS (osascript banners are unreliable)" ;;
+    tmux) echo "panes / windows and ⏎ jack-in by pane" ;;
+  esac
+}
+pkg_hint(){
+  if command -v brew >/dev/null 2>&1; then echo "brew install $1"
+  elif command -v apt-get >/dev/null 2>&1; then
+    case "$1" in glow) echo "see https://github.com/charmbracelet/glow#installation (charm apt repo)" ;; *) echo "sudo apt-get install -y $1" ;; esac
+  elif command -v dnf >/dev/null 2>&1; then echo "sudo dnf install -y $1"
+  else echo "install $1 with your package manager"; fi
+}
+extras_list(){ echo glow; [ "$(uname -s)" = "Darwin" ] && echo terminal-notifier; return 0; }
+extras_report(){
+  local missing=0 t
+  for t in $(extras_list) tmux; do
+    if command -v "$t" >/dev/null 2>&1; then printf 'extras:  ✓ %-18s %s\n' "$t" "$(extra_use "$t")"
+    else printf 'extras:  · %-18s %s   →  %s\n' "$t" "$(extra_use "$t")" "$(pkg_hint "$t")"; missing=1; fi
+  done
+  [ "$missing" -eq 1 ] && printf 'install the missing ones:  fleet install --extras   (glow, terminal-notifier)   ·   fleet install --with-tmux\n'
+  return 0
+}
+install_pkg(){
+  command -v "$1" >/dev/null 2>&1 && { printf '%s already installed\n' "$1"; return 0; }
+  hint="$(pkg_hint "$1")"
+  case "$hint" in
+    brew*|sudo*) printf 'installing %s: %s\n' "$1" "$hint"; eval "$hint" || printf 'could not install %s; run it yourself: %s\n' "$1" "$hint" ;;
+    *)           printf 'no package for %s here: %s\n' "$1" "$hint" ;;
+  esac
+}
+install_extras(){ for t in $(extras_list); do install_pkg "$t"; done; }
 
 tmux_hint(){
   if command -v brew >/dev/null 2>&1; then echo "brew install tmux"
@@ -77,7 +112,16 @@ install_tmux(){
 }
 
 case "${1:-}" in
-  install)   [ "${2:-}" = "--with-tmux" ] && install_tmux; install_shim; exit 0 ;;
+  install)   shift
+             for a in "$@"; do
+               case "$a" in
+                 --with-tmux) install_tmux ;;
+                 --extras)    install_extras ;;
+                 --all)       install_tmux; install_extras ;;
+                 *)           die "unknown install flag: $a  (--extras, --with-tmux, --all)" ;;
+               esac
+             done
+             install_shim; exit 0 ;;
   uninstall) rm -f "$shim" && printf 'removed %s\n' "$shim"; exit 0 ;;
 esac
 

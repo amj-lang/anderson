@@ -3,10 +3,11 @@ description: "THE OPERATOR: install the `fleet` command (cross-repo monitor of e
 allowed-tools: Bash(bash:*)
 ---
 Install result (writes a stable `fleet` shim to ~/.local/bin; safe to re-run):
-!`bash "${CLAUDE_PLUGIN_ROOT}/bin/fleet" install 2>&1`
+!`bash "${CLAUDE_PLUGIN_ROOT}/bin/fleet" install $ARGUMENTS 2>&1`
 
 Print the card below exactly as written, then the install result above verbatim under a
-`setup:` line (it may include a PATH line and a tmux hotkey line; both are copy-paste ready).
+`setup:` line (it may include a PATH line, an `extras:` report of optional tools with their install
+lines, and a tmux hotkey line; all copy-paste ready).
 No other tools, no commentary before or after. The monitor runs OUTSIDE Claude (plain python
 curses, zero tokens); this command only installs the launcher and tells the human how to start it.
 
@@ -46,6 +47,10 @@ curses, zero tokens); this command only installs the launcher and tells the huma
             Terminal.app tab that owns the session, or brings the owning IDE forward for
             integrated terminals (WebStorm, VS Code, Cursor). tmux is optional:
             fleet install --with-tmux adds it (brew / apt / dnf) if you want panes.
+
+  extras:   python3 + what the OS has is all it needs. Optional: glow (o renders markdown),
+            terminal-notifier (macOS banners), tmux. `/anderson:fleet --extras` installs the
+            first two, `--with-tmux` the third, `--all` everything; the setup line says which are missing.
 
   data:     found with no setup (ps + transcripts + state.md). This plugin's hooks add the exact
             waiting/working signal. $ and precise ctx need the statusline heartbeat: use

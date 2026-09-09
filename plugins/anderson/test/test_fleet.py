@@ -410,5 +410,16 @@ class TestNoDuplicateRows(unittest.TestCase):
             self.assertEqual([r["sid"] for r in rows], ["after-clear"])
 
 
+class TestInstallExtras(unittest.TestCase):
+    def test_install_reports_extras_and_rejects_unknown_flags(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {**os.environ, "FLEET_BIN_DIR": tmp, "HOME": tmp}
+            r = subprocess.run(["bash", str(BIN / "fleet"), "install"], env=env, capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("extras:", r.stdout); self.assertIn("glow", r.stdout); self.assertIn("tmux", r.stdout)
+            r = subprocess.run(["bash", str(BIN / "fleet"), "install", "--bogus"], env=env, capture_output=True, text=True)
+            self.assertNotEqual(r.returncode, 0); self.assertIn("unknown install flag", r.stdout + r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
