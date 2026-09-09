@@ -39,6 +39,7 @@ iteration:       0
 max_iterations:  2
 exit_rule:       all tests pass and lint clean, only major issues fixed
 review_model:    $RM_SEED
+tier:            pending
 plan_verdict:    pending
 diff_verdict:    pending
 <!-- STATE:END -->
@@ -51,6 +52,7 @@ TPL
 get() { grep -E "^$1:" "$state" | head -1 | sed -E "s/^$1:[[:space:]]*//; s/[[:space:]]*#.*//" || true; }
 set_field() { sed -i.bak -E "s|^($1:[[:space:]]*).*|\1$2|" "$state" && rm -f "$state.bak"; }
 rmodel() { local m; m="$(get review_model)"; echo "${m:-fable}"; }  # review-gate model; fable if unset
+rtier()  { local t; t="$(get tier)"; echo "${t:-pending}"; }        # difficulty tier; drives review effort
 run() { claude -p "$3" --model "$1" --permission-mode "$2" --output-format json | tee -a "$dir/run.log"; }
 
 _tty=1; [ -t 1 ] || _tty=0; case "${TERM:-}" in dumb|"") _tty=0 ;; esac

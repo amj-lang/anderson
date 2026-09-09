@@ -9,9 +9,16 @@ Subagent model override (in effect over agent frontmatter when set):
 State for "$ARGUMENTS" (task key = last `/`-segment, so a pasted branch name resolves to the flat dir):
 !`cat "feature-research/$(basename "$ARGUMENTS")/state.md" 2>/dev/null | sed -n '/STATE:START/,/STATE:END/p'`
 
-Summarize for me: current stage, which agent runs next and at what model/effort (diff-review
-is `high`, or `xhigh` when the plan Scorecard has Risk ≥ 8 or auto-mode tier is hard/critical),
-both verdicts, and iteration vs max_iterations. For the review stages (plan-review,
+Summarize for me: current stage, which agent runs next and at what model/effort, both verdicts,
+`tier`, and iteration vs max_iterations. Review effort is derived from state.md `tier` — the plan
+critique runs one rung above the diff critique, capped at xhigh:
+  | tier     | PLAN_REVIEW | DIFF_REVIEW |
+  | trivial  | skipped     | medium      |
+  | normal   | high        | medium      |
+  | hard     | xhigh       | high        |
+  | critical | xhigh       | xhigh       |
+A missing or `pending` tier means the tier has not been computed yet (it is derived from the
+plan Scorecard at plan-review time) or the run predates tiering — report it as `hard`. For the review stages (plan-review,
 diff-review) the model is state.md `review_model` (`fable` default, `opus` when the
 pipeline was started with `--opus`); a missing field means an older run — treat as `fable`.
 If `CLAUDE_CODE_SUBAGENT_MODEL` is set, report it as the override in effect over the

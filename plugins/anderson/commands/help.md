@@ -19,8 +19,15 @@ ANDERSON — gated build loop: plan → grill → plan-review 🛑 → implement
   /anderson:help                                       this card
 
   --opus    run the critique gates (plan-review, diff-review/arbiter) on Opus instead of
-            the default Fable. Generative stages (planner, implementer) stay Opus/Sonnet. Set
-            once at start/auto, persists in state.md across approve-plan/rework. Place at the end.
+            the default Fable. ESCAPE VALVE, not an upgrade: Fable outscores Opus at every
+            effort level on fewer tokens, so reach for this only when the Fable budget is
+            spent. Generative stages (planner, implementer) stay Opus/Sonnet. Set once at
+            start/auto, persists in state.md across approve-plan/rework. Place at the end.
+
+  tier:     trivial|normal|hard|critical, derived from the plan Scorecard, re-tiered on the
+            real diff (escalates only). Drives review effort — plan critique runs one rung
+            above the diff critique, capped at xhigh; trivial skips plan-review entirely.
+            See docs/tiering.md.
 
   slug:     a pasted branch name works (user/ar-123-title): dir = last segment, ship branch = the slug.
   state:    feature-research/<slug>/{state.md,plan.md,audit.md} — every command reads state.md,

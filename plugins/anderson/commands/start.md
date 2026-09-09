@@ -20,9 +20,35 @@ below; `<task>` means the key.
 
 REVIEW MODEL: the plan-reviewer critique gate (PLAN_REVIEW) runs on the model in state.md
 `review_model:` — `fable` by default, `opus` when `--opus` was passed. Fable is the stronger
-critical analyst; Opus stays the default for the planner (generative), which `--opus` never
-touches. Plan-reviewer effort is xhigh either way. The field persists in state.md, so the diff-review gate
-in `/anderson:approve-plan` and `/anderson:rework` reads the same choice for this pipeline.
+critical analyst AND the cheaper one per unit of quality (it scores higher than Opus at every
+effort level while using fewer tokens), so `--opus` is an escape valve for when the Fable budget
+is exhausted, not a quality upgrade. Opus stays the default for the planner (generative), which
+`--opus` never touches. The field persists in state.md, so the diff-review gate in
+`/anderson:approve-plan` and `/anderson:rework` reads the same choice for this pipeline.
+
+TIER: difficulty routing, so a one-line fix does not pay for a two-xhigh-critique pipeline.
+Computed ONCE at step 5 from the planner's `## 📈 Scorecard` (it does not exist before the
+planner runs, which is why the seed leaves `tier: pending`). First match wins, top-down:
+  - CRITICAL — Risk ≥ 9 OR Testability ≥ 7 (the scorecard anchor "needs a human/manual tester").
+  - HARD     — Risk ≥ 7 OR Coupling ≥ 7 OR Confidence ≤ 4, OR the change touches security, auth,
+               memory/resource management, concurrency, or OS/filesystem/process boundaries.
+  - TRIVIAL  — Risk ≤ 2 AND Coupling ≤ 3 AND Confidence ≥ 8 (all three, or it is not trivial).
+  - NORMAL   — anything else (default).
+Record `tier: <trivial|normal|hard|critical>` in state.md. PROVISIONAL — `/anderson:approve-plan`
+re-tiers against the actual diff and takes the MAX (tier only ever escalates, never drops).
+
+REVIEW EFFORT: derived from `tier`, never from the flag. The plan critique runs ONE rung ABOVE
+the diff critique (capped at xhigh), because plan.md is the reference every downstream check
+validates against — the implementer executes it verbatim and the diff reviewer checks the diff
+AGAINST it, so a wrong plan is invisible to everything after it, while a missed diff bug still
+faces CI, the implementer's tests, and your Gate 2 read.
+  | tier     | PLAN_REVIEW | DIFF_REVIEW |
+  | trivial  | skipped     | medium      |
+  | normal   | high        | medium      |
+  | hard     | xhigh       | high        |
+  | critical | xhigh       | xhigh       |
+Never `max` (buys +0.6 points for +20k tokens) and never `low` (quality falls off a cliff below
+medium). The usable band is medium → xhigh.
 
 BANNER RULE: finish setup and state.md edits, then print the banner as the last line before
 the agent call.
@@ -55,6 +81,7 @@ run in parallel and the reviewer judges files that don't exist yet.
    max_iterations:  2
    exit_rule:       all tests pass and lint clean, only major issues fixed
    review_model:    fable
+   tier:            pending
    source_url:      none
    plan_verdict:    pending
    diff_verdict:    pending
@@ -169,17 +196,26 @@ run in parallel and the reviewer judges files that don't exist yet.
      decides the big ones, and it can NEVER skip an LB row. If any LB row is still ✗, do not exit:
      print the unconfirmed LB rows and ask me to resolve them. Only once every LB row is ✓ set
      stage=plan_review and continue to the reviewer.
-5. Print this PLAN-REVIEW banner as the LAST line
-   before invoking the plan-reviewer (substitute `<review_model>` with the state.md value):
+5. ROUTE — read the `## 📈 Scorecard` Planner column from plan.md (Risk, Coupling, Confidence,
+   Testability) and compute the tier per TIER above. Write `tier: <t>` to state.md. Then read the
+   PLAN_REVIEW row of the REVIEW EFFORT table for `<review_effort>`.
+
+   TRIVIAL SHORTCUT: if `tier: trivial`, SKIP the plan-reviewer entirely — a trivial plan you have
+   already grilled does not earn a critique. Set `plan_verdict: skipped-trivial`, print
+   `■ PLAN_REVIEW · skipped (tier trivial)`, and go straight to step 6. The gate still halts:
+   you read the plan at Gate 1 either way, and that card is the check.
+
+   Otherwise print this PLAN-REVIEW banner as the LAST line before invoking the plan-reviewer
+   (substitute `<review_model>` and `<review_effort>` with the state.md / table values):
    ```
-     ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · <review_model>/xhigh
+     ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · <review_model>/<review_effort>
      │  "[one quote from the pool]"
      ╰─
    ```
    Pool (24): "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does." / "The second pair of eyes sees the assumption the first pair made." / "Improve the plan, not the planner's feelings." / "A good review changes the plan; a great one changes the question." / "Disagree on paper now, or apologize in the incident channel later." / "The cheapest place to be wrong is before the first commit." / "Trust the plan less than the reasons behind it." / "You've already made the choice; now you have to understand it." / "What's really going to bake your noodle is, would you still have broken it if I hadn't said anything?" / "We can never see past the choices we don't understand." / "You have a good soul — and I'm tough on souls." / "I hate giving good people bad news." / "Being the One is like being in love: no one can tell you, you just know it." / "I'd ask you to sit down, but you're not going to anyway." / "Candy?" / "You have the gift, but it looks like you're waiting for something." / "I only ever tell you what you need to hear." / "The assumption nobody stated is the one that breaks." / "Improve the plan, not the planner's mood." / "A second pair of eyes is the cheapest insurance you'll buy." / "I can't make the choice for you; I can make you see it."
    Then immediately invoke the **plan-reviewer** subagent (model override = state.md
-   `review_model`, effort xhigh) → makes inline strike-through edits and appends its review
-   under `## 🔭 Review` in plan.md; sets plan_verdict.
+   `review_model`, effort = `<review_effort>` per REVIEW EFFORT) → makes inline strike-through
+   edits and appends its review under `## 🔭 Review` in plan.md; sets plan_verdict.
 6. Print the GATE 1 TL;DR card and STOP. Fill EVERY value from plan.md/state.md (real slug,
    real verdict, real counts — copy-pasteable, no literal `<task>`); omit zero-count entries
    from the criteria line. The card is the TL;DR — open plan.md only when a line raises doubt:
