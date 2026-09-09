@@ -222,5 +222,26 @@ class TestBreathingRoom(unittest.TestCase):
         self.assertEqual(len(short), 22)
 
 
+class TestIdleGoesWhite(unittest.TestCase):
+    def test_old_ring_is_idle_kind_fresh_ring_still_rings(self):
+        rows = fleet.demo_rows()
+        fresh, old = rows[0], rows[2]
+        self.assertEqual(fresh["status"], "ring"); self.assertEqual(old["status"], "ring")
+        fresh["idle"], old["idle"] = False, True
+        kinds = [k for k, _ in fleet.render(rows, 150, sel=0)]
+        top = kinds.index("colhdr") + 1
+        self.assertEqual(kinds[top], "ring_sel"); self.assertEqual(kinds[top + 2], "idle")
+
+    def test_enrich_marks_idle_after_five_minutes(self):
+        import time
+        with tempfile.TemporaryDirectory() as tmp:
+            now = time.time()
+            def row(age):
+                ev = {"session_id": "e", "waiting": True, "ts": now - age, "event": "Stop"}
+                return fleet.enrich({"sid": "e", "src": {"event"}, "cwd": tmp, "pid": os.getpid(), "ev": ev}, now)
+            self.assertFalse(row(60)["idle"]); self.assertEqual(row(60)["status"], "ring")
+            self.assertTrue(row(fleet.IDLE_S + 1)["idle"]); self.assertEqual(row(fleet.IDLE_S + 1)["status"], "ring")
+
+
 if __name__ == "__main__":
     unittest.main()

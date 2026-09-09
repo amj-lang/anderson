@@ -44,6 +44,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 STALE_S = 24 * 3600          # forget sessions with no sign of life for a day
 CTX_WINDOW = 200_000         # fallback when the heartbeat has no context_window_size
 REFRESH_S = 2.0
+IDLE_S = 5 * 60              # a ring older than this stops pulsing and goes white: it still needs you, it just stopped shouting
 FULL_REPAINT_S = 10.0        # erase + redraw the whole screen this often; the diff repaint cannot see what the terminal lost
 
 # ──────────────────────────────────────────────────────────────────────── glyphs
@@ -575,6 +576,7 @@ def enrich(s, now):
         "cost": s.get("cost_usd"), "ctx_pct": ctx_pct, "ctx_tokens": toks,
         "lines": (s.get("lines_added"), s.get("lines_removed")),
         "start": start, "last_seen": last_seen, "agents": subagents(s.get("transcript_path"), now),
+        "idle": status == "ring" and bool(since) and now - since > IDLE_S,
         "tmux_pane": s.get("tmux_pane"), "tmux_addr": s.get("tmux_addr"),
         "shipped": stage == "done", "hb_ts": s.get("hb_ts"),
     }
@@ -1004,7 +1006,7 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
             kind = "burst"
         else:
             body = "  ".join(fit(cell(r, k, frame), w, a) for k, _, w, a in cols)
-            kind = ("hidden" if r.get("hidden") else r["status"]) + ("_sel" if i == sel else "")
+            kind = ("hidden" if r.get("hidden") else "idle" if r.get("idle") else r["status"]) + ("_sel" if i == sel else "")
         lines.append((kind, fit(f"{num}{cur} {body}", W)))
     sp()
     lines.append(("rule", rule(W)))
@@ -1140,7 +1142,9 @@ MANUAL = """
 
   Every Claude Code session on this machine, one row each. Rows sort ringing first.
 
-  ☎  ring 12m    the session waits on you (turn ended, or a permission prompt), and for how long
+  ☎  ring 12m    the session waits on you (turn ended, or a permission prompt), and for how long.
+                 Fresh rings pulse (matrix / nebuchadnezzar themes); after 5 minutes the row goes
+                 white and still: it still needs you, it just stopped shouting
   red ctx        context past 80%: /compact before the next review panel eats the budget.
                  Crossing it fires a toast, and a desktop notification when `n` is on.
   "quoted" task  a session with no anderson pipeline shows its first prompt as the title
@@ -1546,6 +1550,7 @@ def run_tui(args):
                 "usage": col(T["hdr"]) | BOLD, "usage_hot": col("red") | BOLD,
                 "work": 0, "work_sel": REV,
                 "ring": col(T["ring"]) | BOLD, "ring_sel": col(T["ring"]) | BOLD | REV,
+                "idle": col("white"), "idle_sel": col("white") | REV,
                 "sentinel": col(T["dead"]) | DIM, "sentinel_sel": DIM | REV,
                 "hidden": DIM, "hidden_sel": DIM | REV,
                 "burst": col(T["accent"]) | BOLD, "det": 0, "quote": col(T["quote"]) | DIM, "foot": DIM,
