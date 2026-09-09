@@ -36,10 +36,9 @@ class TestGateOpen(unittest.TestCase):
             fleet.EDITOR = None
             os.environ["EDITOR"] = "vim"                       # terminal editor: not used for GUI opening
             cmd = fleet.editor_cmd(self.row, ["/a"])
-            self.assertIsNotNone(cmd)
-            self.assertNotEqual(cmd[0], "vim")
+            self.assertTrue(cmd is None or cmd[0] != "vim")
             fleet.EDITOR = "definitely-not-installed-editor"   # unknown/missing: falls through, never crashes
-            self.assertIsNotNone(fleet.editor_cmd(self.row, ["/a"]))
+            fleet.editor_cmd(self.row, ["/a"])
         finally:
             fleet.EDITOR = old_editor
             for k, v in old.items():
@@ -65,6 +64,51 @@ class TestGateOpen(unittest.TestCase):
                 self.assertEqual(fleet.load_prefs()["editor"], "code -g")
             finally:
                 fleet.FLEET_DIR, fleet.PREFS_FILE = old
+
+
+class TestReadHere(unittest.TestCase):
+    def test_md_ansi_marks_headings_bullets_strike_and_code(self):
+        out = fleet.md_ansi("# Plan\n- a **bold** ~~gone~~ `x`\n```\ncode\n```\nplain")
+        lines = out.split("\n")
+        self.assertTrue(lines[0].startswith("\033[1m\033[32mPlan"))
+        self.assertIn("\033[1mbold\033[0m", lines[1]); self.assertIn("\033[9mgone", lines[1])
+        self.assertTrue(lines[3].startswith("\033[2mcode"))
+        self.assertEqual(lines[5], "plain")
+
+    def test_view_cmd_falls_back_to_less_with_rendered_temp_files(self):
+        old = fleet.FLEET_DIR, fleet.shutil.which
+        with tempfile.TemporaryDirectory() as tmp:
+            fleet.FLEET_DIR = tmp
+            fleet.shutil.which = lambda x: None            # no glow anywhere
+            try:
+                src = os.path.join(tmp, "plan.md"); open(src, "w").write("# T\n- x")
+                cmd, tmpfiles = fleet.view_cmd([src])
+                self.assertEqual(cmd[:2], ["less", "-R"]); self.assertIn("plan.md", cmd[4])
+                self.assertEqual(len(tmpfiles), 1); self.assertIn("\033[", open(tmpfiles[0]).read())
+                fleet.shutil.which = lambda x: "/usr/local/bin/glow" if x == "glow" else None
+                cmd, tmpfiles = fleet.view_cmd([src])
+                self.assertEqual(cmd, ["glow", "-p", src]); self.assertEqual(tmpfiles, [])
+            finally:
+                fleet.FLEET_DIR, fleet.shutil.which = old
+
+    def test_view_gate_without_files_says_so(self):
+        self.assertIn("nothing to read", fleet.view_gate({"root": "/nonexistent", "task": "x", "stage": "grill", "pid": None}))
+
+    def test_terminal_owned_session_has_no_ide_to_open(self):
+        import sys
+        if sys.platform != "darwin":
+            self.skipTest("macOS only")
+        old = fleet._owner_app, fleet.EDITOR
+        try:
+            fleet.EDITOR = None
+            for k in ("FLEET_EDITOR", "VISUAL", "EDITOR"):
+                os.environ.pop(k, None)
+            fleet._owner_app = lambda pid: ("Terminal", "/System/Applications/Utilities/Terminal.app")
+            self.assertIsNone(fleet.editor_cmd({"pid": 1}, ["/a"]))
+            fleet._owner_app = lambda pid: ("WebStorm", "/Applications/WebStorm.app")
+            self.assertEqual(fleet.editor_cmd({"pid": 1}, ["/a"]), ["open", "-a", "/Applications/WebStorm.app", "/a"])
+        finally:
+            fleet._owner_app, fleet.EDITOR = old
 
 
 if __name__ == "__main__":

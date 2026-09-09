@@ -34,7 +34,8 @@ curses, zero tokens); this command only installs the launcher and tells the huma
               sound, when that session's terminal is already frontmost; fleet --ping tests the banner)
             m sound on/off · s next ring sound (phone · snare · hitech · freeze · blip · rift · jump;
               fleet --play all auditions them, --ring NAME picks, own .wav in ~/.claude/fleet/sounds/)
-            o open plan.md / audit.md in your IDE (automatic when ⏎ lands on a human gate;
+            o read plan.md / audit.md right here (glow, else less; q returns)
+            O open them in your IDE (automatic when ⏎ lands on a human gate and an IDE applies;
               editor: --editor code, else GUI $VISUAL/$EDITOR, else the IDE owning the session)
             / filter · t theme · p wording · +/- zoom (Terminal.app; iTerm2/IDE: ⌘+) · ? manual · q
 

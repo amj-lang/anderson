@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.37.5-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.38.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -566,40 +566,45 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
-- **0.37.5** — Fleet: full repaint every 10 s and on ctrl-L. The diff repaint only redraws lines it knows changed,
+- **0.38.0** — **Fleet: read the plan where you are.** `o` now opens plan.md / audit.md inside the fleet terminal
+(glow when installed, else `less -R` over a small stdlib markdown colouring: headings, bullets, **bold**, the
+reviewer's ~~strike-through~~, code); `q` comes straight back. `O` keeps the IDE route (--editor, GUI $VISUAL,
+or the IDE owning the session). Sessions owned by a plain terminal no longer fall back to `open` into whatever
+app claims .md files; they say so and point at `o`.
+- **0.38.0** — Fleet: full repaint every 10 s and on ctrl-L. The diff repaint only redraws lines it knows changed,
 so a Space swipe or an app switch that made the terminal drop cells left stale garbage until the next resize.
-- **0.37.5** — Fleet: one more blank line between the list's rule and the card on tall terminals.
-- **0.37.5** — **Fleet: room to breathe, part two.** On a tall terminal (16+ free lines) blank lines sit around the
+- **0.38.0** — Fleet: one more blank line between the list's rule and the card on tall terminals.
+- **0.38.0** — **Fleet: room to breathe, part two.** On a tall terminal (16+ free lines) blank lines sit around the
 header rule and between the list and its rule; short terminals stay dense.
-- **0.37.5** — **Fleet: usage moves to the top.** The plan's windows now sit right under the title, with a bar each
+- **0.38.0** — **Fleet: usage moves to the top.** The plan's windows now sit right under the title, with a bar each
 (`matrix · session ▓▓▓▓░░░░░░ 42% · 3h39 left │ week ▓▓▓▓▓░░░░░ 52% · resets Fri 19:00`), red past 90%. The footer
 keeps the keys only; API-key users (no windows) still see the api estimate down there.
-- **0.37.5** — **Fleet: no ping when you're already there.** A ring skips the desktop banner and the sound when the
+- **0.38.0** — **Fleet: no ping when you're already there.** A ring skips the desktop banner and the sound when the
 session's own terminal is frontmost (the Terminal.app / iTerm2 tab showing its tty, the active pane of an attached
 tmux session, or the IDE that hosts it); the toast in fleet still says who needs you. `fleet --ping` sends a test
 banner through every channel and says where to look in System Settings when none shows.
-- **0.37.5** — **State first.** `/anderson:start` now seeds `feature-research/<task>/state.md` in a shell preamble,
+- **0.38.0** — **State first.** `/anderson:start` now seeds `feature-research/<task>/state.md` in a shell preamble,
 before the model reads a single line, so the fleet row (task, ARCHITECT, plan 0/2) appears within two seconds
 instead of after the planner warms up. New `feature.sh seed [--opus] <task>` does exactly that and nothing else
 (idempotent: an existing state.md is left alone).
-- **0.37.5** — **Fleet: `h` shows the hidden rows** (flagged `◌`, dim, counted in the header); `b` on one brings it
+- **0.38.0** — **Fleet: `h` shows the hidden rows** (flagged `◌`, dim, counted in the header); `b` on one brings it
 back. A few footer keys wear a marker so the eye finds them: 🔴 kill · 🔵 hide · 👻 hidden · 🔔 notify ·
 🔊 sound · 🎵 ring · 🔍 filter · 🎨 theme (unicode terminals only; `--ascii` stays plain).
-- **0.37.5** — **Fleet: kill hides, hide never kills.** `r` (kill, asks first) now hides the row as soon as the signal
+- **0.38.0** — **Fleet: kill hides, hide never kills.** `r` (kill, asks first) now hides the row as soon as the signal
 is out; `b` hides any row, live or dead, without touching the process (a hidden live session stays hidden).
 Footer says `r kill · b hide`; the pills live on in the manual and the toasts.
-- **0.37.5** — **Fleet: the footer moves to the floor.** Keys and usage now sit on the last lines of the terminal, each on
+- **0.38.0** — **Fleet: the footer moves to the floor.** Keys and usage now sit on the last lines of the terminal, each on
 its own line (keys wrap between groups, never truncate; usage reads alone). The detail card keeps the whole middle.
 New `agents` line in the card: how many subagents the session sent, how many are running, and the last one
 (`4 sent · 1 running · last anderson:reviewer "Diff-review AR-2598" (fable)`), read from the transcript's
 `subagents/` folder.
-- **0.37.5** — `fleet --play all` auditions every ring sound from the shell (`--play NAME` for one); `--rings` says so.
-- **0.37.5** — **Fleet: pick your ring.** Seven bundled sounds in `assets/sounds/` (phone, the Matrix call, stays the default;
+- **0.38.0** — `fleet --play all` auditions every ring sound from the shell (`--play NAME` for one); `--rings` says so.
+- **0.38.0** — **Fleet: pick your ring.** Seven bundled sounds in `assets/sounds/` (phone, the Matrix call, stays the default;
 plus snare, hitech, freeze, blip, rift, jump, each cut to its loudest ≤2.5 s and normalized). `s` cycles with a
 preview and saves the pick, `--ring NAME` / `--rings` from the shell, and any `.wav` you drop in
 `~/.claude/fleet/sounds/` joins the list by name. `~/.claude/fleet/ring.wav` still overrides everything.
 Licenses in `assets/NOTICE.md`.
-- **0.37.5** — **Fleet: one process, one row.** Headless `claude -p` children spawned inside a session (reviewers, hooks) no longer show up as a second session of the same repo, and after `/clear` or `/resume` only the process's current session id is listed.
+- **0.38.0** — **Fleet: one process, one row.** Headless `claude -p` children spawned inside a session (reviewers, hooks) no longer show up as a second session of the same repo, and after `/clear` or `/resume` only the process's current session id is listed.
 - **0.34.3** — **Fleet: room to breathe.** With 16 or more free lines the detail card goes airy:
   blank lines between the three groups (task · who · verdicts │ status · context · where │ prompt ·
   last · next), an 11-cell label column, and `last` wraps to two lines instead of truncating. Ten to
