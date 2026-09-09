@@ -4,3 +4,5 @@ feature-research/
 __pycache__/
 *.pyc
 drafts/
+assets/fleet-loading.gif
+assets/fleet-operator.gif
