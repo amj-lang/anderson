@@ -325,6 +325,18 @@ def _is_claude(cmd):
     return any("claude-code" in h or h.endswith("/claude") for h in head)
 
 
+def _under_claude(pid, parents, claude_pids):
+    """True when an ancestor of `pid` is itself a claude process (headless child run, not a session)."""
+    p = parents.get(pid)
+    for _ in range(12):
+        if not p or p <= 1:
+            return False
+        if p in claude_pids:
+            return True
+        p = parents.get(p)
+    return False
+
+
 def _cwd_of(pid):
     try:
         r = subprocess.run(["lsof", "-a", "-p", str(pid), "-d", "cwd", "-Fn"],
@@ -388,12 +400,24 @@ def discover(include_ps=True):
             s["ev"] = d
     ps = _ps() if include_ps else []
     parents = {pid: ppid for pid, ppid, _ in ps}
+    claude_pids = {pid for pid, _, cmd in ps if _is_claude(cmd)}
     panes = _tmux_panes() if ps else {}
+    # one process, several session ids (/clear, /resume): only the freshest one is that process now
+    by_pid = {}
+    for s in sess.values():
+        if s.get("pid"):
+            by_pid.setdefault(s["pid"], []).append(s)
+    for group in by_pid.values():
+        group.sort(key=lambda o: -(o.get("hb_ts") or (o.get("ev") or {}).get("ts") or 0))
+        for stale in group[1:]:
+            del sess[stale["sid"]]
     known_pids = {s.get("pid") for s in sess.values()}
     claimed = {s.get("transcript_path") for s in sess.values()}
     orphans = [s for s in sess.values() if not s.get("pid") and s.get("cwd")]
     for pid, _, cmd in ps:
         if pid == os.getpid() or not _is_claude(cmd) or pid in known_pids:
+            continue
+        if _under_claude(pid, parents, claude_pids):   # `claude -p` spawned by a session (reviewers, hooks): not a row
             continue
         cwd = _cwd_of(pid)
         if not cwd:

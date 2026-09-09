@@ -376,5 +376,36 @@ class TestNoProcess(unittest.TestCase):
                 self.assertEqual(mine[0]["status"], "sentinel")
 
 
+class TestNoDuplicateRows(unittest.TestCase):
+    """One process = one row: headless `claude -p` children and old session ids never duplicate a session."""
+    def _discover(self, tmp, ps):
+        old = (fleet.FLEET_DIR, fleet._ps, fleet._cwd_of, fleet.alive, fleet._tmux_panes)
+        fleet.FLEET_DIR = tmp; fleet._ps = lambda: ps; fleet._cwd_of = lambda pid: tmp
+        fleet.alive = lambda pid: bool(pid); fleet._tmux_panes = lambda: {}
+        try:
+            return fleet.discover(include_ps=True)
+        finally:
+            fleet.FLEET_DIR, fleet._ps, fleet._cwd_of, fleet.alive, fleet._tmux_panes = old
+
+    def test_headless_child_claude_is_folded_into_its_session(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            json.dump({"session_id": "main", "cwd": tmp, "pid": 100, "ts": time.time()},
+                      open(os.path.join(tmp, "main.status.json"), "w"))
+            ps = [(100, 1, "claude"), (200, 100, "bash -c review"), (300, 200, "claude -p Review this change"),
+                  (400, 1, "claude")]                       # 400: a real second session in the same repo
+            rows = self._discover(tmp, ps)
+            self.assertEqual(sorted(r["pid"] for r in rows), [100, 400])
+
+    def test_same_pid_keeps_only_the_freshest_session_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now = time.time()
+            json.dump({"session_id": "before-clear", "cwd": tmp, "pid": 100, "ts": now - 3600},
+                      open(os.path.join(tmp, "before-clear.status.json"), "w"))
+            json.dump({"session_id": "after-clear", "cwd": tmp, "pid": 100, "ts": now},
+                      open(os.path.join(tmp, "after-clear.status.json"), "w"))
+            rows = self._discover(tmp, [(100, 1, "claude")])
+            self.assertEqual([r["sid"] for r in rows], ["after-clear"])
+
+
 if __name__ == "__main__":
     unittest.main()
