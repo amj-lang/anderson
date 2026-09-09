@@ -206,6 +206,27 @@ def _tool_summary(name, inp):
     return ""
 
 
+def subagents(transcript_path, now=None):
+    """Subagents this session spawned: (total, running, last), read from the transcript's sibling
+    directory (same name minus .jsonl) /subagents/agent-*.jsonl and their .meta.json.
+    ponytail: 'running' = transcript touched in the last 20 s; good enough without parsing every file."""
+    if not transcript_path:
+        return (0, 0, "")
+    now = now or time.time()
+    d = os.path.join(os.path.dirname(transcript_path), os.path.basename(transcript_path)[:-6], "subagents")
+    files = sorted(glob.glob(os.path.join(d, "agent-*.jsonl")), key=os.path.getmtime)
+    if not files:
+        return (0, 0, "")
+    running = sum(1 for f in files if now - os.path.getmtime(f) < 20)
+    meta = jload(files[-1][:-6] + ".meta.json") or {}
+    last = meta.get("agentType") or ""
+    if meta.get("description"):
+        last += f' "{meta["description"]}"'
+    if meta.get("model"):
+        last += f" ({meta['model']})"
+    return (len(files), running, last.strip())
+
+
 def read_transcript(path, tail_bytes=262144):
     """Tail-parse a session .jsonl -> dict(state, tool, tool_arg, text, ctx_tokens, model, ts, start)."""
     out = dict(state=None, tool=None, tool_arg="", text="", ctx_tokens=None, model=None, ts=None, start=None,
@@ -519,7 +540,7 @@ def enrich(s, now):
         "status": status, "now": now_txt, "text": tr.get("text") or "",
         "cost": s.get("cost_usd"), "ctx_pct": ctx_pct, "ctx_tokens": toks,
         "lines": (s.get("lines_added"), s.get("lines_removed")),
-        "start": start, "last_seen": last_seen,
+        "start": start, "last_seen": last_seen, "agents": subagents(s.get("transcript_path"), now),
         "tmux_pane": s.get("tmux_pane"), "tmux_addr": s.get("tmux_addr"),
         "shipped": stage == "done", "hb_ts": s.get("hb_ts"),
     }
@@ -892,6 +913,10 @@ def detail_card(r, W, toast, t, airy=False):
     pm = f" · lines +{la} −{lr}" if la is not None else ""
     cost = f" · api est ${r['cost']:.2f}" if (SHOW_COST and r.get("cost") is not None) else ""
     L("context", f"{ctx}{hot}{pm}{cost}")
+    total, running, last_agent = r.get("agents") or (0, 0, "")
+    if total:
+        run = f" · {running} running" if running else ""
+        L("agents", f"{total} sent{run}" + (f" · last {last_agent}" if last_agent else ""))
     where = r["tmux_addr"] or r["tmux_pane"] or "no tmux pane"
     L("where", f"{where} · pid {r['pid'] or '?'} · session {r['sid'][:8]}")
     gap()
@@ -936,7 +961,8 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
     lines.append(("rule", rule(W)))
     d = G["det"]
     # detail: a labelled card when the terminal has room (>= 10 free lines), else the 3-line compact form
-    room = (height - len(lines) - 3) if height else 3
+    foot = footer(rows, W, filt)
+    room = (height - len(lines) - len(foot)) if height else 3
     if rows and 0 <= sel < len(rows):
         r = rows[sel]
         if room >= 10:
@@ -957,19 +983,45 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
         l1 = f"{d} " + ("filter: " + filt if filt else "")
         l2 = f"{d} {toast}" if toast else f"{d} "
         lines += [("det", fit(l1, W)), ("det", fit(l2, W)), ("quote", fit(f"{d} ", W))]
-    lines.append(("rule", rule(W)))
+    if height:                                   # pin the footer to the bottom; the card keeps the middle
+        while len(lines) + len(foot) < height:
+            lines.append(("det", fit(d, W)))
+    return lines + foot
+
+
+def footer(rows, W, filt=""):
+    """Bottom of the screen: rule, the keys (wrapped, never truncated), then usage on its own line."""
+    d = G["det"]
     fleet = sum(r["cost"] or 0 for r in rows)
     lim = usage_limits()
-    keys = f"↑↓ tune  1-9/⏎ jack in  o open plan  w rabbit  r red pill  b blue pill  c resume  n notify  / filter  t theme  ? manual  q" \
-        if G is not ASCII else "jk tune  1-9/enter jack in  o open plan  w rabbit  r red pill  b blue pill  c resume  n notify  / filter  t theme  ? manual  q"
+    keys = ("↑↓ tune · 1-9/⏎ jack in · o open plan · w rabbit · r red pill · b blue pill · c resume · "
+            "n notify · m sound · s ring · $ cost · +/- zoom · / filter · t theme · p wording · ? manual · q quit") \
+        if G is not ASCII else ("jk tune · 1-9/enter jack in · o open plan · w rabbit · r red pill · b blue pill · c resume · "
+                                "n notify · m sound · s ring · $ cost · +/- zoom · / filter · t theme · p wording · ? manual · q quit")
     if filt:
         keys = f"/{filt}_   (esc clears)"
     if lim:
-        tot = f"{THEME['name']} · {lim}" + (f" · api est ${fleet:.2f}" if SHOW_COST else "")
+        usage = f"{THEME['name']} · {lim}" + (f" · api est ${fleet:.2f}" if SHOW_COST else "")
     else:
-        tot = f"{THEME['name']} · api est ${fleet:.2f}"
-    lines.append(("foot_hot" if (lim and usage_hot()) else "foot", fit(fit(keys, max(0, W - dw(tot) - 1)) + " " + tot, W)))
-    return lines
+        usage = f"{THEME['name']} · api est ${fleet:.2f}"
+    out = [("rule", rule(W))]
+    kw, groups = W - dw(d) - 1, keys.split(" · ")
+    optional = ["$ cost", "+/- zoom", "p wording", "t theme", "c resume", "o open plan", "w rabbit", "b blue pill", "r red pill"]
+    while True:
+        klines, cur = [], ""
+        for grp in groups:                       # wrap between key groups, never inside one
+            cand = f"{cur} · {grp}" if cur else grp
+            if dw(cand) <= kw or not cur:
+                cur = cand
+            else:
+                klines.append(cur); cur = grp
+        klines.append(cur)
+        if len(klines) <= 3 or not optional:     # narrow terminal: shed the optional keys (? manual lists them)
+            break
+        groups.remove(optional.pop(0)) if optional[0] in groups else optional.pop(0)
+    out += [("foot", fit(f"{d} {k}", W)) for k in klines[:3]]
+    out.append(("foot_hot" if (lim and usage_hot()) else "foot", fit(f"{d} {usage}", W)))
+    return out
 
 
 def _reset_str(ts):
