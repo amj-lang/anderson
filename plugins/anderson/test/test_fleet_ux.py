@@ -162,5 +162,47 @@ class TestShowHidden(unittest.TestCase):
             self.assertIn(mark, wide)
 
 
+class TestLookingAt(unittest.TestCase):
+    """Alerts are skipped when the session's own terminal is what the human is looking at."""
+    def setUp(self):
+        self.old = {k: getattr(fleet, k) for k in ("_front_app", "_selected_tty", "_tty_of", "_owner_app")}
+        self.row = {"pid": 4242, "tmux_pane": None}
+        fleet._tty_of = lambda pid: "/dev/ttys005"
+        fleet._owner_app = lambda pid: ("WebStorm", "/Applications/WebStorm.app")
+
+    def tearDown(self):
+        for k, v in self.old.items():
+            setattr(fleet, k, v)
+
+    def test_terminal_tab_match(self):
+        import sys
+        if sys.platform != "darwin":
+            self.skipTest("macOS only")
+        fleet._front_app = lambda: ("com.apple.Terminal", "Terminal")
+        fleet._selected_tty = lambda b: "/dev/ttys005"
+        self.assertTrue(fleet.looking_at(self.row))
+        fleet._selected_tty = lambda b: "/dev/ttys011"
+        self.assertFalse(fleet.looking_at(self.row))
+
+    def test_ide_frontmost_counts_as_watching(self):
+        import sys
+        if sys.platform != "darwin":
+            self.skipTest("macOS only")
+        fleet._front_app = lambda: ("com.jetbrains.WebStorm", "WebStorm")
+        self.assertTrue(fleet.looking_at(self.row))
+        fleet._front_app = lambda: ("com.google.Chrome", "Google Chrome")
+        self.assertFalse(fleet.looking_at(self.row))
+
+    def test_unknown_front_or_no_pid_is_false(self):
+        fleet._front_app = lambda: ("", "")
+        self.assertFalse(fleet.looking_at(self.row))
+        self.assertFalse(fleet.looking_at({"pid": None, "tmux_pane": None}))
+
+    def test_dev_tty_normalizes_both_forms(self):
+        self.assertEqual(fleet._dev_tty("ttys005 \n"), "/dev/ttys005")
+        self.assertEqual(fleet._dev_tty("/dev/ttys005\n"), "/dev/ttys005")
+        self.assertIsNone(fleet._dev_tty("??"))
+
+
 if __name__ == "__main__":
     unittest.main()

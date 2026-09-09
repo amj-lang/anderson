@@ -22,6 +22,7 @@ Operator watching the screens.
     python3 bin/fleet.py --sound       # the ring plays when a session starts waiting (saved; --no-sound)
     python3 bin/fleet.py --ring snare  # pick the ring sound (--rings lists them; `s` cycles in the TUI)
     python3 bin/fleet.py --play all    # audition every bundled sound in a row (--play NAME for one)
+    python3 bin/fleet.py --ping        # test the desktop banner through every channel, with where to look if none shows
     python3 bin/fleet.py --editor code # what opens plan.md / audit.md on `o` or at a gate (saved)
 
 Data, richest first, each optional (the view degrades, never breaks):
@@ -1488,9 +1489,12 @@ def run_tui(args):
                     r = next(x for x in all_rows if x["sid"] == sid)
                     if last_scan and THEME["eggs"] != "quiet":
                         say(f"Wake up, Neo…  {r['repo']} · {r['task'] or 'session'} needs you.", 5)
-                    if last_scan and NOTIFY:
+                    watched = last_scan and (NOTIFY or SOUND) and looking_at(r)
+                    if watched:
+                        say(f"{r['repo']} · {r['task'] or 'session'} needs you — you're on it, no ping.", 4)
+                    if last_scan and NOTIFY and not watched:
                         notify(f"{r['repo']} · {r['task'] or r.get('title') or 'session'}", r["now"])
-                    if last_scan and SOUND:
+                    if last_scan and SOUND and not watched:
                         ring_sound()
                 rung = new_ring
                 new_hot = hot_rows(all_rows)
@@ -1726,7 +1730,9 @@ def boot(scr, curses, col):
 
 def _dev_tty(t):
     t = (t or "").strip()
-    return f"/dev/{t}" if t and t not in ("??", "-", "?") else None
+    if not t or t in ("??", "-", "?"):
+        return None
+    return t if t.startswith("/dev/") else f"/dev/{t}"
 
 
 def _tty_of(pid):
@@ -1790,6 +1796,63 @@ def _focus_tty(tty):
         except Exception:
             continue
     return False
+
+
+TERMINAL_BUNDLES = {"com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "com.mitchellh.ghostty",
+                    "com.github.wez.wezterm", "net.kovidgoyal.kitty"}
+
+
+def _front_app():
+    """macOS: (bundle id, display name) of the frontmost app, via lsappinfo (no AppleScript, ~10 ms)."""
+    try:
+        asn = subprocess.run(["lsappinfo", "front"], capture_output=True, text=True, timeout=2).stdout.strip()
+        info = subprocess.run(["lsappinfo", "info", "-only", "bundleid", "-only", "name", asn],
+                              capture_output=True, text=True, timeout=2).stdout
+        bid = re.search(r'"CFBundleIdentifier"="([^"]+)"', info)
+        name = re.search(r'"LSDisplayName"="([^"]+)"', info)
+        return (bid.group(1) if bid else "", name.group(1) if name else "")
+    except Exception:
+        return ("", "")
+
+
+def _selected_tty(bundle):
+    """The tty shown in the frontmost Terminal.app / iTerm2 tab, or None."""
+    scripts = {"com.apple.Terminal": 'tell application "Terminal" to get tty of selected tab of front window',
+               "com.googlecode.iterm2": 'tell application "iTerm2" to get tty of current session of current window'}
+    if bundle not in scripts:
+        return None
+    try:
+        r = subprocess.run(["osascript", "-e", scripts[bundle]], capture_output=True, text=True, timeout=3)
+        return _dev_tty(r.stdout)
+    except Exception:
+        return None
+
+
+def looking_at(r):
+    """True when the session's own terminal is what the human is looking at right now, so a desktop
+    banner and a ring would only repeat what is in front of them. Best effort, False on any doubt.
+    ponytail: a tmux pane counts as watched when it is the active pane of an attached session and a
+    terminal app is frontmost; which terminal window hosts that tmux client is not checked."""
+    if sys.platform != "darwin" or not r.get("pid"):
+        return False
+    try:
+        bid, name = _front_app()
+        if not bid:
+            return False
+        if r.get("tmux_pane"):
+            if bid not in TERMINAL_BUNDLES:
+                return False
+            flags = subprocess.run(["tmux", "display", "-p", "-t", r["tmux_pane"],
+                                    "#{pane_active}#{window_active}#{session_attached}"],
+                                   capture_output=True, text=True, timeout=2).stdout.strip()
+            return flags.startswith("11") and flags[2:3] not in ("", "0")
+        tty = _tty_of(r["pid"])
+        if tty and bid in ("com.apple.Terminal", "com.googlecode.iterm2"):
+            return _selected_tty(bid) == tty
+        owner = _owner_app(r["pid"])                     # IDE terminals: the IDE itself is frontmost
+        return bool(owner) and owner[0].lower() in (name.lower(), bid.lower().rsplit(".", 1)[-1])
+    except Exception:
+        return False
 
 
 def _owner_app(pid):
@@ -1947,6 +2010,28 @@ def main(argv):
         for n in sound_names():
             print(f"  {n:8} {'◂ current' if n == RING else ''}  {sound_file(n)}")
         print("  hear one: fleet --play NAME   ·   pick: fleet --ring NAME   ·   in the TUI: s")
+        return 0
+    if "--ping" in args:
+        print("sending a test banner through every channel; note which ones you actually see:")
+        if sys.platform == "darwin":
+            tn = shutil.which("terminal-notifier")
+            if tn:
+                r = subprocess.run([tn, "-title", "THE OPERATOR", "-subtitle", "ping 1/2", "-message", "terminal-notifier channel",
+                                    "-group", "anderson-fleet-ping"], capture_output=True, text=True)
+                print(f"  1. terminal-notifier   rc {r.returncode}  {r.stderr.strip() or r.stdout.strip() or 'no output'}")
+                print("     not shown? System Settings › Notifications › terminal-notifier: Allow Notifications ON, style Banners or Alerts")
+            else:
+                print("  1. terminal-notifier   not installed (brew install terminal-notifier); it is the reliable channel")
+            r = subprocess.run(["osascript", "-e", 'display notification "osascript channel" with title "THE OPERATOR" subtitle "ping 2/2"'],
+                               capture_output=True, text=True, timeout=10)
+            print(f"  2. osascript           rc {r.returncode}  {r.stderr.strip() or 'no output'}")
+            print("     not shown? System Settings › Notifications › Script Editor: Allow Notifications ON")
+            print("  also: a Focus mode (Do Not Disturb) hides both; the fleet ring sound is independent of all this")
+        elif shutil.which("notify-send"):
+            r = subprocess.run(["notify-send", "THE OPERATOR", "ping"], capture_output=True, text=True)
+            print(f"  notify-send rc {r.returncode} {r.stderr.strip()}")
+        else:
+            print("  no notification channel on this platform")
         return 0
     if "--play" in args:
         i = args.index("--play")
