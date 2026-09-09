@@ -1425,7 +1425,8 @@ def view_cmd(files):
     """How `o` reads a file inside the fleet terminal: glow (rendered markdown) when installed, else
     less -R over a stdlib ANSI rendering. Returns (argv, temp files to delete afterwards)."""
     if shutil.which("glow"):
-        return ["glow", "-p"] + files, []
+        width = max(40, shutil.get_terminal_size((100, 40)).columns - 2)   # glow wraps at 80 unless told the width
+        return ["glow", "-p", "-w", str(width)] + files, []
     tmp = []
     for f in files:
         t = os.path.join(FLEET_DIR, "view-" + os.path.basename(f))

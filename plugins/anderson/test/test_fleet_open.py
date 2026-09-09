@@ -87,7 +87,8 @@ class TestReadHere(unittest.TestCase):
                 self.assertEqual(len(tmpfiles), 1); self.assertIn("\033[", open(tmpfiles[0]).read())
                 fleet.shutil.which = lambda x: "/usr/local/bin/glow" if x == "glow" else None
                 cmd, tmpfiles = fleet.view_cmd([src])
-                self.assertEqual(cmd, ["glow", "-p", src]); self.assertEqual(tmpfiles, [])
+                self.assertEqual(cmd[:3], ["glow", "-p", "-w"]); self.assertGreaterEqual(int(cmd[3]), 40)
+                self.assertEqual(cmd[4], src); self.assertEqual(tmpfiles, [])
             finally:
                 fleet.FLEET_DIR, fleet.shutil.which = old
 
