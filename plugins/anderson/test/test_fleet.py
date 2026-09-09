@@ -266,6 +266,20 @@ class TestJackIn(unittest.TestCase):
         msg = fleet.jack_in({"tmux_pane": None, "pid": None})
         self.assertIn("tmux", msg)
 
+    def test_jack_in_does_not_claim_a_move_that_did_not_land(self):
+        """AppleScript says "ok" for selecting a tab even when its window stays on another Space."""
+        old = fleet._tty_of, fleet._focus_tty, fleet._focused_now
+        try:
+            fleet._tty_of = lambda pid: "/dev/ttys999"
+            fleet._focus_tty = lambda tty: True
+            fleet._focused_now = lambda tty: False
+            msg = fleet.jack_in({"tmux_pane": None, "pid": 42})
+            self.assertIn("did not come forward", msg)
+            fleet._focused_now = lambda tty: True
+            self.assertEqual(fleet.jack_in({"tmux_pane": None, "pid": 42}), "Operator.")
+        finally:
+            fleet._tty_of, fleet._focus_tty, fleet._focused_now = old
+
 
 class TestUsageLimits(unittest.TestCase):
     def test_heartbeat_stores_limits_and_footer_shows_them(self):

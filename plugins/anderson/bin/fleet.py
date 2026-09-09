@@ -2042,6 +2042,17 @@ def _selected_tty(bundle):
         return None
 
 
+def _focused_now(tty):
+    """True when `tty` is the tty of the terminal tab in front of the human right now. Used to check
+    that a jack in actually landed: AppleScript reports "ok" for selecting a tab even when the window
+    it lives in stays behind (another Space, or a full-screen window in the way)."""
+    try:
+        bid, _ = _front_app()
+        return bool(bid) and _selected_tty(bid) == tty
+    except Exception:
+        return False
+
+
 def looking_at(r):
     """True when the session's own terminal is what the human is looking at right now, so a desktop
     banner and a ring would only repeat what is in front of them. Best effort, False on any doubt.
@@ -2121,7 +2132,13 @@ def jack_in(r):
             return f"jack in failed: {e}"
     tty = _tty_of(r.get("pid")) if r.get("pid") else None
     if tty and _focus_tty(tty):
-        return "Operator."
+        # The tab is selected, but selecting is not arriving: a window on another Space, or behind a
+        # full-screen one, stays where it is. Say so instead of reporting a move that did not happen.
+        time.sleep(0.25)
+        if _focused_now(tty):
+            return "Operator."
+        return ("tab selected, but its window did not come forward: another Space or a full-screen "
+                "window. System Settings > Desktop & Dock > \"switch to a Space with open windows\"")
     if sys.platform == "darwin":
         app = _owner_app(r.get("pid")) if r.get("pid") else None
         if app:
