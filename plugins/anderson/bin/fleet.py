@@ -1958,6 +1958,7 @@ def _tty_of(pid):
 
 
 FOCUS_ITERM = """tell application "iTerm2"
+  activate
   repeat with w in windows
     repeat with t in tabs of w
       repeat with s in sessions of t
@@ -1965,7 +1966,6 @@ FOCUS_ITERM = """tell application "iTerm2"
           select s
           select t
           set index of w to 1
-          activate
           return "ok"
         end if
       end repeat
@@ -1975,12 +1975,12 @@ end tell
 return "miss\""""
 
 FOCUS_TERMINAL = """tell application "Terminal"
+  activate
   repeat with w in windows
     repeat with t in tabs of w
       if tty of t is "{tty}" then
         set selected tab of w to t
         set index of w to 1
-        activate
         return "ok"
       end if
     end repeat
@@ -1994,10 +1994,30 @@ def _focus_script(app, tty):
     return (FOCUS_ITERM if app == "iTerm2" else FOCUS_TERMINAL).replace("{tty}", tty)
 
 
+AXRAISE = """tell application "System Events" to tell process "{app}"
+  set frontmost to true
+  perform action "AXRaise" of window 1
+end tell"""
+
+
+def _axraise(app):
+    """Ask the window server to raise that app's front window. Needs Accessibility permission, so it
+    is best effort: without it osascript errors and we are no worse off than before."""
+    try:
+        subprocess.run(["osascript", "-e", AXRAISE.replace("{app}", app)],
+                       capture_output=True, text=True, timeout=4)
+    except Exception:
+        pass
+
+
 def _focus_tty(tty):
-    """macOS: focus the iTerm2 / Terminal.app tab that owns this tty. True on success."""
+    """macOS: bring the iTerm2 / Terminal.app tab owning `tty` to the front, and check that it got
+    there. Selecting a tab succeeds even when its window stays put (another Space, or a full-screen
+    window in the way), so the AppleScript's "ok" is not the answer: the frontmost tab is.
+    Returns "ok" (in front), "unraised" (selected, window did not come over) or None (no such tab)."""
     if sys.platform != "darwin" or not tty:
-        return False
+        return None
+    found = False
     for app in ("iTerm2", "Terminal"):
         try:
             up = subprocess.run(["osascript", "-e", f'application "{app}" is running'],
@@ -2005,11 +2025,19 @@ def _focus_tty(tty):
             if up != "true":
                 continue
             r = subprocess.run(["osascript", "-e", _focus_script(app, tty)], capture_output=True, text=True, timeout=5)
-            if r.stdout.strip() == "ok":
-                return True
+            if r.stdout.strip() != "ok":
+                continue
+            found = True
+            for attempt in (0, 1):
+                for _ in range(6):                 # lands in ~0.15s locally; allow 0.6s before retrying
+                    time.sleep(0.1)
+                    if _focused_now(tty):
+                        return "ok"
+                if attempt == 0:
+                    _axraise(app)
         except Exception:
             continue
-    return False
+    return "unraised" if found else None
 
 
 TERMINAL_BUNDLES = {"com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "com.mitchellh.ghostty",
@@ -2130,15 +2158,16 @@ def jack_in(r):
             return "Operator."
         except Exception as e:
             return f"jack in failed: {e}"
+    if r.get("status") == "sentinel":
+        # The process is gone: there is no terminal left to move to, whatever the row still shows.
+        return "that session's process is gone. c copies its `claude --resume`, b hides the row."
     tty = _tty_of(r.get("pid")) if r.get("pid") else None
-    if tty and _focus_tty(tty):
-        # The tab is selected, but selecting is not arriving: a window on another Space, or behind a
-        # full-screen one, stays where it is. Say so instead of reporting a move that did not happen.
-        time.sleep(0.25)
-        if _focused_now(tty):
-            return "Operator."
-        return ("tab selected, but its window did not come forward: another Space or a full-screen "
-                "window. System Settings > Desktop & Dock > \"switch to a Space with open windows\"")
+    landed = _focus_tty(tty) if tty else None
+    if landed == "ok":
+        return "Operator."
+    if landed == "unraised":
+        return ("that tab is selected but its window stayed on another Space. fix it once: "
+                "defaults write com.apple.dock workspaces-auto-swoosh -bool YES; killall Dock")
     if sys.platform == "darwin":
         app = _owner_app(r.get("pid")) if r.get("pid") else None
         if app:

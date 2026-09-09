@@ -587,12 +587,14 @@ missing; `fleet install --extras` installs the first two, `--with-tmux` the thir
 
 ## Changelog
 
-- **0.40.2** — **Fleet: ⏎ stops claiming a move it did not make.** Selecting a terminal tab over
-AppleScript reports success even when the window it lives in stays put, which is what happens when
-that window is on another Space or behind a full-screen one. The jack in now checks that the tab it
-asked for is really the one in front, and when it is not it says so and names the macOS setting
-(Desktop & Dock → "switch to a Space with open windows") instead of printing "Operator." over
-nothing happening.
+- **0.40.2** — **Fleet: ⏎ actually moves you there.** Three fixes to the jack in. The focus script
+now `activate`s the terminal *before* reordering its windows: with one tab per window (six Terminal
+windows, say) activating afterwards handed the raise back to the app's own front window. The result
+is then verified — the frontmost tab's tty, not the AppleScript's "ok", which is reported for
+selecting a tab whose window never came over — and on a miss it retries once through AXRaise before
+saying the window stayed on another Space, with the one-line `defaults write
+com.apple.dock workspaces-auto-swoosh` fix. And ⏎ on a dead row now says the process is gone and
+points at `c` / `b`, instead of talking about tmux.
 - **0.40.1** — **Fleet: ⏎ means move me there.** Jacking into a session parked at a human gate no longer
 reports "no IDE owns that session" when a plain terminal owns it: the auto-open is silent unless a GUI
 editor actually applies, so a successful jack in stops reading like a failure. `O` still says why nothing
