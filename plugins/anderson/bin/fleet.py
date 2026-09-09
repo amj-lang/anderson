@@ -1043,9 +1043,9 @@ def footer(rows, W, filt=""):
     d = G["det"]
     fleet = sum(r["cost"] or 0 for r in rows)
     lim = usage_limits()
-    keys = ("↑↓ tune · 1-9/⏎ jack in · o open plan · w rabbit · 🔴 r kill · 🔵 b hide · 👻 h hidden · c resume · "
+    keys = ("↑↓ tune · 1-9/⏎ jack in · o read plan · O in IDE · w rabbit · 🔴 r kill · 🔵 b hide · 👻 h hidden · c resume · "
             "🔔 n notify · 🔊 m sound · 🎵 s ring · $ cost · +/- zoom · 🔍 / filter · 🎨 t theme · p wording · ? manual · q quit") \
-        if G is not ASCII else ("jk tune · 1-9/enter jack in · o open plan · w rabbit · r kill · b hide · h hidden · c resume · "
+        if G is not ASCII else ("jk tune · 1-9/enter jack in · o read plan · O in IDE · w rabbit · r kill · b hide · h hidden · c resume · "
                                 "n notify · m sound · s ring · $ cost · +/- zoom · / filter · t theme · p wording · ? manual · q quit")
     if filt:
         keys = f"/{filt}_   (esc clears)"
@@ -1056,7 +1056,7 @@ def footer(rows, W, filt=""):
         usage = f"api est ${fleet:.2f} (the plan is a flat fee; this is what the tokens would cost on the API)"
     out = [("rule", rule(W))]
     kw, groups = W - dw(d) - 1, keys.split(" · ")
-    optional = ["$ cost", "+/- zoom", "p wording", "🎨 t theme", "t theme", "c resume", "o open plan", "w rabbit",
+    optional = ["$ cost", "+/- zoom", "p wording", "🎨 t theme", "t theme", "c resume", "O in IDE", "o read plan", "w rabbit",
                 "👻 h hidden", "h hidden", "🔵 b hide", "b hide", "🔴 r kill", "r kill"]
     while True:
         klines, cur = [], ""
@@ -1163,10 +1163,12 @@ MANUAL = """
             per session: a burn gauge (which session eats most), never your bill.
 
   ↑↓ / j k  tune           select a session · 1-9 jack straight into row N
-  o         open           open the gate artifact in your IDE: plan.md (grill, plan review),
-                           plan.md + audit.md (diff review). ⏎ / 1-9 on a row parked at a human
-                           gate does this automatically. Editor: --editor code (saved), else a
-                           GUI $VISUAL/$EDITOR, else the IDE that owns the session, else `open`
+  o         read           read the gate artifact right here: plan.md (grill, plan review),
+                           plan.md + audit.md (diff review). glow when installed, else less with
+                           a light markdown colouring; q comes back to fleet, :n = next file
+  O         open in IDE    same files in your IDE: --editor code (saved), else a GUI
+                           $VISUAL/$EDITOR, else the IDE that owns the session. ⏎ / 1-9 on a row
+                           parked at a human gate does this automatically when an IDE applies
   c         resume         copy `cd <cwd> && claude --resume <sid>` (bring a sentinel back)
   m         sound          on/off (saved): the picked sound plays when a session starts waiting
   s         ring sound     next sound, previewed and saved: phone (the Matrix call) · snare ·
@@ -1385,10 +1387,78 @@ def editor_cmd(r, files):
         app = _owner_app(r.get("pid")) if r.get("pid") else None
         if app and app[0] not in ("Terminal", "iTerm2", "Warp", "Ghostty", "Alacritty", "kitty"):
             return ["open", "-a", app[1]] + files
-        return ["open"] + files
+        return None                              # a plain terminal owns it: nothing sensible to open into
     if shutil.which("xdg-open"):
         return ["xdg-open"] + files[:1]
     return None
+
+
+def md_ansi(text):
+    """Markdown to ANSI for `less -R`: headings bold green, bullets green, bold, ~~strike~~ dim
+    struck (the plan-reviewer's edits), fenced code dim. Stdlib only, good enough to read a plan."""
+    B, D, G_, S, R = "\033[1m", "\033[2m", "\033[32m", "\033[9m", "\033[0m"
+    out, code = [], False
+    for ln in text.split("\n"):
+        if ln.startswith("```"):
+            code = not code; out.append(D + ln + R); continue
+        if code:
+            out.append(D + ln + R); continue
+        ln = re.sub(r"\*\*(.+?)\*\*", B + r"\1" + R, ln)
+        ln = re.sub(r"~~(.+?)~~", D + S + r"\1" + R, ln)
+        ln = re.sub(r"`([^`]+)`", D + r"\1" + R, ln)
+        if ln.startswith("#"):
+            out.append(B + G_ + ln.lstrip("# ") + R)
+        elif re.match(r"^\s*([-*]|\d+\.)\s", ln):
+            out.append(re.sub(r"^(\s*)([-*]|\d+\.)", r"\1" + G_ + r"\2" + R, ln, 1))
+        elif ln.startswith("|"):
+            out.append(D + ln + R if set(ln) <= set("|-: ") else ln)
+        else:
+            out.append(ln)
+    return "\n".join(out)
+
+
+def view_cmd(files):
+    """How `o` reads a file inside the fleet terminal: glow (rendered markdown) when installed, else
+    less -R over a stdlib ANSI rendering. Returns (argv, temp files to delete afterwards)."""
+    if shutil.which("glow"):
+        return ["glow", "-p"] + files, []
+    tmp = []
+    for f in files:
+        t = os.path.join(FLEET_DIR, "view-" + os.path.basename(f))
+        try:
+            os.makedirs(FLEET_DIR, exist_ok=True)
+            with open(t, "w") as out:
+                out.write(md_ansi(open(f, errors="replace").read()))
+            tmp.append(t)
+        except Exception:
+            tmp.append(f)
+    names = " · ".join(os.path.basename(f) for f in files)
+    return ["less", "-R", "-P", f"{names}  (q back to fleet, :n next file)"] + tmp, [t for t in tmp if t.startswith(FLEET_DIR)]
+
+
+def view_gate(r, scr=None):
+    """`o`: read plan.md / audit.md right here, in the fleet terminal; the TUI resumes on q."""
+    import curses
+    files = gate_files(r)
+    if not files:
+        return "nothing to read: no plan.md / audit.md for that row."
+    cmd, tmp = view_cmd(files)
+    try:
+        if scr is not None:
+            curses.endwin()
+        subprocess.run(cmd)
+    except Exception as e:
+        return f"viewer failed: {e}"
+    finally:
+        for t in tmp:
+            try:
+                os.remove(t)
+            except Exception:
+                pass
+        if scr is not None:
+            scr.refresh()
+    hint = "" if shutil.which("glow") else "   (brew install glow for rendered markdown)"
+    return f"read {', '.join(os.path.basename(f) for f in files)}{hint}"
 
 
 def open_gate(r):
@@ -1397,7 +1467,7 @@ def open_gate(r):
         return "nothing to open: no plan.md / audit.md for that row."
     cmd = editor_cmd(r, files)
     if not cmd:
-        return "no editor found: fleet --editor code   (or set $VISUAL)"
+        return "no IDE owns that session: o reads it here, or fleet --editor code"
     try:
         subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return f"opened {', '.join(os.path.basename(f) for f in files)} in {os.path.basename(cmd[0]) if cmd[0] != 'open' else (cmd[2].rsplit('/', 1)[-1] if cmd[1:2] == ['-a'] else 'default app')}"
@@ -1636,6 +1706,9 @@ def run_tui(args):
                 if rows:
                     say(jack_in(rows[sel]) + gate_auto_open(rows[sel]))
             elif k == ord("o"):
+                if rows:
+                    say(view_gate(rows[sel], scr), 4); prev = None; last_full = now
+            elif k == ord("O"):
                 if rows:
                     say(open_gate(rows[sel]))
             elif k == ord("w"):
