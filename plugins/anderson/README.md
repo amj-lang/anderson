@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.38.2-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.38.3-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -581,6 +581,7 @@ missing; `fleet install --extras` installs the first two, `--with-tmux` the thir
 
 ## Changelog
 
+- **0.38.3** — Fleet: `o` with glow now uses the full terminal width (glow wraps at 80 columns unless told).
 - **0.38.2** — **Fleet: idle goes white.** A ring older than 5 minutes stops pulsing and paints white, steady;
 it still sorts with the rings and still needs you, it just stopped shouting. Fresh rings pulse as before.
 Also repairs the changelog: a careless version bump had rewritten the number on every entry since 0.34.4.
