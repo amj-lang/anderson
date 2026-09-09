@@ -1,11 +1,13 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.39.0-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.40.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
-![anderson — digital-rain intro: the agents review the agents](assets/anderson-demo.gif)
+![anderson — Loading anderson…, the digital-rain boot screen](assets/fleet-loading.png)
+
+*The fleet terminal booting. What it opens onto is [further down](#fleet--every-claude-session-on-one-screen).*
 
 **Four Claude subagents that plan, grill, implement, and review each other — with two human gates, because green ≠ understood.**
 
@@ -114,19 +116,7 @@ All commands are namespaced `/anderson:<command>` — bare `/anderson` does not 
 
 You run anderson in several repos at once. **THE OPERATOR** is the terminal that watches them all: one row per Claude Code session on the machine, ringing rows first.
 
-```
-⌐■-■  T H E  O P E R A T O R                                   fleet · 3 live · 2 waiting · 1 dead
-────────────────────────────────────────────────────────────────────────────────────────────────────
-       repo              task                     persona         stage            now                 $   ctx              age
- ▸ ☎⟲  fashion-webapp-2  ar-2270-sku-lightbox     ▣ AGENT SMITH   diff_review 1/2  ☎ ring            1.42  ▓▓▓▓▓▓░░░░  61%  12m
-       ai-shoot-service  remove-db-triggers       ● NEO           implement 0/2    ▶ Edit orders.py  0.88  ▓▓▓░░░░░░░  34%   4m
-   ☎   claude-loop       readbility               ◇ INTERROGATOR  grill 0/2        ☎ ring            0.12  ▓░░░░░░░░░   9%  41m
-   ⟲✝  fashion-webapp-2  sku-bulk-upload          ▲ ARCHITECT     plan 2/2         ✝ sentinel        0.31  ░░░░░░░░░░   —    2h
-────────────────────────────────────────────────────────────────────────────────────────────────────
-▍ ar-2270-sku-lightbox · AGENT SMITH · iteration 1/2 · plan: ship · diff: fix_first · +212 −48 · ops:1.2
-▍ last: 47 passed, 0 failed. Verdict: fix_first, one unproven criterion.
-▍ "Mr. Anderson… did you think that test would pass?"
-```
+![fleet — THE OPERATOR: every Claude Code session on one screen](assets/fleet-operator.png)
 
 - **Who is on the job**: the persona comes from that repo's `feature-research/*/state.md` — ▲ ARCHITECT · ◇ INTERROGATOR · ◎ ORACLE · ● NEO · ▣ AGENT SMITH · ★ THE ONE · ○ T. ANDERSON (a session with no pipeline yet).
 - **What it is doing**: `▶ Bash pytest -q`, `▶ Agent implementer`, `☎ ring` (waits on you), `☎ permission Bash`, `✝ sentinel` (process gone), `⟲` (rework loop). Plus `$`, context bar, lines ±, age, last words.
