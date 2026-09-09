@@ -286,6 +286,23 @@ class TestJackIn(unittest.TestCase):
         finally:
             fleet._tty_of, fleet._focus_tty = old
 
+    def test_wait_focused_exits_early_and_gives_a_space_switch_room(self):
+        """A raise across Spaces waits on a ~1s animation, so the budget has to outlast it, while a
+        same-Space raise must not pay for that."""
+        old = fleet._focused_now
+        try:
+            calls = []
+            fleet._focused_now = lambda tty: (calls.append(tty), len(calls) >= 2)[1]
+            t0 = time.time()
+            self.assertTrue(fleet._wait_focused("/dev/x", 1.4))
+            self.assertLess(time.time() - t0, 0.5)      # left as soon as it landed
+            fleet._focused_now = lambda tty: False
+            t0 = time.time()
+            self.assertFalse(fleet._wait_focused("/dev/x", 0.3))
+            self.assertGreaterEqual(time.time() - t0, 0.25)
+        finally:
+            fleet._focused_now = old
+
     def test_jack_in_on_a_dead_row_says_the_process_is_gone(self):
         msg = fleet.jack_in({"tmux_pane": None, "pid": 999999, "status": "sentinel"})
         self.assertIn("process is gone", msg)
