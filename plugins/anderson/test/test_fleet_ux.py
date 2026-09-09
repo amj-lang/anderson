@@ -130,5 +130,37 @@ class TestDismiss(unittest.TestCase):
         self.assertIn("r kill", foot); self.assertIn("b hide", foot); self.assertNotIn("pill", foot)
 
 
+class TestShowHidden(unittest.TestCase):
+    def test_hidden_rows_listed_flagged_and_unhidden(self):
+        import time
+        with tempfile.TemporaryDirectory() as tmp:
+            old = fleet.FLEET_DIR; fleet.FLEET_DIR = tmp
+            try:
+                json.dump({"session_id": "x", "cwd": tmp, "pid": None, "ts": time.time()},
+                          open(os.path.join(tmp, "x.status.json"), "w"))
+                fleet.dismiss("x")
+                self.assertEqual(fleet.discover(include_ps=False), [])
+                rows = fleet.discover(include_ps=False, hidden=True)
+                self.assertEqual([r["sid"] for r in rows], ["x"]); self.assertTrue(rows[0]["hidden"])
+                self.assertIn(fleet.G["hid"], fleet.cell(rows[0], "flag", 0))
+                lines = fleet.render(rows, 120)
+                self.assertIn("1 hidden", lines[0][1])
+                self.assertTrue(any(k == "hidden_sel" for k, _ in lines))
+                fleet.unhide("x")
+                self.assertEqual([r["sid"] for r in fleet.discover(include_ps=False)], ["x"])
+                self.assertFalse(fleet.discover(include_ps=False)[0]["hidden"])
+            finally:
+                fleet.FLEET_DIR = old
+
+    def test_footer_emoji_markers_keep_width(self):
+        for W in (200, 120, 80, 50):
+            foot = fleet.footer(fleet.demo_rows(), W)
+            for _, ln in foot:
+                self.assertEqual(fleet.dw(ln), W)
+        wide = " ".join(ln for k, ln in fleet.footer(fleet.demo_rows(), 200) if k == "foot")
+        for mark in ("🔴 r kill", "🔵 b hide", "🔊 m sound", "👻 h hidden"):
+            self.assertIn(mark, wide)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -32,7 +32,7 @@ Data, richest first, each optional (the view degrades, never breaks):
   ps + lsof + tmux                    sessions with no hooks at all, and the pane to jack into
 
 Keys: ↑↓/jk tune · ⏎ jack in (tmux) · w white rabbit (oldest ring) · r kill (row hidden too)
-      b hide the row (process untouched) · / filter · t theme · p wording · ? manual · q
+      b hide the row (process untouched) · h show hidden · / filter · t theme · p wording · ? manual · q
 Prefs (theme, wording, motion) persist in ~/.claude/fleet/prefs.json.
 """
 import glob, json, os, random, re, shutil, signal, subprocess, sys, time, unicodedata
@@ -45,10 +45,10 @@ CTX_WINDOW = 200_000         # fallback when the heartbeat has no context_window
 REFRESH_S = 2.0
 
 # ──────────────────────────────────────────────────────────────────────── glyphs
-UNI = dict(eyes="⌐■-■", cur="▸", ring="☎", dead="✝", loop="⟲", run="▶", ship="★",
+UNI = dict(eyes="⌐■-■", cur="▸", ring="☎", dead="✝", loop="⟲", run="▶", ship="★", hid="◌",
            bar="▓", trk="░", rule="─", ell="…", det="▍",
            rain=("0·1 1", "1 0·1", " 1·10", "1·0 1"), raincol="01·10")
-ASCII = dict(eyes="[-_-]", cur=">", ring="!", dead="x", loop="~", run=">", ship="*",
+ASCII = dict(eyes="[-_-]", cur=">", ring="!", dead="x", loop="~", run=">", ship="*", hid="h",
              bar="#", trk=".", rule="-", ell="~", det="|",
              rain=("0.1 1", "1 0.1", " 1.10", "1.0 1"), raincol="01.10")
 G = dict(UNI)
@@ -410,8 +410,24 @@ def dismiss(sid, clean=False):
         pass
 
 
-def discover(include_ps=True):
-    """Merge heartbeat, hook events, ps discovery and transcripts into session dicts."""
+def unhide(sid):
+    """Take a session off the dismissed list."""
+    path = os.path.join(FLEET_DIR, "dismissed")
+    try:
+        keep = [x for x in open(path).read().split() if x != sid]
+        with open(path, "w") as f:
+            f.write("".join(x + "\n" for x in keep))
+    except Exception:
+        pass
+
+
+SHOW_HIDDEN = False   # `h`: list the dismissed rows too (flagged ◌, dim); `b` on one of them un-hides it
+
+
+def discover(include_ps=True, hidden=None):
+    """Merge heartbeat, hook events, ps discovery and transcripts into session dicts.
+    hidden=True lists dismissed sessions too, each with row["hidden"] set."""
+    hidden = SHOW_HIDDEN if hidden is None else hidden
     now = time.time()
     sess = {}
     dismissed = set()
@@ -481,11 +497,13 @@ def discover(include_ps=True):
             s["tmux_pane"], s["tmux_addr"] = _pane_for(s["pid"], parents, panes)
     rows = []
     for s in sess.values():
-        if s["sid"] in dismissed:
+        if s["sid"] in dismissed and not hidden:
             continue
-        rows.append(enrich(s, now))
-    rows = [r for r in rows if r is not None]
-    rows.sort(key=lambda r: ({"ring": 0, "work": 1, "sentinel": 2}.get(r["status"], 1), r["repo"], r["task"]))
+        r = enrich(s, now)
+        if r is not None:
+            r["hidden"] = s["sid"] in dismissed
+            rows.append(r)
+    rows.sort(key=lambda r: (r["hidden"], {"ring": 0, "work": 1, "sentinel": 2}.get(r["status"], 1), r["repo"], r["task"]))
     return rows
 
 
@@ -816,6 +834,8 @@ def cell(row, key, frame):
             f += G["loop"]
         if row["status"] == "sentinel":
             f += G["dead"]
+        if row.get("hidden"):
+            f = G["hid"] + f
         return f[:2]
     if key == "repo":
         return row["repo"]
@@ -951,10 +971,11 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
     cols = layout(W)
     lines = []
     n_ring = sum(r["status"] == "ring" for r in rows)
-    n_dead = sum(r["status"] == "sentinel" for r in rows)
-    n_live = len(rows) - n_dead
+    n_hid = sum(bool(r.get("hidden")) for r in rows)
+    n_dead = sum(r["status"] == "sentinel" and not r.get("hidden") for r in rows)
+    n_live = len(rows) - n_dead - n_hid
     left = f"{G['eyes']}  T H E  O P E R A T O R"
-    right = f"{words('fleet')} · {n_live} {words('live')} · {n_ring} {words('ring')} · {n_dead} {words('deads' if n_dead != 1 else 'dead')}{header_tail(frame)}"
+    right = f"{words('fleet')} · {n_live} {words('live')} · {n_ring} {words('ring')} · {n_dead} {words('deads' if n_dead != 1 else 'dead')}{f' · {n_hid} hidden' if n_hid else ''}{header_tail(frame)}"
     lines.append(("hdr", fit(fit(left, max(0, W - dw(right) - 1)) + " " + right, W)))
     lines.append(("rule", rule(W)))
     hdr = " " * PREFIX + "  ".join(fit(tt, w, a) for _, tt, w, a in cols)
@@ -970,7 +991,7 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
             kind = "burst"
         else:
             body = "  ".join(fit(cell(r, k, frame), w, a) for k, _, w, a in cols)
-            kind = r["status"] + ("_sel" if i == sel else "")
+            kind = ("hidden" if r.get("hidden") else r["status"]) + ("_sel" if i == sel else "")
         lines.append((kind, fit(f"{num}{cur} {body}", W)))
     lines.append(("rule", rule(W)))
     d = G["det"]
@@ -1008,9 +1029,9 @@ def footer(rows, W, filt=""):
     d = G["det"]
     fleet = sum(r["cost"] or 0 for r in rows)
     lim = usage_limits()
-    keys = ("↑↓ tune · 1-9/⏎ jack in · o open plan · w rabbit · r kill · b hide · c resume · "
-            "n notify · m sound · s ring · $ cost · +/- zoom · / filter · t theme · p wording · ? manual · q quit") \
-        if G is not ASCII else ("jk tune · 1-9/enter jack in · o open plan · w rabbit · r kill · b hide · c resume · "
+    keys = ("↑↓ tune · 1-9/⏎ jack in · o open plan · w rabbit · 🔴 r kill · 🔵 b hide · 👻 h hidden · c resume · "
+            "🔔 n notify · 🔊 m sound · 🎵 s ring · $ cost · +/- zoom · 🔍 / filter · 🎨 t theme · p wording · ? manual · q quit") \
+        if G is not ASCII else ("jk tune · 1-9/enter jack in · o open plan · w rabbit · r kill · b hide · h hidden · c resume · "
                                 "n notify · m sound · s ring · $ cost · +/- zoom · / filter · t theme · p wording · ? manual · q quit")
     if filt:
         keys = f"/{filt}_   (esc clears)"
@@ -1020,7 +1041,8 @@ def footer(rows, W, filt=""):
         usage = f"{THEME['name']} · api est ${fleet:.2f}"
     out = [("rule", rule(W))]
     kw, groups = W - dw(d) - 1, keys.split(" · ")
-    optional = ["$ cost", "+/- zoom", "p wording", "t theme", "c resume", "o open plan", "w rabbit", "b hide", "r kill"]
+    optional = ["$ cost", "+/- zoom", "p wording", "🎨 t theme", "t theme", "c resume", "o open plan", "w rabbit",
+                "👻 h hidden", "h hidden", "🔵 b hide", "b hide", "🔴 r kill", "r kill"]
     while True:
         klines, cur = [], ""
         for grp in groups:                       # wrap between key groups, never inside one
@@ -1140,7 +1162,8 @@ MANUAL = """
                            owning app forward (WebStorm / VS Code / Cursor integrated terminals)
   w         white rabbit   jump to the oldest ringing session
   r         red pill       kill the session's process (asks first); the row is hidden with it
-  b         blue pill      hide the row, any row; the process is left alone
+  b         blue pill      hide the row, any row; the process is left alone. On a hidden row: un-hide
+  h         hidden         show the hidden rows too (◌, dim), so you can bring one back with b
   /         filter         substring on repo · task ; esc clears
   t         theme          matrix · construct · zion · nebuchadnezzar · agent (saved)
   p         wording        Matrix lingo (zion · jacked in · ringing · sentinel) or plain (saved)
@@ -1420,7 +1443,7 @@ def run_tui(args):
         return f"font {new}pt (saved; window restored to {zoom['orig']}pt on quit)"
 
     def app(scr):
-        global NOTIFY, SHOW_COST, PLAIN, SOUND, RING
+        global NOTIFY, SHOW_COST, PLAIN, SOUND, RING, SHOW_HIDDEN
         curses.curs_set(0)
         scr.timeout(100)
         col = _colors(curses)
@@ -1433,6 +1456,7 @@ def run_tui(args):
                 "work": 0, "work_sel": REV,
                 "ring": col(T["ring"]) | BOLD, "ring_sel": col(T["ring"]) | BOLD | REV,
                 "sentinel": col(T["dead"]) | DIM, "sentinel_sel": DIM | REV,
+                "hidden": DIM, "hidden_sel": DIM | REV,
                 "burst": col(T["accent"]) | BOLD, "det": 0, "quote": col(T["quote"]) | DIM, "foot": DIM,
                 "foot_hot": col("red") | BOLD,
             }
@@ -1596,11 +1620,17 @@ def run_tui(args):
                 if rows:
                     confirm = f"red pill: kill {rows[sel]['repo']} · {rows[sel]['task'] or rows[sel]['sid'][:8]} ?  How far down does the rabbit hole go? [y/N]"
             elif k == ord("b"):
-                if rows:
+                if rows and rows[sel].get("hidden"):
+                    unhide(rows[sel]["sid"]); last_scan = 0
+                    say("row back in the list.")
+                elif rows:
                     r = rows[sel]
                     dismiss(r["sid"], clean=r["status"] == "sentinel"); last_scan = 0
                     live = "" if r["status"] == "sentinel" else " (the session keeps running)"
-                    say(f"blue pill: row hidden{live}. you wake up in your bed and believe whatever you want to.", 5)
+                    say(f"blue pill: row hidden{live}. you wake up in your bed and believe whatever you want to.  h shows hidden rows", 5)
+            elif k == ord("h"):
+                SHOW_HIDDEN = not SHOW_HIDDEN; last_scan = 0
+                say(f"hidden rows shown ({G['hid']} dim) · b on one brings it back · h hides them again" if SHOW_HIDDEN else "hidden rows hidden.", 5)
             elif k == ord("t"):
                 nxt = THEME_ORDER[(THEME_ORDER.index(THEME["name"]) + 1) % len(THEME_ORDER)]
                 set_theme(nxt, calm); save_prefs(theme=nxt); prev = None
