@@ -1,8 +1,12 @@
 ---
 description: "Start the gated build loop: plan, grill the plan with you, then plan-review, then halt. Invoke as /anderson:start."
 argument-hint: <task-slug> <one-line goal>
-allowed-tools: Bash(grep:*), Bash(echo:*)
+allowed-tools: Bash(grep:*), Bash(echo:*), Bash(sed:*)
 ---
+State first, so the fleet monitor shows this task's row before any thinking starts (idempotent;
+also adds `feature-research/` to .gitignore):
+!`bash "${CLAUDE_PLUGIN_ROOT}/bin/feature.sh" seed $1 $2 2>&1`
+
 Parse "$ARGUMENTS": FIRST strip an optional `--opus` token from anywhere in it (it is a flag,
 not content). THEN task slug = first word of what remains; goal = the rest.
 
@@ -30,9 +34,13 @@ SEQUENCING: stages are sequential because each reads the previous stage's file o
 per message, as its last line, and wait for it to finish — two Agent calls in one message
 run in parallel and the reviewer judges files that don't exist yet.
 
-1. Make sure the scratch dir is ignored by git (it's disposable):
-   if `feature-research/` is not already in `.gitignore`, append it.
-2. If `feature-research/<task>/state.md` is absent, create it with this EXACT block
+1. The seed line at the top already did the setup: `.gitignore` has `feature-research/` and
+   `feature-research/<task>/state.md` exists (`state: … seeded` or `… already there`). Do NOT
+   recreate it. Only when that line reports an error or is missing, do steps 1-2 by hand:
+   append `feature-research/` to `.gitignore` if absent, and create state.md as in step 2.
+   If `--opus` was parsed but the seed line says `review_model fable` (the flag sat past the
+   second word), fix it: `sed -i.bak -E 's/^(review_model:[[:space:]]*).*/\1opus/' feature-research/<task>/state.md && rm -f feature-research/<task>/state.md.bak`.
+2. FALLBACK ONLY — if `feature-research/<task>/state.md` is absent, create it with this EXACT block
    (substitute `<task>` with the task slug; set `review_model:` to `opus` if `--opus` was
    parsed from $ARGUMENTS, else leave `fable`). This block is machine-read by
    `hooks/scheduler.py`, `commands/status.md`, and `bin/feature.sh` — byte-faithful:

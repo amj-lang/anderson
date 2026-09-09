@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.36.2-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.37.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -566,24 +566,28 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
 
 ## Changelog
 
-- **0.36.2** — **Fleet: `h` shows the hidden rows** (flagged `◌`, dim, counted in the header); `b` on one brings it
+- **0.37.0** — **State first.** `/anderson:start` now seeds `feature-research/<task>/state.md` in a shell preamble,
+before the model reads a single line, so the fleet row (task, ARCHITECT, plan 0/2) appears within two seconds
+instead of after the planner warms up. New `feature.sh seed [--opus] <task>` does exactly that and nothing else
+(idempotent: an existing state.md is left alone).
+- **0.37.0** — **Fleet: `h` shows the hidden rows** (flagged `◌`, dim, counted in the header); `b` on one brings it
 back. A few footer keys wear a marker so the eye finds them: 🔴 kill · 🔵 hide · 👻 hidden · 🔔 notify ·
 🔊 sound · 🎵 ring · 🔍 filter · 🎨 theme (unicode terminals only; `--ascii` stays plain).
-- **0.36.2** — **Fleet: kill hides, hide never kills.** `r` (kill, asks first) now hides the row as soon as the signal
+- **0.37.0** — **Fleet: kill hides, hide never kills.** `r` (kill, asks first) now hides the row as soon as the signal
 is out; `b` hides any row, live or dead, without touching the process (a hidden live session stays hidden).
 Footer says `r kill · b hide`; the pills live on in the manual and the toasts.
-- **0.36.2** — **Fleet: the footer moves to the floor.** Keys and usage now sit on the last lines of the terminal, each on
+- **0.37.0** — **Fleet: the footer moves to the floor.** Keys and usage now sit on the last lines of the terminal, each on
 its own line (keys wrap between groups, never truncate; usage reads alone). The detail card keeps the whole middle.
 New `agents` line in the card: how many subagents the session sent, how many are running, and the last one
 (`4 sent · 1 running · last anderson:reviewer "Diff-review AR-2598" (fable)`), read from the transcript's
 `subagents/` folder.
-- **0.36.2** — `fleet --play all` auditions every ring sound from the shell (`--play NAME` for one); `--rings` says so.
-- **0.36.2** — **Fleet: pick your ring.** Seven bundled sounds in `assets/sounds/` (phone, the Matrix call, stays the default;
+- **0.37.0** — `fleet --play all` auditions every ring sound from the shell (`--play NAME` for one); `--rings` says so.
+- **0.37.0** — **Fleet: pick your ring.** Seven bundled sounds in `assets/sounds/` (phone, the Matrix call, stays the default;
 plus snare, hitech, freeze, blip, rift, jump, each cut to its loudest ≤2.5 s and normalized). `s` cycles with a
 preview and saves the pick, `--ring NAME` / `--rings` from the shell, and any `.wav` you drop in
 `~/.claude/fleet/sounds/` joins the list by name. `~/.claude/fleet/ring.wav` still overrides everything.
 Licenses in `assets/NOTICE.md`.
-- **0.36.2** — **Fleet: one process, one row.** Headless `claude -p` children spawned inside a session (reviewers, hooks) no longer show up as a second session of the same repo, and after `/clear` or `/resume` only the process's current session id is listed.
+- **0.37.0** — **Fleet: one process, one row.** Headless `claude -p` children spawned inside a session (reviewers, hooks) no longer show up as a second session of the same repo, and after `/clear` or `/resume` only the process's current session id is listed.
 - **0.34.3** — **Fleet: room to breathe.** With 16 or more free lines the detail card goes airy:
   blank lines between the three groups (task · who · verdicts │ status · context · where │ prompt ·
   last · next), an 11-cell label column, and `last` wraps to two lines instead of truncating. Ten to

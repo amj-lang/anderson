@@ -6,6 +6,8 @@
 # `claude` CLI on PATH. Run from your repo root.
 #
 #   ./feature.sh start <task> "<goal>" [--opus]   # plan -> plan_review, halt
+#   ./feature.sh seed [--opus] <task> ...   # only write state.md (idempotent); /anderson:start runs it
+#                                           # first so the fleet monitor shows the row before the planner
 #   ./feature.sh --approve-plan <task>      # implement -> diff_review, halt
 #   ./feature.sh --approve-diff <task>      # ship: branch + commit + push + PR (guarded)
 #   ./feature.sh --rework <task>            # loop implement on checker findings
@@ -13,6 +15,9 @@
 # the choice persists in state.md, so the review model carries across the resumed sub-commands.
 set -euo pipefail
 ROOT="feature-research"; slug="${2:-}"
+if [ "${1:-}" = "seed" ]; then           # seed [--opus] <slug> [goal words…]: slug = first non-flag word
+  slug=""; for _a in "${@:2}"; do case "$_a" in --*) ;; *) slug="$_a"; break ;; esac; done
+fi
 # Task key = last `/`-segment: a pasted branch name (Linear: user/ar-123-title) keeps the state
 # dir flat, which is what the statusline, scheduler and fleet monitor glob. The full slug, when it
 # had a `/`, is recorded as `branch:` and used verbatim at ship time.
@@ -130,9 +135,12 @@ ship() {
 }
 
 case "${1:-}" in
+  seed)          [ -n "$slug" ] || { echo "seed: no task slug given"; exit 64; }
+                 if [ -f "$state" ]; then echo "state: $state already there (stage $(get stage), review_model $(rmodel))"
+                 else seed_state; echo "state: $state seeded (stage plan, review_model $RM_SEED)${BRANCH_SEED:+, branch $BRANCH_SEED}"; fi;;
   start)         goal="${3:?need a goal}"; seed_state; set_field task "$task"; plan; plan_review;;
   --approve-plan) set_field plan_verdict ship; set_field gate none; implement; diff_review;;
   --approve-diff) ship;;
   --rework)      implement; diff_review;;
-  *) echo "usage: feature.sh start <task> \"<goal>\" | --approve-plan <task> | --approve-diff <task> | --rework <task>"; exit 64;;
+  *) echo "usage: feature.sh start <task> \"<goal>\" | seed [--opus] <task> | --approve-plan <task> | --approve-diff <task> | --rework <task>"; exit 64;;
 esac

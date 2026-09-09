@@ -47,5 +47,31 @@ class TestSlugWithSlash(unittest.TestCase):
         self.assertEqual(head, "amcleanjanet/ar-2587-ui-polish")
 
 
+class TestSeed(TestSlugWithSlash):
+    """`feature.sh seed`: state.md first, idempotent, flag-tolerant; what /anderson:start runs as its preamble."""
+    def test_seed_writes_state_and_gitignore_without_running_anything(self):
+        r = self.run_feature("seed", "amcleanjanet/ar-9-thing", "make", "it", "so")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("seeded", r.stdout)
+        t = (self.repo / "feature-research" / "ar-9-thing" / "state.md").read_text()
+        self.assertIn("stage:           plan\n", t); self.assertIn("branch:          amcleanjanet/ar-9-thing\n", t)
+        self.assertIn("feature-research/", (self.repo / ".gitignore").read_text())
+        self.assertFalse((self.repo / "feature-research" / "ar-9-thing" / "run.log").exists())   # no claude call
+
+    def test_seed_is_idempotent_and_keeps_progress(self):
+        self.run_feature("seed", "t1")
+        state = self.repo / "feature-research" / "t1" / "state.md"
+        state.write_text(state.read_text().replace("stage:           plan", "stage:           grill"))
+        r = self.run_feature("seed", "t1")
+        self.assertIn("already there (stage grill", r.stdout)
+        self.assertIn("stage:           grill", state.read_text())
+
+    def test_seed_opus_flag_anywhere_in_the_first_words(self):
+        r = self.run_feature("seed", "--opus", "t2")
+        self.assertIn("review_model opus", r.stdout)
+        self.assertIn("review_model:    opus", (self.repo / "feature-research" / "t2" / "state.md").read_text())
+        self.assertEqual(self.run_feature("seed", "--opus").returncode, 64)
+
+
 if __name__ == "__main__":
     unittest.main()
