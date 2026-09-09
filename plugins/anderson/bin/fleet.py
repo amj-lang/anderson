@@ -21,6 +21,7 @@ Operator watching the screens.
     python3 bin/fleet.py --notify      # desktop notification when a session starts ringing (saved)
     python3 bin/fleet.py --sound       # the ring plays when a session starts waiting (saved; --no-sound)
     python3 bin/fleet.py --ring snare  # pick the ring sound (--rings lists them; `s` cycles in the TUI)
+    python3 bin/fleet.py --play all    # audition every bundled sound in a row (--play NAME for one)
     python3 bin/fleet.py --editor code # what opens plan.md / audit.md on `o` or at a gate (saved)
 
 Data, richest first, each optional (the view degrades, never breaks):
@@ -1856,6 +1857,25 @@ def main(argv):
     if "--rings" in args:
         for n in sound_names():
             print(f"  {n:8} {'◂ current' if n == RING else ''}  {sound_file(n)}")
+        print("  hear one: fleet --play NAME   ·   pick: fleet --ring NAME   ·   in the TUI: s")
+        return 0
+    if "--play" in args:
+        i = args.index("--play")
+        name = args[i + 1] if len(args) > i + 1 and not args[i + 1].startswith("-") else RING
+        if name != "all":
+            names = [name]
+        else:
+            names = sound_names()
+        for n in names:
+            f = sound_file(n)
+            if not f:
+                print(f"no sound named '{n}'  (fleet --rings lists them)"); return 1
+            print(f"  ▶ {n}")
+            for player in (["afplay"], ["paplay"], ["aplay", "-q"]):
+                if shutil.which(player[0]):
+                    subprocess.run(player + [f]); break
+            else:
+                print("no player found (afplay / paplay / aplay)"); return 1
         return 0
     PLAIN = prefs["plain"]
     if theme in THEMES and "--selftest" not in args and "--once" not in args:
@@ -1882,4 +1902,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    sys.exit(main(sys.argv) or 0)
