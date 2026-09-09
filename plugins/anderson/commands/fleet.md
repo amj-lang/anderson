@@ -28,7 +28,7 @@ curses, zero tokens); this command only installs the launcher and tells the huma
             ☎ waits on you   ▶ working   ✝ process gone   ⟲ rework loop
             ▲ ARCHITECT · ◇ INTERROGATOR · ◎ ORACLE · ● NEO · ▣ AGENT SMITH · ★ THE ONE · ○ no pipeline
 
-  keys:     ↑↓ tune · 1-9 / ⏎ jack in · w oldest waiting · r kill (asks) · b dismiss dead
+  keys:     ↑↓ tune · 1-9 / ⏎ jack in · w oldest waiting · r kill (asks; hides the row) · b hide row
             c copy `claude --resume` for the row · n desktop notification on ring
             m sound on/off · s next ring sound (phone · snare · hitech · freeze · blip · rift · jump;
               fleet --play all auditions them, --ring NAME picks, own .wav in ~/.claude/fleet/sounds/)

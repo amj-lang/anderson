@@ -107,5 +107,28 @@ class TestSubagents(unittest.TestCase):
         self.assertNotIn("agents", " ".join(ln for _, ln in fleet.detail_card(r, 140, "", 0, airy=True)))
 
 
+class TestDismiss(unittest.TestCase):
+    def test_hidden_rows_stay_hidden_and_clean_removes_state_files(self):
+        import time
+        with tempfile.TemporaryDirectory() as tmp:
+            old = fleet.FLEET_DIR; fleet.FLEET_DIR = tmp
+            try:
+                for sid, pid in (("live", os.getpid()), ("gone", None)):
+                    json.dump({"session_id": sid, "cwd": tmp, "pid": pid, "ts": time.time()},
+                              open(os.path.join(tmp, sid + ".status.json"), "w"))
+                self.assertEqual(sorted(r["sid"] for r in fleet.discover(include_ps=False)), ["gone", "live"])
+                fleet.dismiss("live")                      # hide, keep files (a running session keeps writing them)
+                fleet.dismiss("gone", clean=True)          # dead row: files go too
+                self.assertTrue(os.path.exists(os.path.join(tmp, "live.status.json")))
+                self.assertFalse(os.path.exists(os.path.join(tmp, "gone.status.json")))
+                self.assertEqual(fleet.discover(include_ps=False), [])
+            finally:
+                fleet.FLEET_DIR = old
+
+    def test_footer_uses_plain_words(self):
+        foot = " ".join(ln for k, ln in fleet.footer(fleet.demo_rows(), 160) if k == "foot")
+        self.assertIn("r kill", foot); self.assertIn("b hide", foot); self.assertNotIn("pill", foot)
+
+
 if __name__ == "__main__":
     unittest.main()

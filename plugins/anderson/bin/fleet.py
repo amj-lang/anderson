@@ -31,8 +31,8 @@ Data, richest first, each optional (the view degrades, never breaks):
   <repo>/feature-research/*/state.md  anderson stage/verdicts/iteration -> persona
   ps + lsof + tmux                    sessions with no hooks at all, and the pane to jack into
 
-Keys: ↑↓/jk tune · ⏎ jack in (tmux) · w white rabbit (oldest ring) · r red pill (kill)
-      b blue pill (dismiss sentinel) · / filter · t theme · p wording · ? manual · q
+Keys: ↑↓/jk tune · ⏎ jack in (tmux) · w white rabbit (oldest ring) · r kill (row hidden too)
+      b hide the row (process untouched) · / filter · t theme · p wording · ? manual · q
 Prefs (theme, wording, motion) persist in ~/.claude/fleet/prefs.json.
 """
 import glob, json, os, random, re, shutil, signal, subprocess, sys, time, unicodedata
@@ -394,6 +394,20 @@ def _pane_for(pid, parents, panes):
             return panes[pid]
         pid = parents[pid]; seen += 1
     return (None, None)
+
+
+def dismiss(sid, clean=False):
+    """Hide a session from the list for good (~/.claude/fleet/dismissed). clean=True also removes its
+    heartbeat/event files, for rows whose process is gone."""
+    try:
+        os.makedirs(FLEET_DIR, exist_ok=True)
+        with open(os.path.join(FLEET_DIR, "dismissed"), "a") as f:
+            f.write(sid + "\n")
+        if clean:
+            for f in glob.glob(os.path.join(FLEET_DIR, sid + ".*.json")):
+                os.remove(f)
+    except Exception:
+        pass
 
 
 def discover(include_ps=True):
@@ -994,9 +1008,9 @@ def footer(rows, W, filt=""):
     d = G["det"]
     fleet = sum(r["cost"] or 0 for r in rows)
     lim = usage_limits()
-    keys = ("↑↓ tune · 1-9/⏎ jack in · o open plan · w rabbit · r red pill · b blue pill · c resume · "
+    keys = ("↑↓ tune · 1-9/⏎ jack in · o open plan · w rabbit · r kill · b hide · c resume · "
             "n notify · m sound · s ring · $ cost · +/- zoom · / filter · t theme · p wording · ? manual · q quit") \
-        if G is not ASCII else ("jk tune · 1-9/enter jack in · o open plan · w rabbit · r red pill · b blue pill · c resume · "
+        if G is not ASCII else ("jk tune · 1-9/enter jack in · o open plan · w rabbit · r kill · b hide · c resume · "
                                 "n notify · m sound · s ring · $ cost · +/- zoom · / filter · t theme · p wording · ? manual · q quit")
     if filt:
         keys = f"/{filt}_   (esc clears)"
@@ -1006,7 +1020,7 @@ def footer(rows, W, filt=""):
         usage = f"{THEME['name']} · api est ${fleet:.2f}"
     out = [("rule", rule(W))]
     kw, groups = W - dw(d) - 1, keys.split(" · ")
-    optional = ["$ cost", "+/- zoom", "p wording", "t theme", "c resume", "o open plan", "w rabbit", "b blue pill", "r red pill"]
+    optional = ["$ cost", "+/- zoom", "p wording", "t theme", "c resume", "o open plan", "w rabbit", "b hide", "r kill"]
     while True:
         klines, cur = [], ""
         for grp in groups:                       # wrap between key groups, never inside one
@@ -1125,8 +1139,8 @@ MANUAL = """
                            iTerm2 / Terminal.app tab that owns the session, else bring the
                            owning app forward (WebStorm / VS Code / Cursor integrated terminals)
   w         white rabbit   jump to the oldest ringing session
-  r         red pill       kill the session's process (asks first)
-  b         blue pill      dismiss a sentinel row
+  r         red pill       kill the session's process (asks first); the row is hidden with it
+  b         blue pill      hide the row, any row; the process is left alone
   /         filter         substring on repo · task ; esc clears
   t         theme          matrix · construct · zion · nebuchadnezzar · agent (saved)
   p         wording        Matrix lingo (zion · jacked in · ringing · sentinel) or plain (saved)
@@ -1387,7 +1401,6 @@ def run_tui(args):
     demo = "--demo" in args
     intro = "--no-intro" not in args
     calm = load_prefs()["calm"]
-    dismissed_path = os.path.join(FLEET_DIR, "dismissed")
     tty = _own_tty()
     zoom = {"size": load_prefs()["zoom"], "orig": None}
     if zoom["size"]:
@@ -1540,7 +1553,9 @@ def run_tui(args):
                     r = rows[sel]
                     if r["pid"]:
                         try:
-                            os.kill(int(r["pid"]), signal.SIGTERM); say(f"red pill: SIGTERM → pid {r['pid']}")
+                            os.kill(int(r["pid"]), signal.SIGTERM)
+                            dismiss(r["sid"]); last_scan = 0
+                            say(f"red pill: SIGTERM → pid {r['pid']} · row hidden")
                         except Exception as e:
                             say(f"red pill failed: {e}")
                     else:
@@ -1581,19 +1596,11 @@ def run_tui(args):
                 if rows:
                     confirm = f"red pill: kill {rows[sel]['repo']} · {rows[sel]['task'] or rows[sel]['sid'][:8]} ?  How far down does the rabbit hole go? [y/N]"
             elif k == ord("b"):
-                if rows and rows[sel]["status"] == "sentinel":
-                    sid = rows[sel]["sid"]
-                    try:
-                        os.makedirs(FLEET_DIR, exist_ok=True)
-                        with open(dismissed_path, "a") as f:
-                            f.write(sid + "\n")
-                        for p in glob.glob(os.path.join(FLEET_DIR, sid + ".*.json")):
-                            os.remove(p)
-                    except Exception:
-                        pass
-                    say("blue pill. you wake up in your bed and believe whatever you want to."); last_scan = 0
-                elif rows:
-                    say("the blue pill is for sentinels only.")
+                if rows:
+                    r = rows[sel]
+                    dismiss(r["sid"], clean=r["status"] == "sentinel"); last_scan = 0
+                    live = "" if r["status"] == "sentinel" else " (the session keeps running)"
+                    say(f"blue pill: row hidden{live}. you wake up in your bed and believe whatever you want to.", 5)
             elif k == ord("t"):
                 nxt = THEME_ORDER[(THEME_ORDER.index(THEME["name"]) + 1) % len(THEME_ORDER)]
                 set_theme(nxt, calm); save_prefs(theme=nxt); prev = None
