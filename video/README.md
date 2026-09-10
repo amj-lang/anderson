@@ -19,6 +19,15 @@ way to check a scene without waiting for a full render.
 
 `public/` holds copies of the stills and sounds, because Remotion only serves files from there.
 
+The repo README's two explainer stills come from this film, so the copy can never drift from it:
+
+```
+npx remotion still Anderson ../assets/premise.png   --frame=180   # scene 2, Premise
+npx remotion still Anderson ../assets/two-gates.png --frame=575   # scene 4, GateBeat
+cd ../assets && sips -c 560 1920 premise.png --out premise.png    # trim the dead space (frames move when `S` changes)
+                sips -c 360 1920 two-gates.png --out two-gates.png
+```
+
 ## The cut list
 
 Scene lengths live in one object at the top of `src/Anderson.tsx` (`S`), and the composition's
