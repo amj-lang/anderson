@@ -28,6 +28,7 @@ Print in exactly this order (sub-bullet = quote pool to pick from):
         criteria 5 (2 ticket · 2 design · 1 derived) · proof: 3 test · 1 visual · 1 e2e
         assumptions: 2 load-bearing · all confirmed ✓   (each criterion has its own proof)
         scorecard: Risk 4 · Confidence 8 · Coupling 3 · Reversibility 9
+        tier NORMAL · plan_review fable/high · implement sonnet/medium · diff_review fable/medium
         verdict ship → /anderson:approve-plan demo-task — or "approved, go"
 
 ╭─ ⌐■-■  IMPLEMENT · 4/5 · NEO · sonnet/medium

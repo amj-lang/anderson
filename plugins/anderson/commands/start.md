@@ -50,6 +50,13 @@ faces CI, the implementer's tests, and your Gate 2 read.
 Never `max` (buys +0.6 points for +20k tokens) and never `low` (quality falls off a cliff below
 medium). The usable band is medium → xhigh.
 
+TIER LINE: the tier and the crew it summons are never implicit. Whenever the tier is computed or
+re-computed, rewrite the `**Tier:**` line under `## 📈 Scorecard` in plan.md to exactly:
+  `**Tier:** <TIER> — plan_review <review_model>/<effort or "skipped"> · implement sonnet/medium · diff_review <review_model>/<effort>`
+(models: planner is always opus/high and already ran; `<review_model>` is state.md `review_model`
+— fable, or opus with `--opus`.) The same line is echoed on the Gate 1 card, so you see the bill
+before you approve it. `/anderson:approve-plan` and `/anderson:rework` rewrite it on re-tier.
+
 BANNER RULE: finish setup and state.md edits, then print the banner as the last line before
 the agent call.
 
@@ -198,7 +205,8 @@ run in parallel and the reviewer judges files that don't exist yet.
      stage=plan_review and continue to the reviewer.
 5. ROUTE — read the `## 📈 Scorecard` Planner column from plan.md (Risk, Coupling, Confidence,
    Testability) and compute the tier per TIER above. Write `tier: <t>` to state.md. Then read the
-   PLAN_REVIEW row of the REVIEW EFFORT table for `<review_effort>`.
+   PLAN_REVIEW row of the REVIEW EFFORT table for `<review_effort>`. Rewrite the plan.md
+   `**Tier:**` line per TIER LINE (one Edit) before either branch below.
 
    TRIVIAL SHORTCUT: if `tier: trivial`, SKIP the plan-reviewer entirely — a trivial plan you have
    already grilled does not earn a critique. Set `plan_verdict: skipped-trivial`, print
@@ -225,6 +233,7 @@ run in parallel and the reviewer judges files that don't exist yet.
            criteria <N> (<t> ticket · <d> design · <x> derived · <n> contract) · proof: <a> test · <b> visual · <c> e2e · <p> contract · <m> manual
            assumptions: <n> load-bearing · all confirmed ✓   (each criterion has its own proof)
            scorecard: Risk <r> · Confidence <c> · Coupling <k> · Reversibility <v>
+           tier <TIER> · plan_review <review_model>/<effort or "skipped"> · implement sonnet/medium · diff_review <review_model>/<effort>
            verdict <plan_verdict> → /anderson:approve-plan <task> — or "approved, go" · full plan: feature-research/<task>/plan.md
    ```
    Halt is unconditional even on a ship verdict. GATE-BLOCK RULE: the gate is not approvable while

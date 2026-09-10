@@ -25,7 +25,8 @@ Then read the effort off it:
   | critical | xhigh              |
 Missing or `pending` tier (a pipeline started before tiering existed) → treat as `hard`. Never
 `max`, never `low`. Pass the resolved value as the per-invocation effort override and print it as
-`<review_effort>` in the banner.
+`<review_effort>` in the banner. Rewrite the plan.md `**Tier:**` line per approve-plan.md's
+TIER LINE, so the plan shows the tier and crew this round actually used.
 
 BANNER RULE: finish setup and state.md edits, then print the banner as the last line before
 the agent call. Both stages get one — IMPLEMENT before the implementer, DIFF_REVIEW before

@@ -109,6 +109,9 @@ executable can cover it). Leave Evidence `—`; the implementer fills it.>
 absent list is a defect; if you can't bound it, say so and stop).
 
 ## 📈 Scorecard
+**Tier:** `pending` — routing computes it from this table and rewrites this line with the
+crew it summons (never guess it yourself; the tier is not yours to set).
+
 Score each 0–10 against the anchors; one line of justification each. The PLANNER fills the
 "Planner" column. The PLAN-REVIEWER fills the "Reviewer" column independently in this SAME
 table (do not start a second scorecard) and reconciles any gap ≥ 3 inline + in `## 🔭 Review`.
