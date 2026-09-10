@@ -32,7 +32,7 @@ Data, richest first, each optional (the view degrades, never breaks):
   <repo>/feature-research/*/state.md  anderson stage/verdicts/iteration -> persona
   ps + lsof + tmux                    sessions with no hooks at all, and the pane to jack into
 
-Keys: ↑↓/jk tune · ⏎ jack in (tmux) · w white rabbit (oldest ring) · r kill (row hidden too)
+Keys: ↑↓/jk tune · ⏎ jack in (revive, if dead) · w white rabbit (oldest ring) · r kill (row hidden too)
       b hide the row (process untouched) · h show hidden · / filter · t theme · p wording · ? manual · q
 Prefs (theme, wording, motion) persist in ~/.claude/fleet/prefs.json.
 """
@@ -985,7 +985,7 @@ def next_step(r):
     """What the human does next for this row, in one line."""
     st, gate, task = r.get("stage") or "", r.get("gate") or "", r.get("task") or ""
     if r["status"] == "sentinel":
-        return "c copies the resume command · b dismisses the row"
+        return "⏎ revives it in a new terminal · c copies the command · b dismisses the row"
     if st == "grill":
         return "answer the interrogation in the session (⏎), it hardens plan.md"
     if st == "plan_review" and gate == "human":
@@ -1281,7 +1281,8 @@ MANUAL = """
   a         agent log      page the newest subagent's transcript as a readable log (its words,
                            the tools it called, a line of each result); running ones first. The card
                            lists running subagents live (↳ type "task" · ▶ tool · age) on tall terminals
-  c         resume         copy `cd <cwd> && claude --resume <sid>` (bring a sentinel back)
+  c         resume         copy `cd <cwd> && claude --resume <sid>` (⏎ on a sentinel runs it for
+                           you: a new tmux window, else a new iTerm2 / Terminal.app window)
   m         sound          on/off (saved): the picked sound plays when a session starts waiting
   s         ring sound     next sound, previewed and saved: phone (the Matrix call) · snare ·
                            hitech · freeze · blip · rift · jump. --ring NAME picks, --rings lists.
@@ -1292,7 +1293,8 @@ MANUAL = """
                            reliable banners; clicking one brings this terminal forward
   ⏎         jack in        tmux: switch to that pane · macOS without tmux: focus the
                            iTerm2 / Terminal.app tab that owns the session, else bring the
-                           owning app forward (WebStorm / VS Code / Cursor integrated terminals)
+                           owning app forward (WebStorm / VS Code / Cursor integrated terminals).
+                           On a sentinel: revive it in a new window already running its resume
   w         white rabbit   jump to the oldest ringing session
   r         red pill       kill the session's process (asks first); the row is hidden with it
   b         blue pill      hide the row, any row; the process is left alone. On a hidden row: un-hide
@@ -1470,6 +1472,47 @@ def copy_resume(r):
             except Exception:
                 break
     return f"resume with: {cmd}"
+
+
+NEW_WINDOW_ITERM = """tell application "iTerm2"
+	activate
+	set w to (create window with default profile)
+	tell current session of w to write text "{cmd}"
+end tell"""
+
+NEW_WINDOW_TERMINAL = """tell application "Terminal"
+	activate
+	do script "{cmd}"
+end tell"""
+
+
+def revive(r):
+    """A sentinel has no terminal left to jack into, so give it one: a new window already running
+    `cd <cwd> && claude --resume <sid>`. tmux first, else AppleScript on the terminal that can take
+    a command; anywhere else the command still lands on the clipboard."""
+    cmd = resume_cmd(r)
+    if not cmd:
+        return "no session id for that row."
+    if os.environ.get("TMUX"):
+        try:
+            subprocess.run(["tmux", "new-window", cmd], timeout=5, check=True)
+            return "Operator. resumed in a new tmux window."
+        except Exception as e:
+            return f"revive failed: {e}  ·  {copy_resume(r)}"
+    if sys.platform == "darwin":
+        app = "iTerm2" if os.environ.get("TERM_PROGRAM") == "iTerm.app" else "Terminal"
+        tmpl = NEW_WINDOW_ITERM if app == "iTerm2" else NEW_WINDOW_TERMINAL
+        # the shell sees cmd verbatim; only the AppleScript string literal needs escaping
+        script = tmpl.replace("{cmd}", cmd.replace("\\", "\\\\").replace('"', '\\"'))
+        try:
+            rc = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=15)
+            if rc.returncode == 0:
+                return f"Operator. resumed in a new {app} window."
+            return f"revive failed: {rc.stderr.strip() or 'osascript'}  ·  {copy_resume(r)}"
+        except Exception as e:
+            return f"revive failed: {e}  ·  {copy_resume(r)}"
+    # ponytail: no portable "open a new terminal window" off macOS/tmux. Add one if someone asks on Linux.
+    return copy_resume(r)
 
 
 # ──────────────────────────────────────────────────────── open the gate artifact
@@ -2155,8 +2198,8 @@ def jack_in(r):
         except Exception as e:
             return f"jack in failed: {e}"
     if r.get("status") == "sentinel":
-        # The process is gone: there is no terminal left to move to, whatever the row still shows.
-        return "that session's process is gone. c copies its `claude --resume`, b hides the row."
+        # The process is gone: there is no terminal to move to, so open one that resumes the session.
+        return revive(r)
     tty = _tty_of(r.get("pid")) if r.get("pid") else None
     landed = _focus_tty(tty) if tty else None
     if landed == "ok":

@@ -31,7 +31,7 @@ curses, zero tokens); this command only installs the launcher and tells the huma
             ▲ ARCHITECT · ◇ INTERROGATOR · ◎ ORACLE · ● NEO · ▣ AGENT SMITH · ★ THE ONE · ○ no pipeline
 
   keys:     ↑↓ tune · 1-9 / ⏎ jack in · w oldest waiting · r kill (asks; hides the row) · b hide row · h show hidden
-            c copy `claude --resume` for the row · n desktop notification on ring (skipped, with the
+            ⏎ on a sentinel revives it in a new terminal · c copy `claude --resume` · n desktop notification on ring (skipped, with the
               sound, when that session's terminal is already frontmost; fleet --ping tests the banner)
             m sound on/off · s next ring sound (phone · snare · hitech · freeze · blip · rift · jump;
               fleet --play all auditions them, --ring NAME picks, own .wav in ~/.claude/fleet/sounds/)
