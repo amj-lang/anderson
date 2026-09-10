@@ -1,6 +1,6 @@
 # anderson promo video (Remotion)
 
-A ~40 s film of the anderson loop and the fleet terminal. Built with [Remotion](https://www.remotion.dev):
+A ~44 s film of the anderson loop and the fleet terminal. Built with [Remotion](https://www.remotion.dev):
 React components rendered frame by frame, so every number, banner and key legend on screen is text
 in source, not a hand-drawn mock.
 
@@ -23,9 +23,9 @@ The repo README's two explainer stills come from this film, so the copy can neve
 
 ```
 npx remotion still Anderson ../assets/premise.png   --frame=180   # scene 2, Premise
-npx remotion still Anderson ../assets/two-gates.png --frame=575   # scene 4, GateBeat
+npx remotion still Anderson ../assets/philosophy.png --frame=1155  # scene 8, Philosophy
 cd ../assets && sips -c 560 1920 premise.png --out premise.png    # trim the dead space (frames move when `S` changes)
-                sips -c 360 1920 two-gates.png --out two-gates.png
+                sips -c 560 1920 philosophy.png --out philosophy.png
 ```
 
 ## The cut list
@@ -42,7 +42,8 @@ duration is derived from it, so a scene cannot silently run past the end of the 
 | 5 | `Fleet` | the real `fleet` board, with three short callouts |
 | 6 | `Ring` | a ringing row plus the desktop banner, over the actual ring sound |
 | 7 | `JackIn` | ⏎ and you are in that session, which is parked at GATE 2 |
-| 8 | `Close` | repo, licence |
+| 8 | `Philosophy` | read less code, judge more intent: the job that is left, and where it happens |
+| 9 | `Close` | repo, licence |
 
 One idea per scene, on purpose: the readme is where the detail lives, and a feed video that has to be
 paused to be read does not get watched.

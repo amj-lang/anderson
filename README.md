@@ -19,6 +19,8 @@ One task in, one reviewed pull request out.
 
 ## Philosophy
 
+![read less code. judge more intent.](assets/philosophy.png)
+
 The job is changing. You will read less code and judge more intent.
 
 Evaluate the plan and the design. Answer the ambiguity a model cannot resolve on its own. Then prove the result: scan what came out, run it, test it by hand.
