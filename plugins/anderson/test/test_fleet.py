@@ -1,7 +1,7 @@
 """stdlib unittest for bin/fleet.py (THE OPERATOR), bin/heartbeat.py, hooks/fleet_event.py.
 Alignment is the invariant: every rendered line is exactly the terminal width, at any width,
 with any content (CJK, accents, emoji, empty, overlong)."""
-import importlib.util, json, os, pathlib, subprocess, tempfile, time, unittest
+import importlib.util, json, os, pathlib, subprocess, sys, tempfile, time, unittest
 
 BIN = pathlib.Path(__file__).resolve().parents[1] / "bin"
 HOOKS = pathlib.Path(__file__).resolve().parents[1] / "hooks"
@@ -303,10 +303,42 @@ class TestJackIn(unittest.TestCase):
         finally:
             fleet._focused_now = old
 
-    def test_jack_in_on_a_dead_row_says_the_process_is_gone(self):
+    def test_jack_in_on_a_dead_row_with_no_session_id_has_nothing_to_revive(self):
         msg = fleet.jack_in({"tmux_pane": None, "pid": 999999, "status": "sentinel"})
-        self.assertIn("process is gone", msg)
+        self.assertIn("no session id", msg)
         self.assertNotIn("tmux", msg)
+
+    def test_jack_in_on_a_dead_row_revives_it_in_a_new_window(self):
+        """⏎ on a sentinel opens a terminal already running its resume command, rather than
+        telling you to paste one."""
+        row = {"tmux_pane": None, "pid": 999999, "status": "sentinel",
+               "sid": "abcdef12-3456-7890-abcd-ef1234567890", "cwd": "/tmp/some repo"}
+        old_run, old_env, calls = fleet.subprocess.run, os.environ.get("TMUX"), []
+
+        class Ok:
+            returncode, stderr = 0, ""
+
+        def fake_run(cmd, **kw):
+            calls.append(cmd)
+            return Ok()
+        try:
+            fleet.subprocess.run = fake_run
+            os.environ["TMUX"] = "/tmp/tmux-0/default,1,0"
+            self.assertIn("Operator", fleet.jack_in(row))
+            self.assertEqual(calls[0][:2], ["tmux", "new-window"])
+            self.assertIn("claude --resume abcdef12-3456-7890-abcd-ef1234567890", calls[0][2])
+            self.assertIn("'/tmp/some repo'", calls[0][2])         # a cwd with a space survives
+
+            calls.clear(); os.environ.pop("TMUX")
+            if sys.platform == "darwin":
+                self.assertIn("Operator", fleet.jack_in(row))
+                self.assertEqual(calls[0][0], "osascript")
+                self.assertIn("claude --resume", calls[0][2])
+        finally:
+            fleet.subprocess.run = old_run
+            os.environ.pop("TMUX", None)
+            if old_env is not None:
+                os.environ["TMUX"] = old_env
 
     def test_focus_scripts_activate_before_reordering_windows(self):
         """The app has to be frontmost before its window order is changed, or its own front window

@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.40.4-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.41.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -587,6 +587,11 @@ missing; `fleet install --extras` installs the first two, `--with-tmux` the thir
 
 ## Changelog
 
+- **0.41.0** — **Fleet: ⏎ revives a sentinel.** A dead row had nothing to jack into, so 0.40.2 told
+you to press `c` and paste the command yourself. Now `⏎` gives that session a terminal: a new tmux
+window when fleet runs under tmux, else a new iTerm2 / Terminal.app window (AppleScript), already
+running `cd <cwd> && claude --resume <sid>`. `c` still copies, and off macOS/tmux — or when
+AppleScript is refused — revive falls back to that copy with the reason.
 - **0.40.4** — **Fleet: the AXRaise fallback goes.** 0.40.2 retried a failed raise through System
 Events AXRaise. Measured against a real cross-Space window it never helped: AXRaise cannot pull a
 window off another Space, and aiming it needs a window title, which in Terminal carries the running
