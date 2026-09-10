@@ -5,22 +5,25 @@
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
-![anderson booting: digital rain resolving into the sigil](assets/anderson-demo.gif)
+![four agents. two human gates. one pull request.](assets/premise.png)
 
-A [Claude Code](https://claude.com/claude-code) plugin. Four subagents (planner, plan reviewer, implementer, independent diff reviewer) plan, grill, build and review each other's work, then stop at two human gates before anything ships.
+A [Claude Code](https://claude.com/claude-code) plugin, Matrix themed, that spawns a crew of agents sized to the task and stops to make you resolve the ambiguity it cannot.
 
 One task in, one reviewed pull request out.
 
-![four agents. two human gates. one pull request.](assets/premise.png)
-
 ## Why
 
-![both gates halt: green is not understood](assets/two-gates.png)
+- **Several features at once.** Each task is its own agent crew with its own state on disk, and `fleet` watches all of them from one terminal.
+- **A higher one-shot success rate.** The plan gets grilled by you and torn apart by a second model before a line of code exists, so the implementation lands right the first time instead of on the third rework.
+- **The human in the loop only where it counts.** Two gates, on the plan and on the diff. Everything between them runs without you.
 
-- **The maker never grades its own homework.** Separate reviewer roles with fresh context, not one mega-prompt that plans, codes and approves itself.
-- **Two human gates halt even on a `ship` verdict.** Green is not the same as understood.
-- **Each stage runs at its own model and effort.** A one-line fix does not pay opus prices.
-- **State lives on disk.** Stop at a gate, come back days later, resume where you left off.
+## Philosophy
+
+The job is changing. You will read less code and judge more intent.
+
+Evaluate the plan and the design. Answer the ambiguity a model cannot resolve on its own. Then prove the result: scan what came out, run it, test it by hand.
+
+That work does not need an IDE. It needs a terminal.
 
 ## Install & run
 
