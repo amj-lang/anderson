@@ -52,7 +52,8 @@ in the existing table's **Reviewer** column (do NOT start a second scorecard —
 two columns, so there is never confusion about which number is current). Where your score
 diverges from the planner's by ≥ 3 on any dimension, reconcile it: keep both numbers in
 their columns and note the divergence + which one stands inline + in `## 🔭 Review`. A missing
-scorecard, or a Reviewer column left blank, is a blocking defect.
+scorecard, or a Reviewer column left blank, is a blocking defect. Leave the `**Tier:**` line
+above the table alone — routing owns it; your re-scores feed the re-tier at the diff gate.
 
 Verify the "🧯 Error handling" section is complete: every site in "Files touched" that can fail
 (I/O, external/network call, parse, nullable input, concurrency, partial write) must have a row,

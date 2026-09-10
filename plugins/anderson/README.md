@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.41.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.42.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -147,9 +147,16 @@ high   [ YOU ]   xhigh (edits)            medium        high* (read-only)
 | implement    | `implementer`  | sonnet | medium | —     | writes `audit.md`                     |
 | diff_review  | `reviewer`     | fable  | high\* | human | diff review appended to `plan.md` `## 🔭 Review` |
 
-\* Diff-review effort is `high` by default and `xhigh` when the plan Scorecard has Risk ≥ 8 or the
-change touches security, auth, memory/resource management, concurrency, or OS/process boundaries
-(auto mode: hard/critical tier). Plan errors are cheap; a critical diff is not.
+\* Review effort is not fixed: both critiques are sized by the **tier** computed from the plan's
+Scorecard (trivial → plan-review skipped + diff medium; normal → high/medium; hard → xhigh/high;
+critical → xhigh/xhigh — see [docs/tiering.md](docs/tiering.md)). `<review_model>` is `fable`, or
+`opus` with `--opus`.
+
+The tier and the crew it summons are printed, never implicit: a `**Tier:** <TIER> — plan_review
+<model>/<effort> · implement sonnet/medium · diff_review <model>/<effort>` line sits under
+`## 📈 Scorecard` in `plan.md`, and the same line is echoed on the Gate 1 card. The re-tier at the
+diff gate rewrites both (with `was <old>` when it escalated), so you always see the bill before you
+approve it.
 
 The agents are **self-contained** — the implementer/reviewer logic is inlined, so
 there is no external skill to install. Per-stage `model` + `effort` switch
@@ -587,6 +594,14 @@ missing; `fleet install --extras` installs the first two, `--with-tmux` the thir
 
 ## Changelog
 
+- **0.42.0** — **The plan states its own price.** The tier decided what the review gates cost and
+which models ran them, but only `state.md` knew it. `plan.md` now carries a `**Tier:** <TIER> —
+plan_review <model>/<effort> · implement sonnet/medium · diff_review <model>/<effort>` line under
+`## 📈 Scorecard` (the planner seeds it `pending`; routing fills it in, the plan-reviewer leaves it
+alone), the Gate 1 card echoes the same line, and the re-tier at the diff gate rewrites both with
+`was <old>` when it escalated — so a silent price change is no longer possible and you see the bill
+before you approve it. Also fixes a stale README footnote that still claimed diff-review effort was
+a fixed `high`/`xhigh` off Risk ≥ 8, which tiering replaced in 0.40.0.
 - **0.41.0** — **Fleet: ⏎ revives a sentinel.** A dead row had nothing to jack into, so 0.40.2 told
 you to press `c` and paste the command yourself. Now `⏎` gives that session a terminal: a new tmux
 window when fleet runs under tmux, else a new iTerm2 / Terminal.app window (AppleScript), already

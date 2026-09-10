@@ -26,6 +26,11 @@ Missing or `pending` tier (a pipeline started before tiering existed) → treat 
 `max`, never `low`. Pass the resolved value as the per-invocation effort override and print it as
 `<review_effort>` in the banner.
 
+TIER LINE: a re-tier that does not show up in the plan is a silent price change. After writing
+`tier:` back to state.md, rewrite the `**Tier:**` line under `## 📈 Scorecard` in plan.md to:
+  `**Tier:** <TIER> — implement sonnet/medium · diff_review <review_model>/<review_effort>`
+and note the escalation inline when the tier changed (`was <old>: <one-line why>`).
+
 BANNER RULE: finish setup and state.md edits, then print the banner as the last line before
 the agent call. Both stages get one — IMPLEMENT before the implementer, DIFF_REVIEW before
 the reviewer.
@@ -58,6 +63,7 @@ run in parallel and the reviewer judges files that don't exist yet.
    ```
    ﾊﾐﾐ 0ｺ1  🔴 G A T E  2 · AWAITING YOU  1ｺ0 ﾐﾐﾊ
      ⌐■-■  criteria <proven>/<N> proven<, failed: #<n> <one-line why> — or " (all)">
+           tier <TIER><, was <old> — or ""> · reviewed by <review_model>/<review_effort>
            verdict <diff_verdict> → read the diff + plan.md ## 🔭 Review, then
            /anderson:approve-diff <task> to ship, or /anderson:rework <task>.
    ```
