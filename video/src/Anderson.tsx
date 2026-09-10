@@ -1,6 +1,6 @@
 import React from 'react';
 import {AbsoluteFill, Audio, interpolate, Sequence, staticFile, useCurrentFrame} from 'remotion';
-import {Close, ColdOpen, FILM_H, FILM_W, Fleet, GateBeat, JackIn, Pipeline, Premise, Ring, STAGES} from './scenes';
+import {Close, ColdOpen, FILM_H, FILM_W, Fleet, GateBeat, JackIn, Philosophy, Pipeline, Premise, Ring, STAGES} from './scenes';
 import {C, MONO} from './theme';
 
 // One place for the cut list, so the composition length and the scenes cannot drift apart.
@@ -12,6 +12,7 @@ const S = {
   fleet: 240,
   ring: 120,
   jackIn: 90,
+  philosophy: 135,
   close: 135,
 };
 
@@ -52,6 +53,7 @@ export const Anderson: React.FC = () => {
       {scene('fleet', <Fleet />)}
       {scene('ring', <Ring />)}
       {scene('jackIn', <JackIn />)}
+      {scene('philosophy', <Philosophy />)}
       {scene('close', <Close />)}
 
       {/* Sound: the plugin's own bundled cuts. wow.wav is jump + rift layered by

@@ -351,7 +351,65 @@ export const JackIn: React.FC = () => {
   );
 };
 
-// ─────────────────────────────────────────────────────────────── 8. close
+// ─────────────────────────────────────────────────────────────── 8. philosophy
+// The three verbs are the job that is left once the agents write the code. Left-aligned on
+// purpose, so this does not read as another centred title card after the gates beat.
+const CREED: {text: string; at: number}[] = [
+  {text: 'evaluate the plan', at: 26},
+  {text: 'answer the ambiguity', at: 42},
+  {text: 'prove the result', at: 58},
+];
+
+export const Philosophy: React.FC = () => {
+  const frame = useCurrentFrame();
+  const {fps} = useVideoConfig();
+  const s = spring({frame, fps, config: {damping: 200}});
+
+  return (
+    <AbsoluteFill style={{background: C.bg, fontFamily: MONO}}>
+      <Rain width={FILM_W} height={FILM_H} opacity={0.08} speed={0.6} />
+      <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center'}}>
+        <div style={{width: 1060}}>
+          <div
+            style={{
+              color: C.white,
+              fontSize: 62,
+              fontWeight: 700,
+              opacity: fadeIn(frame, 0),
+              transform: `scale(${interpolate(s, [0, 1], [0.94, 1])})`,
+            }}
+          >
+            read less code.
+          </div>
+          <div style={{color: C.green, fontSize: 62, fontWeight: 700, opacity: fadeIn(frame, 10)}}>
+            judge more intent.
+          </div>
+
+          {CREED.map((l) => (
+            <div
+              key={l.text}
+              style={{
+                color: C.white,
+                fontSize: 38,
+                marginTop: 22,
+                opacity: fadeIn(frame, l.at),
+                transform: `translateY(${rise(frame, l.at, 14, 14)}px)`,
+              }}
+            >
+              <span style={{color: C.green}}>▸</span> {l.text}
+            </div>
+          ))}
+
+          <div style={{color: C.amber, fontSize: 34, marginTop: 52, opacity: fadeIn(frame, 78)}}>
+            this does not need an IDE. it needs a terminal.
+          </div>
+        </div>
+      </AbsoluteFill>
+    </AbsoluteFill>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────── 9. close
 export const Close: React.FC = () => {
   const frame = useCurrentFrame();
   return (
