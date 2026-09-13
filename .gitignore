@@ -9,3 +9,5 @@ assets/fleet-operator.gif
 video/node_modules/
 video/out/
 .worktrees/
+assets/
+video/

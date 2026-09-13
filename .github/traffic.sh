@@ -7,6 +7,8 @@ set -euo pipefail
 REPO="${REPO:-amj-lang/anderson}"
 OUT="${OUT:-metrics/traffic.json}"
 BADGE="${BADGE:-metrics/badge.json}"
+INSTALLS="${INSTALLS:-metrics/installs.json}"
+INSTALLS_BADGE="${INSTALLS_BADGE:-metrics/installs-badge.json}"
 
 # GitHub's number for *today* grows through the day, and a day eventually falls
 # out of the 14-day window, so a re-run keeps the larger value per field and
@@ -52,3 +54,17 @@ jq -n --argjson t "$total" \
   '{schemaVersion: 1, label: "unique clones", message: ($t | tostring), color: "8A2BE2"}' > "$BADGE"
 
 echo "$OUT: $(jq length "$OUT") days recorded, $total unique clones"
+
+# Installs, counted by the plugin itself: every release carries a one-byte
+# `ping` asset that the SessionStart hook fetches once per version per machine,
+# and GitHub publishes download_count per asset. Cumulative and authoritative,
+# so this file is rewritten rather than merged.
+gh api "repos/$REPO/releases" --paginate \
+  --jq '.[] | select(any(.assets[]; .name == "ping")) | {(.tag_name): ([.assets[] | select(.name == "ping") | .download_count] | add)}' \
+  | jq -s 'add // {} | to_entries | sort_by(.key) | from_entries' > "$INSTALLS"
+
+installs=$(jq '[.[]] | add // 0' "$INSTALLS")
+jq -n --argjson t "$installs" \
+  '{schemaVersion: 1, label: "installs", message: ($t | tostring), color: "8A2BE2"}' > "$INSTALLS_BADGE"
+
+echo "$INSTALLS: $(jq length "$INSTALLS") releases, $installs installs"
