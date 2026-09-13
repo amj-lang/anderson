@@ -33,27 +33,37 @@ selftest() {
 
 if [ "${1:-}" = "--selftest" ]; then selftest; exit 0; fi
 
-clones=$(gh api "repos/$REPO/traffic/clones" \
-  --jq '[.clones[] | {key: .timestamp[0:10], value: {clones: .count, unique_clones: .uniques}}] | from_entries')
-views=$(gh api "repos/$REPO/traffic/views" \
-  --jq '[.views[] | {key: .timestamp[0:10], value: {views: .count, unique_views: .uniques}}] | from_entries')
-
 mkdir -p "$(dirname "$OUT")" "$(dirname "$BADGE")"
 [ -f "$OUT" ] || echo '{}' > "$OUT"
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-jq -n --argjson c "$clones" --argjson v "$views" '$c * $v' > "$tmp/new.json"
-jq -s "$MERGE | to_entries | sort_by(.key) | from_entries" "$OUT" "$tmp/new.json" > "$tmp/merged.json"
-mv "$tmp/merged.json" "$OUT"
 
-# Unique cloners summed over days: a proxy for installs, not a headcount. The
-# same person on two days counts twice, and CI or mirrors count at all.
-total=$(jq '[.[].unique_clones // 0] | add // 0' "$OUT")
-jq -n --argjson t "$total" \
-  '{schemaVersion: 1, label: "unique clones", message: ($t | tostring), color: "8A2BE2"}' > "$BADGE"
+# The traffic endpoints need push access, which the Actions GITHUB_TOKEN does not
+# have and cannot be granted (`administration` is not a workflow permission). With
+# only that token the clone half is skipped and the install half still runs; set a
+# TRAFFIC_TOKEN secret (a PAT that can read this repo's traffic) to record clones.
+clones=$(gh api "repos/$REPO/traffic/clones" \
+  --jq '[.clones[] | {key: .timestamp[0:10], value: {clones: .count, unique_clones: .uniques}}] | from_entries' 2>"$tmp/err") || clones=""
 
-echo "$OUT: $(jq length "$OUT") days recorded, $total unique clones"
+if [ -n "$clones" ]; then
+  views=$(gh api "repos/$REPO/traffic/views" \
+    --jq '[.views[] | {key: .timestamp[0:10], value: {views: .count, unique_views: .uniques}}] | from_entries')
+
+  jq -n --argjson c "$clones" --argjson v "$views" '$c * $v' > "$tmp/new.json"
+  jq -s "$MERGE | to_entries | sort_by(.key) | from_entries" "$OUT" "$tmp/new.json" > "$tmp/merged.json"
+  mv "$tmp/merged.json" "$OUT"
+
+  # Unique cloners summed over days: a proxy for installs, not a headcount. The
+  # same person on two days counts twice, and CI or mirrors count at all.
+  total=$(jq '[.[].unique_clones // 0] | add // 0' "$OUT")
+  jq -n --argjson t "$total" \
+    '{schemaVersion: 1, label: "unique clones", message: ($t | tostring), color: "8A2BE2"}' > "$BADGE"
+
+  echo "$OUT: $(jq length "$OUT") days recorded, $total unique clones"
+else
+  echo "traffic: clones skipped, this token cannot read them ($(tr -d '\n' < "$tmp/err")). Set a TRAFFIC_TOKEN secret."
+fi
 
 # Installs, counted by the plugin itself: every release carries a one-byte
 # `ping` asset that the SessionStart hook fetches once per version per machine,
