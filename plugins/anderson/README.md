@@ -508,27 +508,38 @@ input-side saving, not a dramatic one.
 
 Optional flourishes in `bin/` — run them in a real terminal (the in-loop banners are plain text and don't animate):
 
-- **`fleet`** — **THE OPERATOR**, the cross-repo fleet monitor. Install once with `/anderson:fleet`
-  (writes a `fleet` shim to `~/.local/bin` that resolves the newest installed anderson at run time,
-  so plugin updates never break it), then in any terminal: `fleet` (runs right there, tmux or not),
-  `fleet --tmux` (a persistent tmux session named `fleet`, status bar hidden), `fleet --pane` (45%
-  side pane inside tmux), `fleet --window`. The installer also prints an optional `prefix+F` tmux
-  hotkey line. Every Claude Code
-  session on the machine, one row each: repo · anderson task · **persona on the job** (▲ ARCHITECT,
-  ◇ INTERROGATOR, ◎ ORACLE, ● NEO, ▣ AGENT SMITH, ★ THE ONE, ○ T. ANDERSON = no pipeline yet) ·
-  stage `n/max` · model · **now** (`▶ Bash pytest -q`, `▶ Agent implementer`, `☎ ring` = waits on
-  you, `☎ permission Bash`, `✝ sentinel` = process gone, `⟲` = rework loop) · $ · context bar · age.
-  Detail pane: verdicts, lines ±, tmux pane, last words, a mood-matched line from `quotes.txt`.
-  Runs **outside** Claude (python stdlib curses, zero tokens) in its own tmux pane; rows ring first.
+- **`fleet`** — **THE OPERATOR**, the cross-repo fleet monitor and, since phase 2, where work
+  starts. Install once with `/anderson:fleet` (writes a `fleet` shim to `~/.local/bin` that
+  resolves the newest installed anderson at run time, so plugin updates never break it), then in
+  any terminal: `fleet` (outside tmux: attaches a per-workspace tmux session, status bar on; inside
+  tmux: runs right here), `fleet --here` (right here regardless), `fleet --tmux` (the legacy single
+  session named `fleet`, status bar hidden), `fleet --pane` (45% side pane inside tmux), `fleet
+  --window`. The installer also prints an optional `prefix+F` tmux hotkey line.
+
+  Rows are the repos of the workspace fleet was launched from (one nested level): a repo is a row,
+  a dir holding several repos is a collapsible group row, live sessions nest under their repo, and
+  sessions from elsewhere land in an `elsewhere` group. No repos found under the launch dir falls
+  back to today's flat session list. Each row: repo · anderson task · **persona on the job**
+  (▲ ARCHITECT, ◇ INTERROGATOR, ◎ ORACLE, ● NEO, ▣ AGENT SMITH, ★ THE ONE, ○ T. ANDERSON = no
+  pipeline yet) · stage `n/max` · model · **now** (`▶ Bash pytest -q`, `▶ Agent implementer`,
+  `☎ ring` = waits on you, `☎ permission Bash`, `✝ sentinel` = process gone, `⟲` = rework loop) ·
+  $ · context bar · age. Detail pane: verdicts, lines ±, tmux pane, last words, a mood-matched line
+  from `quotes.txt`. Runs **outside** Claude (python stdlib curses, zero tokens) in its own tmux
+  session; rows ring first.
 
   Rows are numbered; sessions with no pipeline show their first prompt as a quoted title; ringing
   rows say for how long (`☎ ring 12m`); the ctx cell turns red past 80%.
 
-  Keys: `↑↓` tune · `1`..`9` / `⏎` **jack in** (switches tmux to that session's pane; without tmux, on macOS
-  it focuses the iTerm2 / Terminal.app tab that owns the session, or brings the owning IDE forward
-  for integrated terminals, so tmux is optional: `fleet install --with-tmux` adds it via brew / apt /
-  dnf if you want panes) · `w` white rabbit
-  (oldest ring) · `r` kill (asks first; the row is hidden with it) · `b` hide the row (any row, the process is left alone) · `h` show hidden rows (`b` on one un-hides) · `c` copy the
+  Keys: `↑↓` tune · `1`..`9` / `⏎` **jack in** on a session row (switches tmux to that session's
+  pane; without tmux, on macOS it focuses the iTerm2 / Terminal.app tab that owns the session, or
+  brings the owning IDE forward for integrated terminals, so tmux is optional: `fleet install
+  --with-tmux` adds it via brew / apt / dnf if you want panes) — or **spawn an agent** on a
+  repo/group row: `⏎` opens a prompt box, then `p`/`a`/`A` launches a claude agent (bare /
+  `/anderson:start` / `/anderson:auto`) into that repo — or the workspace root, on a group — as a
+  new tmux window. `J`/`K` reorder a repo/group among its siblings, `space` (`←`/`→` too)
+  collapses/expands it; both persist per workspace. `D` pops a session's tmux window out into its
+  own OS terminal window. `w` white rabbit
+  (oldest ring, expanding any collapsed group in the way) · `r` kill (asks first; the row is hidden with it) · `b` hide the row (any row, the process is left alone) · `h` show hidden rows (`b` on one un-hides) · `c` copy the
   `claude --resume` command for that session · `n` desktop notification on ring · `m` sound · `s` next ring sound · `/` filter ·
   `t` theme · `p` wording · `?` manual · `q`.
 

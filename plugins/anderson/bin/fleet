@@ -2,11 +2,12 @@
 # fleet — launcher for THE OPERATOR (bin/fleet.py). Picks the right way to start it for
 # whatever terminal setup you have; everything else passes through to fleet.py.
 #
-#   fleet                 run right here, in the current terminal (inside or outside tmux)
-#   fleet --tmux          outside tmux: start/attach a tmux session "fleet" (status bar hidden)
+#   fleet                 outside tmux: attach a per-workspace tmux session (status bar on, so
+#                         spawned agent windows are reachable); inside tmux: run right here
+#   fleet --tmux          outside tmux: start/attach the legacy tmux session "fleet" (status bar hidden)
 #   fleet --pane          inside tmux: open in a 45% side pane
 #   fleet --window        inside tmux: open in a new window named "fleet"
-#   fleet --here          same as the default; kept for scripts and the prefix+F hotkey
+#   fleet --here          run right here regardless of tmux; kept for scripts and the prefix+F hotkey
 #   fleet install         put a stable `fleet` shim in ~/.local/bin (survives plugin updates)
 #   fleet install --with-tmux   same, plus install tmux (brew / apt / dnf) if missing. tmux is
 #                         optional: on macOS ⏎ jack-in also works without it (focuses the
@@ -125,7 +126,7 @@ case "${1:-}" in
   uninstall) rm -f "$shim" && printf 'removed %s\n' "$shim"; exit 0 ;;
 esac
 
-mode="here"
+mode="default"
 args=()
 for a in "$@"; do
   case "$a" in
@@ -153,13 +154,22 @@ if [ -n "${TMUX:-}" ]; then
   case "$mode" in
     pane)   exec tmux split-window -h -l 45% "$cmd" ;;
     window) exec tmux new-window -n fleet "$cmd" ;;
-    *)      exec python3 "$py" "${args[@]+"${args[@]}"}" ;;
+    *)      exec python3 "$py" "${args[@]+"${args[@]}"}" ;;   # already in tmux: run right here (Q5)
   esac
 fi
 
-# Outside tmux: --tmux = one session named "fleet" (created on first run, attached after), its
-# status bar off so only the monitor shows. Anything else runs right here.
+# Outside tmux: --tmux = the legacy single session "fleet" (created on first run, attached
+# after), its status bar off so only the monitor shows. Default = attach a per-workspace tmux
+# session instead, status bar ON: it is the window list, the only way to reach a spawned agent
+# window once one exists. Anything else (--pane/--window make no sense outside tmux) runs right here.
 if [ "$mode" = "tmux" ]; then
   exec tmux new-session -A -s fleet "$cmd" \; set-option status off
+fi
+if [ "$mode" = "default" ]; then
+  session="$(python3 "$py" --session-name 2>/dev/null || true)"
+  case "$session" in
+    ""|*[!a-z0-9-]*) session="fleet" ;;    # --session-name failed or printed garbage: never -s ""
+  esac
+  exec tmux new-session -A -s "$session" "$cmd"
 fi
 exec python3 "$py" "${args[@]+"${args[@]}"}"

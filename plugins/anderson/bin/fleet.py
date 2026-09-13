@@ -691,6 +691,203 @@ def _short_model(m):
     return m[:12]
 
 
+# ── workspace: repo/group rows nested under the launch directory ─────────────────────
+WS_SCAN_TTL = 30           # ponytail: a repo cloned mid-run appears within this ceiling, not instantly
+_WS_CACHE = {}             # ws abs path -> (scanned_at, [{name, path, kind, repos?}])
+
+
+def workspace_root(cwd):
+    """The workspace a repo sits in: repo_root(cwd)'s parent when it is a real repo, else cwd
+    itself (no repo found -> today's flat list, criterion 7)."""
+    cwd = cwd or os.getcwd()
+    r = repo_root(cwd)
+    if r and os.path.isdir(os.path.join(r, ".git")):
+        return os.path.dirname(r)
+    return cwd
+
+
+def _is_repo_dir(p):
+    return os.path.isdir(os.path.join(p, ".git"))
+
+
+def scan_workspace(ws):
+    """Two levels under `ws`, os.scandir only (no git subprocess): a direct repo is a `repo`
+    entry, a dir holding repos one level deeper is a `group` entry with its own `repos` list.
+    Memoised WS_SCAN_TTL seconds per workspace."""
+    now = time.time()
+    cached = _WS_CACHE.get(ws)
+    if cached and now - cached[0] < WS_SCAN_TTL:
+        return cached[1]
+    out = []
+    try:
+        entries = sorted(os.scandir(ws), key=lambda e: e.name)
+    except Exception:
+        entries = []
+    for e in entries:
+        try:
+            if e.name.startswith(".") or not e.is_dir(follow_symlinks=False):
+                continue
+            if _is_repo_dir(e.path):
+                out.append({"name": e.name, "path": e.path, "kind": "repo"})
+                continue
+            subrepos = []
+            try:
+                for e2 in sorted(os.scandir(e.path), key=lambda x: x.name):
+                    if not e2.name.startswith(".") and e2.is_dir(follow_symlinks=False) and _is_repo_dir(e2.path):
+                        subrepos.append({"name": e2.name, "path": e2.path, "kind": "repo"})
+            except Exception:
+                pass
+            if subrepos:
+                out.append({"name": e.name, "path": e.path, "kind": "group", "repos": subrepos})
+        except Exception:
+            continue
+    _WS_CACHE[ws] = (now, out)
+    return out
+
+
+# every key a session row carries (enrich()'s return dict), so cell()/detail_card()/render()
+# never half-miss one: render() L1127 unpacks r["lines"] raw, footer() sums r["cost"] without .get()
+_WS_BASE = dict(
+    pid=None, cwd="", root="", task="", title="", stage="", persona="", pglyph="", mood="", model="",
+    iteration=None, max_iter=None, plan_verdict=None, diff_verdict=None, branch=None, gate="",
+    dejavu=False, text="", cost=None, ctx_pct=None, ctx_tokens=None, lines=(None, None),
+    start=None, last_seen=None, agents=(0, 0, ""), idle=False, transcript_path=None,
+    tmux_pane=None, tmux_addr=None, shipped=False, hb_ts=None, hidden=False,
+)
+
+
+def ws_row(name, path, kind, sessions, collapsed, ws=None, indent=0, n_children=None):
+    """A synthetic repo/group row: same keys a session row has (so cell()/detail_card()/render()
+    need no restructuring), plus repo/group-only kind/path/ws/collapsed. n_children (a group's
+    repo count, Q12) prefixes the summary as `(n)` when given."""
+    n_ring = sum(1 for s in sessions if s.get("status") == "ring")
+    n_dead = sum(1 for s in sessions if s.get("status") == "sentinel")
+    n_live = len(sessions) - n_dead
+    bits = [f"{n_live} agent{'s' if n_live != 1 else ''}"] if n_live else []
+    if n_ring:
+        bits.append(f"{n_ring} ringing")
+    if n_dead:
+        bits.append(f"{n_dead} sentinel{'s' if n_dead != 1 else ''}")
+    now_txt = ", ".join(bits) if bits else "idle"
+    if n_children is not None:
+        now_txt = f"({n_children}) · {now_txt}"
+    return {**_WS_BASE, "sid": f"{kind}:{path}", "repo": name, "root": path, "cwd": path,
+            "kind": kind, "path": path, "ws": ws, "indent": indent, "collapsed": collapsed,
+            "status": "ring" if n_ring else "work", "now": now_txt}
+
+
+def _apply_order(names, order):
+    """`names` in the saved order, unseen ones appended alphabetically after."""
+    rank = {n: i for i, n in enumerate(order or [])}
+    known = sorted((n for n in names if n in rank), key=lambda n: rank[n])
+    unknown = sorted(n for n in names if n not in rank)
+    return known + unknown
+
+
+def tree_rows(sessions, ws, filt, collapsed, order=()):
+    """(scanned dirs + discovered sessions + saved order/collapse) -> the flat row list render()
+    already eats: synthetic kind="group"|"repo" rows interleaved with untouched session rows.
+    No repos found under `ws` -> return `sessions` verbatim (today's behaviour, criterion 7)."""
+    scan = scan_workspace(ws) if ws else []
+    if not scan:
+        if filt:
+            fl = filt.lower()
+            return [s for s in sessions if fl in (s.get("repo", "") + " " + s.get("task", "")).lower()]
+        return sessions
+    collapsed = collapsed or set()
+    fl = (filt or "").lower()
+
+    def sess_match(s):
+        return not fl or fl in (s.get("repo", "") + " " + s.get("task", "")).lower()
+
+    by_root = {}
+    for s in sessions:
+        rp = os.path.realpath(s.get("root") or s.get("cwd") or "")
+        by_root.setdefault(rp, []).append(s)
+
+    def repo_matches(name, kids):
+        return not fl or fl in name.lower() or any(sess_match(s) for s in kids)
+
+    matched_roots, out = set(), []
+
+    def emit_repo(r, indent):
+        rp = os.path.realpath(r["path"])
+        matched_roots.add(rp)
+        kids = by_root.get(rp, [])
+        if not repo_matches(r["name"], kids):
+            return
+        out.append(ws_row(r["name"], r["path"], "repo", kids, r["name"] in collapsed, ws, indent))
+        if r["name"] not in collapsed:
+            out.extend({**k, "indent": indent + 1} for k in kids if sess_match(k))
+
+    for entry in _apply_order_entries(scan, order):
+        if entry["kind"] == "repo":
+            emit_repo(entry, 0)
+            continue
+        repos = _apply_order_entries(entry["repos"], order)
+        all_kids = []
+        for r in repos:
+            all_kids.extend(by_root.get(os.path.realpath(r["path"]), []))
+        if not (repo_matches(entry["name"], all_kids) or any(repo_matches(r["name"], by_root.get(os.path.realpath(r["path"]), [])) for r in repos)):
+            for r in repos:
+                matched_roots.add(os.path.realpath(r["path"]))
+            continue
+        out.append(ws_row(entry["name"], entry["path"], "group", all_kids, entry["name"] in collapsed, ws, 0,
+                           n_children=len(repos) if entry["name"] in collapsed else None))
+        if entry["name"] not in collapsed:
+            for r in repos:
+                emit_repo(r, 1)
+        else:
+            for r in repos:
+                matched_roots.add(os.path.realpath(r["path"]))
+
+    elsewhere = [s for s in sessions if os.path.realpath(s.get("root") or s.get("cwd") or "") not in matched_roots]
+    elsewhere = [s for s in elsewhere if sess_match(s)]
+    if elsewhere:
+        out.append(ws_row("elsewhere", "", "group", elsewhere, "elsewhere" in collapsed, ws, 0))
+        if "elsewhere" not in collapsed:
+            out.extend({**s, "indent": 1} for s in elsewhere)
+    return out
+
+
+def _apply_order_entries(entries, order):
+    names = _apply_order([e["name"] for e in entries], order)
+    by_name = {e["name"]: e for e in entries}
+    return [by_name[n] for n in names]
+
+
+def _full_ws_names(ws, order):
+    """Every repo/group name under `ws`, in the effective order -- from the scan, never from the
+    (possibly collapsed) rendered rows, so a hidden group's children are never dropped from it."""
+    top = _apply_order_entries(scan_workspace(ws), order)
+    names = []
+    for e in top:
+        names.append(e["name"])
+        if e["kind"] == "group":
+            names.extend(r["name"] for r in _apply_order_entries(e["repos"], order))
+    return names
+
+
+def move_ws_row(rows, sel, down, order):
+    """J (down) / K (up): swap the selected repo/group row with its same-indent sibling.
+    -> (new_order, moved_sid), or (None, None) when the row can't reorder or there's no room."""
+    if not rows or rows[sel].get("kind") not in ("repo", "group"):
+        return None, None
+    indent = rows[sel].get("indent", 0)
+    siblings = [i for i, r in enumerate(rows) if r.get("kind") in ("repo", "group") and r.get("indent", 0) == indent]
+    pos = siblings.index(sel)
+    npos = pos + (1 if down else -1)
+    if not (0 <= npos < len(siblings)):
+        return None, None
+    other = siblings[npos]
+    names = _full_ws_names(rows[sel]["ws"], order)
+    if rows[sel]["repo"] not in names or rows[other]["repo"] not in names:
+        return None, None                      # `elsewhere` is synthetic: not in the scan, not orderable
+    i1, i2 = names.index(rows[sel]["repo"]), names.index(rows[other]["repo"])
+    names[i1], names[i2] = names[i2], names[i1]
+    return names, rows[sel]["sid"]
+
+
 # ───────────────────────────────────────────────────────────────────── demo
 def demo_rows():
     now = time.time()
@@ -761,10 +958,12 @@ def set_theme(name, calm=False):
 def load_prefs():
     d = jload(PREFS_FILE) or {}
     z = d.get("zoom")
+    ws = d.get("workspaces")
     return {"theme": d.get("theme") or "matrix", "plain": bool(d.get("plain")), "calm": bool(d.get("calm")),
             "zoom": int(z) if isinstance(z, (int, float)) and 6 <= int(z) <= 72 else None,
             "cost": bool(d.get("cost")), "notify": bool(d.get("notify")), "editor": d.get("editor") or None,
-            "sound": bool(d.get("sound")), "ring": d.get("ring") or "phone"}
+            "sound": bool(d.get("sound")), "ring": d.get("ring") or "phone",
+            "workspaces": ws if isinstance(ws, dict) else {}}
 
 
 def save_prefs(**kw):
@@ -776,6 +975,28 @@ def save_prefs(**kw):
     except Exception:
         pass
     return d
+
+
+def ws_prefs(ws):
+    """Saved {order, collapsed} for this workspace, or None when never saved (first run). A
+    malformed entry (wrong type, or a dict missing a key) is coerced per-entry, never crashes a
+    caller -- one of which (`--once`) indexes `saved["collapsed"]` directly."""
+    v = (load_prefs()["workspaces"] or {}).get(ws)
+    if not isinstance(v, dict):
+        return None
+    return {"order": v.get("order") or [], "collapsed": v.get("collapsed") or []}
+
+
+def save_ws_prefs(ws, **kw):
+    """Read-modify-write of the additive `workspaces` prefs key; unrecognised current value
+    coerced to {} (load_prefs already does that), so a hand-edited prefs.json never crashes."""
+    d = load_prefs()
+    workspaces = dict(d["workspaces"])
+    cur = dict(workspaces.get(ws) or {"order": [], "collapsed": []})
+    cur.update({k: v for k, v in kw.items() if v is not None})
+    workspaces[ws] = cur
+    save_prefs(workspaces=workspaces)
+    return cur
 
 
 def words(key):
@@ -931,6 +1152,15 @@ def ctx_bar(pct, w=10):
 
 
 def cell(row, key, frame):
+    if row.get("kind") in ("repo", "group"):
+        if key == "flag":
+            return G["ring"] if row["status"] == "ring" else ""
+        if key == "repo":
+            glyph = "▸" if row.get("collapsed") else "▾"
+            return "  " * row.get("indent", 0) + f"{glyph} {row['repo']}"
+        if key == "task":
+            return row["now"]
+        return ""
     if key == "flag":
         f = ""
         if row["status"] == "ring":
@@ -943,7 +1173,8 @@ def cell(row, key, frame):
             f = G["hid"] + f
         return f[:2]
     if key == "repo":
-        return row["repo"]
+        indent = row.get("indent", 0)
+        return ("  " * indent + "↳ " if indent else "") + row["repo"]
     if key == "task":
         if row["task"]:
             return row["task"]
@@ -983,6 +1214,8 @@ def header_tail(frame):
 
 def next_step(r):
     """What the human does next for this row, in one line."""
+    if r.get("kind") in ("repo", "group"):
+        return "⏎ spawns an agent here" + (" (workspace root)" if r["kind"] == "group" else "")
     st, gate, task = r.get("stage") or "", r.get("gate") or "", r.get("task") or ""
     if r["status"] == "sentinel":
         return "⏎ revives it in a new terminal · c copies the command · b dismisses the row"
@@ -1024,6 +1257,16 @@ def detail_card(r, W, toast, t, airy=False):
     """Multi-line detail for the selected row. Labelled, one fact per line, no guessing needed.
     airy=True (16+ free lines): blank lines between groups, wider labels, `last` wraps to 2 lines."""
     d = G["det"]
+    if r.get("kind") in ("repo", "group"):
+        lines = [("det", fit(d, W))]
+        lw = 11 if airy else 9
+        def L(label, txt):
+            lines.append(("det", fit(f"{d} {label:<{lw}}{txt}", W)))
+        L("name", r["repo"] + (f" · {r['path']}" if r.get("path") else ""))
+        L("status", r["now"])
+        L("next", next_step(r))
+        lines.append(("quote", fit(f"{d} {toast}" if toast else f"{d} ", W)))
+        return lines
     la, lr = r["lines"]
     head = r["task"] or (f"\"{r['title']}\"" if r.get("title") else r["repo"])
     who = f"{r['pglyph']} {r['persona']}" + (f" · {r['stage']}" if r.get("stage") else "") + (f" {r['iteration']}/{r['max_iter']}" if r.get("max_iter") else "")
@@ -1073,25 +1316,51 @@ def detail_card(r, W, toast, t, airy=False):
     return lines
 
 
-def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, height=None):
-    """Pure: -> list of (kind, line). Every line is exactly `width` cells (see --selftest)."""
+def _row_window(rows, W, filt, height, sel):
+    """(offset, count) of the row slice that keeps the footer, the card and the cursor on
+    screen when there are more rows than the terminal has lines. height=None (the --once path)
+    or everything already fits -> (0, len(rows)): no window, nothing changes.
+    ponytail: header (3) + >=1 row + rule + compact card (3) + footer (>=2) is a ~13-line floor
+    that no windowing can shrink further; terminals under it lose the footer to run_tui's outer
+    `lines[: h - 1]` slice. Pre-existing floor of fleet's whole render layout, not new here."""
+    if not height or not rows:
+        return 0, len(rows)
+    foot_n = len(footer(rows, W, filt))
+    head_n = 3 + (1 if usage_limits(bars=True) else 0)   # hdr, rule, colhdr [+ usage line]
+    tail_n = 1 + 3 + foot_n                              # rule + compact 3-line card + footer
+    visible = max(1, height - head_n - tail_n)
+    if visible >= len(rows):
+        return 0, len(rows)
+    off = max(0, min(sel - visible // 2, len(rows) - visible))
+    return off, visible
+
+
+def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, height=None, ws=None, all_rows=None):
+    """Pure: -> list of (kind, line). Every line is exactly `width` cells (see --selftest).
+    all_rows (the full session list, pre-collapse) drives the header/footer aggregates so a
+    collapsed group doesn't hide sessions from the counts; defaults to `rows` for callers that
+    pass a flat session list directly (no tree/collapse involved)."""
     t = time.time() if t is None else t
     W = max(40, width)
     cols = layout(W)
     lines = []
-    n_ring = sum(r["status"] == "ring" for r in rows)
-    n_hid = sum(bool(r.get("hidden")) for r in rows)
-    n_dead = sum(r["status"] == "sentinel" and not r.get("hidden") for r in rows)
-    n_live = len(rows) - n_dead - n_hid
-    left = f"{G['eyes']}  T H E  O P E R A T O R"
+    sess_rows = [r for r in (all_rows if all_rows is not None else rows) if not r.get("kind")]
+    n_ring = sum(r["status"] == "ring" for r in sess_rows)
+    n_hid = sum(bool(r.get("hidden")) for r in sess_rows)
+    n_dead = sum(r["status"] == "sentinel" and not r.get("hidden") for r in sess_rows)
+    n_live = len(sess_rows) - n_dead - n_hid
+    ws_name = os.path.basename((ws or "").rstrip("/"))
+    left = f"{G['eyes']}  T H E  O P E R A T O R" + (f" · {ws_name}" if ws_name else "")
     right = f"{words('fleet')} · {n_live} {words('live')} · {n_ring} {words('ring')} · {n_dead} {words('deads' if n_dead != 1 else 'dead')}{f' · {n_hid} hidden' if n_hid else ''}{header_tail(frame)}"
     lines.append(("hdr", fit(fit(left, max(0, W - dw(right) - 1)) + " " + right, W)))
     lim = usage_limits(bars=True)
     if lim:                                      # the plan's windows: the number to keep an eye on, so it lives up here
         lines.append(("usage_hot" if usage_hot() else "usage", fit(f"{G['det']} {THEME['name']} · {lim}", W)))
-    foot = footer(rows, W, filt)
+    foot = footer(rows, W, filt, all_rows=all_rows)
+    off, vis_n = _row_window(rows, W, filt, height, sel)
+    view = rows[off:off + vis_n]
     # tall terminal (16+ free lines after the list and the footer): blank lines around the rules, so it breathes
-    airy = bool(height) and height - (len(lines) + len(rows) + 4 + len(foot)) >= 16
+    airy = bool(height) and height - (len(lines) + len(view) + 4 + len(foot)) >= 16
     def sp():
         if airy:
             lines.append(("empty", fit("", W)))
@@ -1103,15 +1372,16 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
     if not rows:
         lines.append(("empty", fit("", W)))
         lines.append(("empty", fit("   " + words("empty"), W)))
-    for i, r in enumerate(rows):
-        cur = G["cur"] if i == sel else " "
-        num = str(i + 1) if i < 9 else " "
+    for i, r in enumerate(view):
+        idx = i + off
+        cur = G["cur"] if idx == sel else " "
+        num = str(idx + 1) if idx < 9 else " "
         if r["sid"] in burst:
             body = "".join(random.choice("01·10 1 0") for _ in range(W - PREFIX))
             kind = "burst"
         else:
             body = "  ".join(fit(cell(r, k, frame), w, a) for k, _, w, a in cols)
-            kind = ("hidden" if r.get("hidden") else "idle" if r.get("idle") else r["status"]) + ("_sel" if i == sel else "")
+            kind = ("hidden" if r.get("hidden") else "idle" if r.get("idle") else r["status"]) + ("_sel" if idx == sel else "")
         lines.append((kind, fit(f"{num}{cur} {body}", W)))
     sp()
     lines.append(("rule", rule(W)))
@@ -1123,6 +1393,12 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
         r = rows[sel]
         if room >= 10:
             lines += detail_card(r, W, toast, t, airy=airy or room >= 16)
+        elif r.get("kind") in ("repo", "group"):
+            l1 = f"{d} {r['repo']}{(' · ' + r['path']) if r.get('path') else ''} · {r['now']}"
+            l2 = f"{d} {next_step(r)}"
+            q = quote_for(r, t)
+            l3 = f"{d} {toast}" if toast else (f"{d} \"{q}\"" if q else f"{d} ")
+            lines += [("det", fit(l1, W)), ("det", fit(l2, W)), ("quote", fit(l3, W))]
         else:
             la, lr = r["lines"]
             pm = f"+{la} −{lr}" if la is not None else ""
@@ -1145,14 +1421,16 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
     return lines + foot
 
 
-def footer(rows, W, filt=""):
+def footer(rows, W, filt="", all_rows=None):
     """Bottom of the screen: rule, the keys (wrapped, never truncated), then usage on its own line."""
     d = G["det"]
-    fleet = sum(r["cost"] or 0 for r in rows)
+    fleet = sum(r["cost"] or 0 for r in (all_rows if all_rows is not None else rows))
     lim = usage_limits()
-    keys = ("↑↓ tune · 1-9/⏎ jack in · o read plan · O in IDE · a agent log · w rabbit · 🔴 r kill · 🔵 b hide · 👻 h hidden · c resume · "
+    keys = ("↑↓ tune · 1-9/⏎ jack in or spawn · J/K reorder · space collapse · D pop out · o read plan · O in IDE · a agent log · w rabbit · "
+            "🔴 r kill · 🔵 b hide · 👻 h hidden · c resume · "
             "🔔 n notify · 🔊 m sound · 🎵 s ring · $ cost · +/- zoom · 🔍 / filter · 🎨 t theme · p wording · ? manual · q quit") \
-        if G is not ASCII else ("jk tune · 1-9/enter jack in · o read plan · O in IDE · a agent log · w rabbit · r kill · b hide · h hidden · c resume · "
+        if G is not ASCII else ("jk tune · 1-9/enter jack in or spawn · J/K reorder · space collapse · D pop out · o read plan · O in IDE · a agent log · w rabbit · "
+                                "r kill · b hide · h hidden · c resume · "
                                 "n notify · m sound · s ring · $ cost · +/- zoom · / filter · t theme · p wording · ? manual · q quit")
     if filt:
         keys = f"/{filt}_   (esc clears)"
@@ -1164,7 +1442,7 @@ def footer(rows, W, filt=""):
     out = [("rule", rule(W))]
     kw, groups = W - dw(d) - 1, keys.split(" · ")
     optional = ["$ cost", "+/- zoom", "p wording", "🎨 t theme", "t theme", "c resume", "O in IDE", "a agent log", "o read plan", "w rabbit",
-                "👻 h hidden", "h hidden", "🔵 b hide", "b hide", "🔴 r kill", "r kill"]
+                "👻 h hidden", "h hidden", "🔵 b hide", "b hide", "🔴 r kill", "r kill", "D pop out", "space collapse", "J/K reorder"]
     while True:
         klines, cur = [], ""
         for grp in groups:                       # wrap between key groups, never inside one
@@ -1294,8 +1572,13 @@ MANUAL = """
   ⏎         jack in        tmux: switch to that pane · macOS without tmux: focus the
                            iTerm2 / Terminal.app tab that owns the session, else bring the
                            owning app forward (WebStorm / VS Code / Cursor integrated terminals).
-                           On a sentinel: revive it in a new window already running its resume
-  w         white rabbit   jump to the oldest ringing session
+                           On a sentinel: revive it in a new window already running its resume.
+                           On a repo/group row: opens a prompt box, then p/a/A spawns a claude
+                           agent in that repo (or the workspace root, on a group) as a tmux window
+  J / K     reorder        move the selected repo/group among its siblings (saved per workspace)
+  space     collapse       toggle a repo/group row · ←/→ also collapse/expand
+  D         pop out        a running session's tmux window, into its own OS terminal window
+  w         white rabbit   jump to the oldest ringing session, expanding any collapsed group in the way
   r         red pill       kill the session's process (asks first); the row is hidden with it
   b         blue pill      hide the row, any row; the process is left alone. On a hidden row: un-hide
   h         hidden         show the hidden rows too (◌, dim), so you can bring one back with b
@@ -1446,6 +1729,10 @@ def notify_hint():
 
 
 def resume_cmd(r):
+    # synthetic repo:/group: rows have no session to resume; the shared choke point for `c`,
+    # copy_resume() and revive() so a `repo:/Users/...` sid never reaches the clipboard (criterion 5)
+    if r.get("kind"):
+        return None
     sid = r.get("sid") or ""
     if sid.startswith("pid:") or sid.startswith("demo") or len(sid) < 8:
         return None
@@ -1458,12 +1745,8 @@ def shlex_quote(s):
     return shlex.quote(s)
 
 
-def copy_resume(r):
-    """`c`: put `cd <cwd> && claude --resume <sid>` on the clipboard. Works for any row; the point is
-    bringing a sentinel back."""
-    cmd = resume_cmd(r)
-    if not cmd:
-        return "no session id for that row."
+def copy_cmd(cmd):
+    """Put `cmd` on the clipboard (pbcopy / wl-copy / xclip), or say it plainly when none exist."""
     for tool in (["pbcopy"], ["wl-copy"], ["xclip", "-selection", "clipboard"]):
         if shutil.which(tool[0]):
             try:
@@ -1471,7 +1754,16 @@ def copy_resume(r):
                 return f"copied: {cmd}"
             except Exception:
                 break
-    return f"resume with: {cmd}"
+    return f"run: {cmd}"
+
+
+def copy_resume(r):
+    """`c`: put `cd <cwd> && claude --resume <sid>` on the clipboard. Works for any row; the point is
+    bringing a sentinel back."""
+    cmd = resume_cmd(r)
+    if not cmd:
+        return "no session id for that row."
+    return copy_cmd(cmd)
 
 
 NEW_WINDOW_ITERM = """tell application "iTerm2"
@@ -1486,33 +1778,152 @@ NEW_WINDOW_TERMINAL = """tell application "Terminal"
 end tell"""
 
 
-def revive(r):
-    """A sentinel has no terminal left to jack into, so give it one: a new window already running
-    `cd <cwd> && claude --resume <sid>`. tmux first, else AppleScript on the terminal that can take
-    a command; anywhere else the command still lands on the clipboard."""
-    cmd = resume_cmd(r)
-    if not cmd:
-        return "no session id for that row."
-    if os.environ.get("TMUX"):
+def new_terminal(cmd, name=None, cwd=None, use_tmux=True, verb=None):
+    """A new terminal already running `cmd`: tmux window first (`-c cwd`/`-n name` when given),
+    else AppleScript on the terminal that can take a command (`cd cwd && cmd`), else the command
+    lands on the clipboard. Shared by revive() (no name/cwd: byte-identical to before) and the
+    spawn flow (both). use_tmux=False forces the OS-window branch: pop_out()'s `cmd` is itself
+    a `tmux attach`, and a tmux new-window running that nests (tmux refuses, no window appears)
+    when fleet is already inside tmux — the default now. `verb` overrides the "spawned"/"resumed"
+    wording (pop_out() is neither: it's popping an existing window into its own terminal)."""
+    full = f"cd {shlex_quote(cwd)} && {cmd}" if cwd else cmd
+    verb = verb or ("spawned" if name else "resumed")
+    if use_tmux and os.environ.get("TMUX"):
         try:
-            subprocess.run(["tmux", "new-window", cmd], timeout=5, check=True)
-            return "Operator. resumed in a new tmux window."
+            args = ["tmux", "new-window"]
+            if cwd:
+                args += ["-c", cwd]
+            if name:
+                args += ["-n", name]
+            args.append(cmd)
+            subprocess.run(args, timeout=5, check=True)
+            return f'Operator. {verb} in tmux window "{name}".' if name else f"Operator. {verb} in a new tmux window."
         except Exception as e:
-            return f"revive failed: {e}  ·  {copy_resume(r)}"
+            return f"launch failed: {e}  ·  {copy_cmd(full)}"
     if sys.platform == "darwin":
         app = "iTerm2" if os.environ.get("TERM_PROGRAM") == "iTerm.app" else "Terminal"
         tmpl = NEW_WINDOW_ITERM if app == "iTerm2" else NEW_WINDOW_TERMINAL
         # the shell sees cmd verbatim; only the AppleScript string literal needs escaping
-        script = tmpl.replace("{cmd}", cmd.replace("\\", "\\\\").replace('"', '\\"'))
+        script = tmpl.replace("{cmd}", full.replace("\\", "\\\\").replace('"', '\\"'))
         try:
             rc = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=15)
             if rc.returncode == 0:
-                return f"Operator. resumed in a new {app} window."
-            return f"revive failed: {rc.stderr.strip() or 'osascript'}  ·  {copy_resume(r)}"
+                return f"Operator. {verb} in a new {app} window."
+            return f"launch failed: {rc.stderr.strip() or 'osascript'}  ·  {copy_cmd(full)}"
         except Exception as e:
-            return f"revive failed: {e}  ·  {copy_resume(r)}"
+            return f"launch failed: {e}  ·  {copy_cmd(full)}"
     # ponytail: no portable "open a new terminal window" off macOS/tmux. Add one if someone asks on Linux.
-    return copy_resume(r)
+    return copy_cmd(full)
+
+
+def revive(r):
+    """A sentinel has no terminal left to jack into, so give it one: a new window already running
+    `cd <cwd> && claude --resume <sid>`."""
+    cmd = resume_cmd(r)
+    if not cmd:
+        return "no session id for that row."
+    return new_terminal(cmd)
+
+
+# ──────────────────────────────────────────────────────────────────── spawn: ⏎ on a repo/group row
+def slug(prompt):
+    """The window name / phase-3 task-dir key: an issue id (LIN-482) lowercased, else the first
+    words slugified to <=32 chars, else task-<HHMM>. [^a-z0-9-] stripped: no `:` and no `.`,
+    both of which break a tmux target."""
+    prompt = (prompt or "").strip()
+    m = re.match(r"^([A-Za-z]{2,10}-\d+)", prompt)
+    if m:
+        s = m.group(1).lower()
+    elif prompt:
+        s = re.sub(r"[^a-z0-9-]", "", re.sub(r"\s+", "-", prompt.lower())).strip("-")[:32].strip("-")
+    else:
+        s = ""
+    return s or ("task-" + time.strftime("%H%M"))
+
+
+def spawn_cmd(row, prompt, mode):
+    """(cwd, shell_cmd, window_name) for `⏎` on a repo/group row. Pure — phase-3's worktree swap
+    is only the `cwd` line. cwd = the repo path, or the workspace root for a group row (router
+    mode). mode: p = bare `claude <prompt>`, a/A = /anderson:start|auto <slug> <prompt> (both
+    commands take the FIRST WORD as the task key, so the slug has to lead)."""
+    cwd = row["path"] if row.get("kind") == "repo" else (row.get("ws") or row.get("path") or "")
+    prompt = (prompt or "").strip()
+    if not prompt:
+        return cwd, "claude", row["repo"]
+    s = slug(prompt)
+    if mode == "a":
+        cmd = f"claude {shlex_quote('/anderson:start ' + s + ' ' + prompt)}"
+    elif mode == "A":
+        cmd = f"claude {shlex_quote('/anderson:auto ' + s + ' ' + prompt)}"
+    else:
+        cmd = f"claude {shlex_quote(prompt)}"
+    return cwd, cmd, f"{row['repo']}:{s}"
+
+
+def launch_agent(row, prompt, mode):
+    """`⏎` → prompt box → p/a/A: spawn a claude agent into a repo/group row as a tmux window.
+    Stateless: no registry of launched sessions, spawn just fires new_terminal() and forgets."""
+    if not shutil.which("claude"):
+        return "claude not on PATH: install it first."
+    cwd, cmd, window = spawn_cmd(row, prompt, mode)
+    return new_terminal(cmd, name=window, cwd=cwd)
+
+
+def tmux_session(ws=None):
+    """fleet-<slugified workspace name>: tmux rewrites `:` to `_` and `.` makes -t parse as
+    session.pane, so the slug keeps [a-z0-9-] only (verified on tmux 3.6b)."""
+    ws = ws or workspace_root(os.getcwd())
+    name = re.sub(r"[^a-z0-9-]", "-", os.path.basename((ws or "").rstrip("/")).lower()).strip("-")
+    return f"fleet-{name or 'root'}"
+
+
+def pop_out_cmds(sess_name, win_index):
+    """argv for `D`: pop a session's tmux window into its own OS terminal window, grouped
+    against the pane's OWN session (often not fleet's) rather than <sess>-pop-<win>, which would
+    embed the `<repo>:<task>` colon tmux cannot use in a session name. Pure, so a `:`/`.` in the
+    session or window name is exercised in tests, not just tmux."""
+    grouped = "fleet-pop-" + re.sub(r"[^a-z0-9-]", "-", (sess_name or "").lower()).strip("-")
+    return {
+        "grouped": grouped,
+        "has_session": ["tmux", "has-session", "-t", grouped],
+        "new_session": ["tmux", "new-session", "-d", "-s", grouped, "-t", sess_name],
+        "select_window": ["tmux", "select-window", "-t", f"{grouped}:{win_index}"],
+        "attach": f"tmux attach -t {grouped}",
+    }
+
+
+def pop_out(row):
+    """`D` on a session row: resolve the pane's own #S/#I (the idiom jack_in() already uses),
+    reuse an existing pop session (has-session first: idempotent, no second window on a second
+    `D`), else create it, then attach in a new OS terminal window."""
+    pane = row.get("tmux_pane")
+    if not pane:
+        return "no tmux pane for that row."
+    try:
+        out = subprocess.run(["tmux", "display", "-p", "-t", pane, "#S #I"],
+                             capture_output=True, text=True, timeout=3).stdout.strip().split()
+        if len(out) != 2:
+            return "no tmux pane for that row."
+        sess_name, win_index = out
+    except Exception:
+        return "no tmux pane for that row."
+    # a pane already popped resolves #S to the pop session itself (grouped sessions share windows,
+    # tmux picks the newest): group against it directly, or a second `D` would prefix
+    # "fleet-pop-" onto an already-"fleet-pop-"-prefixed name and leak a session every press.
+    if sess_name.startswith("fleet-pop-"):
+        cmds = {"grouped": sess_name, "has_session": ["tmux", "has-session", "-t", sess_name],
+                "select_window": ["tmux", "select-window", "-t", f"{sess_name}:{win_index}"],
+                "attach": f"tmux attach -t {sess_name}"}
+    else:
+        cmds = pop_out_cmds(sess_name, win_index)
+    try:
+        exists = subprocess.run(cmds["has_session"], capture_output=True, timeout=3).returncode == 0
+        if not exists:
+            subprocess.run(cmds["new_session"], timeout=5, check=True)
+        subprocess.run(cmds["select_window"], timeout=5, check=True)
+    except Exception as e:
+        return f"pop out failed: {e}"
+    return new_terminal(cmds["attach"], use_tmux=False, verb="popped out")
 
 
 # ──────────────────────────────────────────────────────── open the gate artifact
@@ -1711,7 +2122,7 @@ def run_tui(args):
 
         if intro:
             boot(scr, curses, col)
-        rows, sel, filt, filt_mode = [], 0, "", False
+        rows, all_rows, sel, filt, filt_mode = [], [], 0, "", False
         toast, toast_until = "", 0
         confirm = None
         manual = False
@@ -1720,6 +2131,28 @@ def run_tui(args):
         last_scan = 0
         last_full = 0          # a full repaint every FULL_REPAINT_S: a Space swipe or an app switch can leave stale cells
         prev = None            # last painted (size, lines-with-attrs): repaint only on change
+        # workspace tree: `collapsed`/`order` are in-memory, seeded once from prefs, and only
+        # written back by space/←/→/J/K (Q11: `w`'s auto-expand is a jump, not a silent rewrite)
+        ws = workspace_root(os.getcwd())
+        wprefs = ws_prefs(ws)
+        if wprefs is None:
+            collapsed = {e["name"] for e in scan_workspace(ws) if e["kind"] == "group"}   # Q17
+            order = []
+        else:
+            collapsed = set(wprefs.get("collapsed") or [])
+            order = list(wprefs.get("order") or [])
+        prompt_mode, prompt_row, prompt_buf = False, None, ""
+        menu_mode = False
+        pending_sel_sid = None
+
+        def activate(row):
+            """`⏎` / `1`-`9`: a session row jacks in (unchanged); a repo/group row opens the
+            prompt box."""
+            nonlocal prompt_mode, prompt_row, prompt_buf
+            if row.get("kind") in ("repo", "group"):
+                prompt_mode, prompt_row, prompt_buf = True, row, ""
+                return ""
+            return jack_in(row) + gate_auto_open(row)
 
         def say(msg, secs=3):
             nonlocal toast, toast_until
@@ -1760,7 +2193,12 @@ def run_tui(args):
                         if THEME["eggs"] != "quiet":
                             say("He is The One.", 4)
                 shipped = new_ship
-                rows = [r for r in all_rows if not filt or filt.lower() in (r["repo"] + " " + r["task"]).lower()]
+                rows = tree_rows(all_rows, ws, filt, collapsed, order)
+                if pending_sel_sid:
+                    idx = next((i for i, rr in enumerate(rows) if rr["sid"] == pending_sel_sid), None)
+                    if idx is not None:
+                        sel = idx
+                    pending_sel_sid = None
                 sel = min(sel, max(0, len(rows) - 1))
                 last_scan = now
             burst = {k: v for k, v in burst.items() if v > now}
@@ -1774,11 +2212,17 @@ def run_tui(args):
                 painted = [(fit(ln, w - 1), A["hdr"] if y == 0 else 0)
                            for y, ln in enumerate(MANUAL.strip("\n").split("\n")[: h - 1])]
             else:
-                shown_toast = confirm or toast
-                lines = render(rows, w - 1, sel, frame, filt if filt_mode else "", shown_toast, set(burst), now, height=h - 1)
+                if prompt_mode:
+                    shown_toast = f"⏎ spawns in {prompt_row['repo']}: {prompt_buf}_   (esc cancels)"
+                elif menu_mode:
+                    shown_toast = f"{prompt_row['repo']}: p plain · a /anderson:start · A /anderson:auto   \"{prompt_buf or '(empty: bare claude)'}\"   (esc cancels)"
+                else:
+                    shown_toast = confirm or toast
+                lines = render(rows, w - 1, sel, frame, filt if filt_mode else "", shown_toast, set(burst), now, height=h - 1, ws=ws, all_rows=all_rows)
                 painted = []
                 hot = set()
                 span = ctx_span(w - 1)
+                win_off, win_n = _row_window(rows, max(40, w - 1), filt if filt_mode else "", h - 1, sel)
                 top = next((i for i, (k, _) in enumerate(lines) if k == "colhdr"), 2) + 1   # first row's line
                 for y, (kind, ln) in enumerate(lines[: h - 1]):
                     a = A.get(kind, 0)
@@ -1787,8 +2231,8 @@ def run_tui(args):
                     if kind == "quote" and confirm:
                         a = col("red") | BOLD
                     painted.append((ln, a))
-                    if span and top <= y < top + len(rows) and kind not in ("burst",):
-                        r = rows[y - top]
+                    if span and top <= y < top + win_n and kind not in ("burst",):
+                        r = rows[win_off + (y - top)]
                         if r["ctx_pct"] is not None and r["ctx_pct"] >= HOT_CTX and r["status"] != "sentinel":
                             hot.add(y)
                 hot_key = tuple(sorted(hot))
@@ -1827,6 +2271,23 @@ def run_tui(args):
                 prev = None; last_full = now; continue
             if manual:
                 manual = False; continue
+            if prompt_mode:
+                if k == 27:
+                    prompt_mode, prompt_row, prompt_buf = False, None, ""
+                elif k in (10, 13, curses.KEY_ENTER):
+                    prompt_mode, menu_mode = False, True
+                elif k in (curses.KEY_BACKSPACE, 127, 8):
+                    prompt_buf = prompt_buf[:-1]
+                elif 32 <= k < 127:
+                    prompt_buf += chr(k)
+                continue
+            if menu_mode:
+                if k == 27:
+                    menu_mode, prompt_row, prompt_buf = False, None, ""
+                elif k in (ord("p"), ord("a"), ord("A")):
+                    say(launch_agent(prompt_row, prompt_buf, chr(k)))
+                    menu_mode, prompt_row, prompt_buf = False, None, ""
+                continue
             if confirm:
                 if k in (ord("y"), ord("Y")):
                     r = rows[sel]
@@ -1861,7 +2322,7 @@ def run_tui(args):
                 sel = max(sel - 1, 0)
             elif k in (10, 13, curses.KEY_ENTER):
                 if rows:
-                    say(jack_in(rows[sel]) + gate_auto_open(rows[sel]))
+                    say(activate(rows[sel]))
             elif k == ord("o"):
                 if rows:
                     say(view_gate(rows[sel], scr), 4); prev = None; last_full = now
@@ -1872,16 +2333,72 @@ def run_tui(args):
                 if rows:
                     say(view_agent(rows[sel], scr), 4); prev = None; last_full = now
             elif k == ord("w"):
-                ringing = [i for i, r in enumerate(rows) if r["status"] == "ring"]
+                # searches all_rows, not the (possibly collapsed) tree: a collapsed child is not
+                # in `rows` at all (Q11)
+                ringing = [r for r in all_rows if r["status"] == "ring"]
                 if ringing:
-                    sel = min(ringing, key=lambda i: rows[i]["last_seen"]); say("follow the white rabbit.")
+                    r = min(ringing, key=lambda r: r["last_seen"])
+                    rp = os.path.realpath(r.get("root") or r.get("cwd") or "")
+                    found = False
+                    for entry in scan_workspace(ws):
+                        if entry["kind"] == "group":
+                            for sub in entry.get("repos", []):
+                                if os.path.realpath(sub["path"]) == rp:
+                                    collapsed.discard(entry["name"])
+                                    collapsed.discard(sub["name"])
+                                    found = True
+                        elif os.path.realpath(entry["path"]) == rp:
+                            collapsed.discard(entry["name"])
+                            found = True
+                    if not found:
+                        collapsed.discard("elsewhere")
+                    pending_sel_sid = r["sid"]; last_scan = 0
+                    say("follow the white rabbit.")
                 else:
                     say("no rabbit. nobody is ringing.")
-            elif k == ord("r"):
+            elif k in (ord("J"), ord("K")):
+                if rows and rows[sel].get("kind") in ("repo", "group"):
+                    new_order, moved_sid = move_ws_row(rows, sel, k == ord("J"), order)
+                    if new_order is not None:
+                        order = new_order
+                        # collapsed left out: `w`'s in-memory auto-expand (Q11: no prefs write)
+                        # would otherwise ride along on the next reorder's save
+                        save_ws_prefs(ws, order=order)
+                        pending_sel_sid = moved_sid; last_scan = 0
+                    else:
+                        say("no more room to move.")
+                elif rows:
+                    say("repos and groups reorder, sessions follow their repo")
+            elif k in (ord(" "), curses.KEY_LEFT, curses.KEY_RIGHT):
+                if rows and rows[sel].get("kind") in ("repo", "group"):
+                    name = rows[sel]["repo"]
+                    if k == curses.KEY_RIGHT:
+                        collapsed.discard(name)
+                    elif k == curses.KEY_LEFT:
+                        collapsed.add(name)
+                    elif name in collapsed:
+                        collapsed.discard(name)
+                    else:
+                        collapsed.add(name)
+                    save_ws_prefs(ws, collapsed=sorted(collapsed)); last_scan = 0
+            elif k == ord("D"):
                 if rows:
+                    r = rows[sel]
+                    if r.get("kind"):
+                        say("D pops a running agent out; pick a session row")
+                    elif not shutil.which("tmux"):
+                        say("no tmux: nothing to pop out.")
+                    else:
+                        say(pop_out(r))
+            elif k == ord("r"):
+                if rows and rows[sel].get("kind"):
+                    say("nothing to kill here — pick a session row")
+                elif rows:
                     confirm = f"red pill: kill {rows[sel]['repo']} · {rows[sel]['task'] or rows[sel]['sid'][:8]} ?  How far down does the rabbit hole go? [y/N]"
             elif k == ord("b"):
-                if rows and rows[sel].get("hidden"):
+                if rows and rows[sel].get("kind"):
+                    say("nothing to hide here — pick a session row")
+                elif rows and rows[sel].get("hidden"):
                     unhide(rows[sel]["sid"]); last_scan = 0
                     say("row back in the list.")
                 elif rows:
@@ -1902,7 +2419,7 @@ def run_tui(args):
             elif ord("1") <= k <= ord("9"):
                 i = k - ord("1")
                 if i < len(rows):
-                    sel = i; say(jack_in(rows[sel]) + gate_auto_open(rows[sel]))
+                    sel = i; say(activate(rows[sel]))
             elif k == ord("c"):
                 if rows:
                     say(copy_resume(rows[sel]))
@@ -2227,10 +2744,18 @@ def selftest():
              "ar-2270-sku-images-lightbox", "déjà-vu-tâche-éè", "日本語のタスク", "remove-db-triggers", ""]
     stages = list(PERSONA) + [""]
     fails = 0
+    # tree rows: group/repo headers at both indents, collapsed and expanded, CJK and overlong
+    # names — mixed into the same width fuzz as the session rows below
+    tree_words = ["autoretouch", "日本語のタスク", "a-very-long-repository-name-that-goes-on-and-on-and-on", "x"]
+    tree_rows_fuzz = []
+    for i, nm in enumerate(tree_words):
+        row = ws_row(nm, f"/tmp/ws/{nm}", "group" if i % 2 else "repo", [], collapsed=bool(i % 2))
+        row["indent"] = i % 2
+        tree_rows_fuzz.append(row)
     for theme in THEME_ORDER:
         set_theme(theme)
         for width in list(range(60, 221, 7)) + [40, 300]:
-            rows = []
+            rows = list(tree_rows_fuzz)
             for i in range(12):
                 st = random.choice(stages)
                 gk, persona, ms, mood = PERSONA.get(st, ("none", "T. ANDERSON", "", ""))
@@ -2252,12 +2777,30 @@ def selftest():
     set_theme("matrix")
     assert dw(fit("日本語", 4)) == 4
     assert dw(fit("éx", 3)) == 3
+    # viewport: more rows than the terminal has lines -> the footer and the selected row must
+    # still be on screen, not truncated off the bottom by run_tui's lines[:h-1]
+    big = [dict(sid=f"b{i}", pid=None, cwd="", root="", repo=f"repo{i}", task="t", stage="implement",
+                persona="NEO", pglyph=PGLYPH["neo"], mood="action", model="sonnet/medium", iteration="0",
+                max_iter="2", plan_verdict="ship", diff_verdict="pending", dejavu=False, status="work",
+                now=f"{G['run']} working", text="", cost=0.1, ctx_pct=10, lines=(1, 1), start=time.time(),
+                last_seen=time.time(), tmux_pane=None, tmux_addr=None, shipped=False, hb_ts=None)
+           for i in range(40)]
+    vlines = render(big, 100, sel=37, height=24)
+    if len(vlines) > 24:
+        fails += 1; print(f"VIEWPORT: {len(vlines)} lines emitted for height=24")
+    if vlines[-1][0] != "foot":
+        fails += 1; print("VIEWPORT: footer is not the last line")
+    if not any(kind.endswith("_sel") for kind, _ in vlines):
+        fails += 1; print("VIEWPORT: selected row not painted")
     print("alignment selftest:", "FAIL" if fails else "ok", f"({fails} bad lines, {len(THEME_ORDER)} themes)")
     return 1 if fails else 0
 
 
 def main(argv):
     args = argv[1:]
+    if "--session-name" in args:                # the launcher's `tmux new-session -A -s "$(...)"`
+        print(tmux_session())                   # name lookup only: never touches prefs.json
+        return 0
     if "--ascii" in args or (os.environ.get("LANG", "").lower()[:2] in ("ja", "zh", "ko") and "--unicode" not in args):
         use_ascii()
     global PLAIN
@@ -2369,10 +2912,15 @@ def main(argv):
         if a.startswith("--width="):
             width = int(a.split("=", 1)[1])
     if "--once" in args or not sys.stdout.isatty():
-        rows = discover()
+        all_rows = discover()
         if "--demo" in args:
-            rows = demo_rows() + rows
-        for _, ln in render(rows, width, sel=0, frame=int(time.time()) % 4):
+            all_rows = demo_rows() + all_rows
+        ws = workspace_root(os.getcwd())
+        saved = ws_prefs(ws)
+        collapsed = set(saved["collapsed"]) if saved else {e["name"] for e in scan_workspace(ws) if e["kind"] == "group"}
+        order = list(saved["order"]) if saved else []
+        rows = tree_rows(all_rows, ws, "", collapsed, order)
+        for _, ln in render(rows, width, sel=0, frame=int(time.time()) % 4, ws=ws, all_rows=all_rows):
             print(ln)
         return
     run_tui(args)

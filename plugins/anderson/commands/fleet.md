@@ -14,8 +14,10 @@ curses, zero tokens); this command only installs the launcher and tells the huma
 ```
 ⌐■-■  THE OPERATOR — every Claude Code session on this machine, one row each
 
-  launch:   fleet                 right here, in the current terminal (tmux or not)
-            fleet --tmux          outside tmux: a persistent tmux session "fleet", status bar hidden
+  launch:   fleet                 outside tmux: attaches a per-workspace tmux session (status bar
+                                  on); inside tmux: right here in the current window
+            fleet --here          run right here regardless of tmux
+            fleet --tmux          outside tmux: the legacy persistent session "fleet", status bar hidden
             fleet --pane          in tmux: 45% side pane        fleet --window   in tmux: new window
             fleet --demo          four fake rows to try the UI   fleet --once     one plain frame
             fleet --theme zion    matrix · construct · zion · nebuchadnezzar · agent (saved)
@@ -26,12 +28,23 @@ curses, zero tokens); this command only installs the launcher and tells the huma
             (the /usage windows, red past 90%: your plan is a flat fee, these percentages are the
             cost; the api$ estimate is hidden, `$` or --cost shows it in the footer)
 
+  tree:     rows are the repos of the workspace fleet was launched from, one nested level: a repo
+            holding a rework loop is a row, a dir holding several repos is a collapsible group row,
+            live sessions nest under their repo, and sessions from elsewhere land in an `elsewhere`
+            group. `J`/`K` reorder a repo/group among its siblings, `space` (or `←`/`→`) collapses
+            it; both persist per workspace. No repos found under the launch dir -> today's flat list.
+
   row:      flags · repo · task · persona · stage n/max · model · now · ctx · age
             ☎ waits on you   ▶ working   ✝ process gone   ⟲ rework loop
             ▲ ARCHITECT · ◇ INTERROGATOR · ◎ ORACLE · ● NEO · ▣ AGENT SMITH · ★ THE ONE · ○ no pipeline
 
-  keys:     ↑↓ tune · 1-9 / ⏎ jack in · w oldest waiting · r kill (asks; hides the row) · b hide row · h show hidden
-            ⏎ on a sentinel revives it in a new terminal · c copy `claude --resume` · n desktop notification on ring (skipped, with the
+  keys:     ↑↓ tune · 1-9 / ⏎ jack in (session row) or spawn an agent (repo/group row) · J/K reorder
+              a repo/group · space collapse/expand (←/→ too) · D pop a session's window out into
+              its own terminal · w oldest waiting · r kill (asks; hides the row) · b hide row · h show hidden
+            ⏎ on a sentinel revives it in a new terminal · ⏎ on a repo/group row opens a prompt box,
+              then p/a/A spawns a claude agent (bare / /anderson:start / /anderson:auto) into that
+              repo — or the workspace root, on a group — as a new tmux window
+            c copy `claude --resume` · n desktop notification on ring (skipped, with the
               sound, when that session's terminal is already frontmost; fleet --ping tests the banner)
             m sound on/off · s next ring sound (phone · snare · hitech · freeze · blip · rift · jump;
               fleet --play all auditions them, --ring NAME picks, own .wav in ~/.claude/fleet/sounds/)
