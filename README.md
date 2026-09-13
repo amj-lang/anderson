@@ -4,6 +4,7 @@
 [![version](https://img.shields.io/badge/version-0.42.1-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
+[![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
 
 ![four agents. two human gates. one pull request.](assets/premise.png)
 
