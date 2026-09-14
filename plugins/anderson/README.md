@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.43.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.44.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -628,6 +628,13 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.44.0** — **Fleet becomes the place work starts.** Rows are now the repos of the workspace fleet
+was launched from, one nested level, with live sessions underneath their repo and collapsible groups.
+`J`/`K` order and the collapsed set persist per workspace, and `⏎` on a repo or group row spawns a
+claude agent into it as a tmux window, so the monitor no longer needs an IDE to begin work in.
+Behaviour change: `fleet` outside tmux attaches a per-workspace tmux session by default, and
+`⏎ · J/K · space · D` have new meanings.
 
 - **0.43.0** — **It counts its own installs.** A marketplace install is a shallow clone, which GitHub's
 traffic API counts; an update is a fetch, which it does not. So the plugin says hello once per version
