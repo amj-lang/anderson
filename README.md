@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.43.0-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.44.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -116,7 +116,7 @@ A zero-token python curses terminal that runs outside Claude. One row per Claude
 
 | Key         | Does                                            |
 | ----------- | ----------------------------------------------- |
-| `1`-`9`, `⏎` | jack into that session's pane                  |
+| `1`-`9`, `⏎` | jack into that session's pane, or spawn an agent into a repo row |
 | `w`         | jump to the oldest session waiting on you        |
 | `o`         | read the plan or audit right there              |
 | `n`         | desktop notification when a session rings       |
@@ -132,7 +132,8 @@ A zero-token python curses terminal that runs outside Claude. One row per Claude
 
 ```
 /anderson:fleet      # once: installs ~/.local/bin/fleet
-fleet                # run it here, tmux or not
+fleet                # outside tmux: attaches a per-workspace tmux session; inside: right here
+fleet --here         # always right here, tmux or not
 fleet --pane         # 45% tmux side pane
 fleet --demo         # four fake rows to try it
 ```
