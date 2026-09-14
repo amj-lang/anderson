@@ -9,6 +9,10 @@ OUT="${OUT:-metrics/traffic.json}"
 BADGE="${BADGE:-metrics/badge.json}"
 INSTALLS="${INSTALLS:-metrics/installs.json}"
 INSTALLS_BADGE="${INSTALLS_BADGE:-metrics/installs-badge.json}"
+# Nothing before this date is recorded. The first version of this script backfilled
+# the 14-day window it happened to find, which mixed a launch spike and a fortnight
+# of crawler traffic into the running total; the series starts clean instead.
+SINCE="${SINCE:-2026-09-14}"
 
 # GitHub's number for *today* grows through the day, and a day eventually falls
 # out of the 14-day window, so a re-run keeps the larger value per field and
@@ -50,7 +54,8 @@ if [ -n "$clones" ]; then
   views=$(gh api "repos/$REPO/traffic/views" \
     --jq '[.views[] | {key: .timestamp[0:10], value: {views: .count, unique_views: .uniques}}] | from_entries')
 
-  jq -n --argjson c "$clones" --argjson v "$views" '$c * $v' > "$tmp/new.json"
+  jq -n --argjson c "$clones" --argjson v "$views" --arg since "$SINCE" \
+    '$c * $v | with_entries(select(.key >= $since))' > "$tmp/new.json"
   jq -s "$MERGE | to_entries | sort_by(.key) | from_entries" "$OUT" "$tmp/new.json" > "$tmp/merged.json"
   mv "$tmp/merged.json" "$OUT"
 
