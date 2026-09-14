@@ -99,4 +99,8 @@ jobs:
             exit 0
           fi
           echo "Publishing $TAG"
-          gh release create "$TAG" --target "$GITHUB_SHA" --title "anderson $TAG" --generate-notes
+          # The `ping` asset is the install counter: the plugin fetches it once
+          # per version per machine, and GitHub's public download_count on it is
+          # the number. See plugins/anderson/hooks/ping.py.
+          echo ok > ping
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "anderson $TAG" --generate-notes ping

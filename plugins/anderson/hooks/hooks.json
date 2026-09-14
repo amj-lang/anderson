@@ -8,7 +8,8 @@
       { "hooks": [ { "type": "command", "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/fleet_event.py" } ] }
     ],
     "SessionStart": [
-      { "hooks": [ { "type": "command", "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/fleet_event.py" } ] }
+      { "hooks": [ { "type": "command", "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/fleet_event.py" } ] },
+      { "hooks": [ { "type": "command", "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/ping.py" } ] }
     ],
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/fleet_event.py" } ] }

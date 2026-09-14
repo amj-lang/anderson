@@ -1,0 +1,36 @@
+name: traffic
+
+# GitHub's traffic API only remembers 14 days. Snapshot it daily so the install
+# count (a marketplace install is a clone) keeps accumulating.
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Self-check the merge
+        run: .github/traffic.sh --selftest
+
+      - name: Snapshot traffic
+        env:
+          # The traffic endpoints need push access. GITHUB_TOKEN normally has it;
+          # set a TRAFFIC_TOKEN repo secret (a PAT with `repo`) if it 403s.
+          GH_TOKEN: ${{ secrets.TRAFFIC_TOKEN || secrets.GITHUB_TOKEN }}
+        run: .github/traffic.sh
+
+      - name: Commit if changed
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add metrics
+          git diff --cached --quiet && { echo "no change"; exit 0; }
+          git commit -m "traffic: daily snapshot [skip ci]"
+          git push

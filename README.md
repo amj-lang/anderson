@@ -1,11 +1,13 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.42.1-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.43.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
+[![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
+[![installs](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/installs-badge.json)](metrics/installs.json)
 
-![four agents. two human gates. one pull request.](assets/premise.png)
+![four agents. two human gates. one pull request.](https://raw.githubusercontent.com/amj-lang/anderson/media/assets/premise.png)
 
 A [Claude Code](https://claude.com/claude-code) plugin, Matrix themed, that spawns a crew of agents sized to the task and stops to make you resolve the ambiguity it cannot.
 
@@ -19,7 +21,7 @@ One task in, one reviewed pull request out.
 
 ## Philosophy
 
-![read less code. judge more intent.](assets/philosophy.png)
+![read less code. judge more intent.](https://raw.githubusercontent.com/amj-lang/anderson/media/assets/philosophy.png)
 
 The job is changing. You will read less code and judge more intent.
 
@@ -108,7 +110,7 @@ Fable is the default critic on both review gates. `--opus` on `start` or `auto` 
 
 ## Fleet: every Claude session on one screen
 
-![fleet, THE OPERATOR: one row per Claude Code session](assets/fleet-operator.png)
+![fleet, THE OPERATOR: one row per Claude Code session](https://raw.githubusercontent.com/amj-lang/anderson/media/assets/fleet-operator.png)
 
 A zero-token python curses terminal that runs outside Claude. One row per Claude Code session on the machine, ringing rows first.
 
@@ -164,6 +166,7 @@ Commands are namespaced `/anderson:<command>` and take positional args (first wo
 - Full operator docs: [plugins/anderson/README.md](plugins/anderson/README.md)
 - auto-mode spec: [plugins/anderson/docs/auto-mode.md](plugins/anderson/docs/auto-mode.md)
 - Headless / CI runner: [plugins/anderson/bin/feature.sh](plugins/anderson/bin/feature.sh) exits 10 at Gate 1 and 20 at Gate 2, so it composes with CI or a Makefile
-- Promo video source: [video/](video/) (Remotion, `npm run render`)
+- Promo video source and README images: the [`media`](https://github.com/amj-lang/anderson/tree/media) branch (`git switch media`). Off `main` so installing the plugin does not download them.
 - CI workflow: [.github/workflows/ci.yml](.github/workflows/ci.yml)
+- Install counting, and how to switch it off: [plugins/anderson/README.md#install-counting](plugins/anderson/README.md#install-counting)
 - [MIT licence](LICENSE)

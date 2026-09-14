@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.42.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.43.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -113,11 +113,11 @@ Living spec: `plugins/anderson/docs/auto-mode.md`. Design context: `plugins/ande
 
 ## What a real run looks like
 
-![anderson — digital-rain intro](../../assets/anderson-demo.gif)
+![anderson — digital-rain intro](https://raw.githubusercontent.com/amj-lang/anderson/media/assets/anderson-demo.gif)
 
 The fleet terminal boots into the same rain:
 
-![fleet — Loading anderson…](../../assets/fleet-loading.png)
+![fleet — Loading anderson…](https://raw.githubusercontent.com/amj-lang/anderson/media/assets/fleet-loading.png)
 
 ## Personas
 
@@ -504,7 +504,7 @@ input-side saving, not a dramatic one.
 
 ## Extras (terminal)
 
-![fleet — THE OPERATOR: every Claude Code session on one screen](../../assets/fleet-operator.png)
+![fleet — THE OPERATOR: every Claude Code session on one screen](https://raw.githubusercontent.com/amj-lang/anderson/media/assets/fleet-operator.png)
 
 Optional flourishes in `bin/` — run them in a real terminal (the in-loop banners are plain text and don't animate):
 
@@ -603,7 +603,39 @@ missing; `fleet install --extras` installs the first two, `--with-tmux` the thir
   "statusLine": { "type": "command", "command": "bash /ABS/PATH/plugins/anderson/bin/statusline.sh" }
   ```
 
+## Install counting
+
+The plugin counts how many machines run each version, and nothing else.
+
+On the first session after an install or an update, a `SessionStart` hook fetches a one-byte `ping`
+file attached to that version's GitHub release. GitHub publishes a public `download_count` for every
+release asset, so the release *is* the counter: there is no server, no account, no analytics vendor,
+and no payload. The request carries no identifier, no project path, no machine, OS or user
+information. GitHub sees an IP address it already saw when the marketplace cloned the repo.
+
+It fires once per version per machine. A marker at `~/.claude/anderson/counted` records which
+versions have been counted, is written before the request goes out, and the request itself is
+detached with a 5-second timeout, so a slow or offline network costs the session nothing.
+
+To turn it off completely, set either variable in your shell profile:
+
+```sh
+export ANDERSON_NO_TELEMETRY=1   # or the cross-tool DO_NOT_TRACK=1
+```
+
+The counts are published in [`metrics/installs.json`](../../metrics/installs.json) on `main`, next to
+the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The code is
+[`hooks/ping.py`](hooks/ping.py) — about forty lines.
+
 ## Changelog
+
+- **0.43.0** — **It counts its own installs.** A marketplace install is a shallow clone, which GitHub's
+traffic API counts; an update is a fetch, which it does not. So the plugin says hello once per version
+per machine: a SessionStart hook fetches the one-byte `ping` asset attached to that release, and
+GitHub's public `download_count` on the asset is the number. Nothing is sent but the request itself —
+no identifier, no path, no machine or user information, no third-party service. Opt out with
+`ANDERSON_NO_TELEMETRY=1` or the cross-tool `DO_NOT_TRACK=1`, and the hook never runs. See
+[Install counting](#install-counting).
 
 - **0.42.0** — **The plan states its own price.** The tier decided what the review gates cost and
 which models ran them, but only `state.md` knew it. `plan.md` now carries a `**Tier:** <TIER> —
@@ -643,7 +675,7 @@ points at `c` / `b`, instead of talking about tmux.
 reports "no IDE owns that session" when a plain terminal owns it: the auto-open is silent unless a GUI
 editor actually applies, so a successful jack in stops reading like a failure. `O` still says why nothing
 opened, since asking for the IDE is the point of that key. Landing images in both READMEs are now real
-stills of the fleet boot screen and the live board (`assets/*.tape` re-records them with VHS), replacing
+stills of the fleet boot screen and the live board (`assets/*.tape` on the `media` branch re-records them with VHS), replacing
 the hand-maintained ASCII mock.
 - **0.40.0** — **Tiered review effort in start mode.** The gated loop derives plan-review and diff-review
 effort from the plan Scorecard instead of running both at a fixed xhigh: a trivial tier skips plan-review,
@@ -1135,7 +1167,7 @@ Licenses in `assets/NOTICE.md`.
   shows a line, then runs an accelerated montage of a full run (PLAN → … → SHIP with
   the gates). README landing reworked — pipeline + cast + run-walkthrough collapsed into
   one explicit table, a generic quickstart example, the demo GIF up top, **anderson**
-  bolded. (Re-record the GIF with `vhs assets/anderson.tape` to capture the new intro.)
+  bolded. (Re-record the GIF with `vhs assets/anderson.tape, on the media branch` to capture the new intro.)
 - **0.9.1** — Restyled the stage banners into a tight, framed, persona-led format
   (`╭─ ⌐■-■ STAGE · N/4 · PERSONA · model/effort` + a one-line quote) — dropped the
   repeated wordmark + sparkles that made the old 3-line banner feel busy. Statusline
