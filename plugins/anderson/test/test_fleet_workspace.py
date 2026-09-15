@@ -290,6 +290,53 @@ class TestSpawn(unittest.TestCase):
         finally:
             fleet.shutil.which = old
 
+    def _real_repo(self, branch):
+        """A real git repo with one commit, parked on `branch`. git itself, not a mock: the whole
+        point of worktree_for() is what git actually does with a repo that has work in progress."""
+        tmp = tempfile.mkdtemp()
+        env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
+               "GIT_COMMITTER_EMAIL": "t@t"}
+        run = lambda *a: subprocess.run(["git", "-C", tmp, *a], capture_output=True, env=env, check=True)
+        subprocess.run(["git", "init", "-q", "-b", "main", tmp], capture_output=True, check=True)
+        pathlib.Path(tmp, "f").write_text("x")
+        run("add", "f"); run("commit", "-qm", "one")
+        if branch != "main":
+            run("checkout", "-qb", branch)
+        return tmp
+
+    def test_spawn_into_a_repo_on_a_feature_branch_gets_its_own_worktree(self):
+        repo = self._real_repo("wip/someone-elses-work")
+        cwd, note = fleet.worktree_for(repo, "lin-482")
+        self.assertEqual(cwd, os.path.join(repo, ".worktrees", "lin-482"))
+        self.assertTrue(os.path.isdir(cwd))
+        self.assertEqual(fleet._git(["rev-parse", "--abbrev-ref", "HEAD"], cwd), "anderson/lin-482")
+        self.assertIn("anderson/lin-482", note)
+        # the repo someone was working in is untouched
+        self.assertEqual(fleet._git(["rev-parse", "--abbrev-ref", "HEAD"], repo), "wip/someone-elses-work")
+        # and a second spawn under the same task reuses it instead of failing
+        again, note2 = fleet.worktree_for(repo, "lin-482")
+        self.assertEqual(again, cwd)
+        self.assertIn("reused", note2)
+
+    def test_spawn_into_a_repo_on_its_default_branch_uses_the_checkout_itself(self):
+        repo = self._real_repo("main")
+        self.assertEqual(fleet.worktree_for(repo, "lin-482"), (repo, ""))
+
+    def test_worktree_for_a_plain_directory_is_a_no_op(self):
+        with tempfile.TemporaryDirectory() as plain:
+            self.assertEqual(fleet.worktree_for(plain, "x"), (plain, ""))
+
+    def test_an_agent_in_a_worktree_still_rows_under_its_repo(self):
+        ws = tempfile.mkdtemp()
+        repo = os.path.join(ws, "claude-loop")
+        make_repo(repo)
+        fleet._WS_CACHE.clear()
+        sess = [make_session(os.path.join(repo, ".worktrees", "lin-482"), sid="wt")]
+        rows = fleet.tree_rows(sess, ws, "", set())
+        self.assertNotIn("elsewhere", [r["repo"] for r in rows])
+        i = next(i for i, r in enumerate(rows) if r.get("kind") == "repo" and r["repo"] == "claude-loop")
+        self.assertEqual(rows[i + 1]["sid"], "wt")            # nested under its repo, not adrift
+
     def test_launch_agent_never_replaces_the_fleet_window(self):
         """The monitor has to survive a spawn: on macOS the agent gets its own OS window, and the
         tmux fallback creates the window with -d so focus stays on fleet."""
@@ -307,14 +354,15 @@ class TestSpawn(unittest.TestCase):
                  mock.patch.object(fleet.shutil, "which", side_effect=lambda n: "/usr/bin/" + n), \
                  mock.patch.object(fleet.sys, "platform", "linux"):
                 fleet.launch_agent(row, "hi", "p")
-            self.assertEqual(seen[0][:3], ["tmux", "new-window", "-d"])
+            self.assertEqual(next(a for a in seen if a[0] == "tmux")[:3], ["tmux", "new-window", "-d"])
 
             seen.clear()
             with mock.patch.object(fleet.subprocess, "run", side_effect=fake_run), \
                  mock.patch.object(fleet.shutil, "which", side_effect=lambda n: "/usr/bin/" + n), \
                  mock.patch.object(fleet.sys, "platform", "darwin"):
                 fleet.launch_agent(row, "hi", "p")
-            self.assertEqual(seen[0][0], "osascript")                   # a real window, not a tmux one
+            self.assertNotIn("tmux", [a[0] for a in seen])              # a real window, not a tmux one
+            self.assertIn("osascript", [a[0] for a in seen])
         finally:
             if old_tmux is None:
                 os.environ.pop("TMUX", None)

@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.46.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.47.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -536,7 +536,9 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
   --with-tmux` adds it via brew / apt / dnf if you want panes) — or **spawn an agent** on a
   repo/group row: `⏎` opens a prompt box, then `p`/`a`/`A` launches a claude agent (bare /
   `/anderson:start` / `/anderson:auto`) into that repo — or the workspace root, on a group — in a
-  terminal of its own, so the monitor keeps the window it is in. `J`/`K` reorder a repo/group among its siblings, `space` (`←`/`→` too)
+  terminal of its own, so the monitor keeps the window it is in. If that repo is already parked on a
+  feature branch, the agent does not land in it: it gets a worktree (`.worktrees/<task>` on branch
+  `anderson/<task>`, cut from the default branch), and its row still nests under the repo. `J`/`K` reorder a repo/group among its siblings, `space` (`←`/`→` too)
   collapses/expands it; both persist per workspace. `D` pops a session's tmux window out into its
   own OS terminal window. `w` white rabbit
   (oldest ring, expanding any collapsed group in the way) · `r` kill (asks first; the row is hidden with it) · `b` hide the row (any row, the process is left alone) or, on a repo/group row, that whole repo and its agents (saved per workspace) · `h` show hidden rows and repos (`b` on one un-hides) · `c` copy the
@@ -635,6 +637,14 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.47.0** — **A busy repo gets a worktree, not a hijack.** Spawning an agent onto a repo that is
+already parked on a feature branch used to drop it straight into that checkout, on top of whatever
+was in flight there. Now the agent gets its own worktree — `.worktrees/<task>` on `anderson/<task>`,
+cut from the default branch (`origin/<default>` when it exists) — and the repo keeps its branch and
+its uncommitted work. On the default branch nothing changes: the checkout is free, the agent uses it.
+Anything git refuses falls back to the repo with a note, so a spawn is never blocked. Sessions
+running in a worktree still row under the repo they came from, not in `elsewhere`.
 
 - **0.46.0** — **The monitor stays put, and you can hide a repo.** Spawning an agent used to take
 over the window fleet was in: it now opens a terminal of its own (a real OS window on macOS, a `-d`
