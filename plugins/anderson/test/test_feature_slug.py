@@ -75,3 +75,30 @@ class TestSeed(TestSlugWithSlash):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAdoptExisting(TestSlugWithSlash):
+    """One session, one task dir. Seeding the same work again under a richer slug (the ticket id
+    turned up) must adopt the dir that is already there, not leave two for fleet to confuse."""
+
+    def test_a_ticket_prefixed_slug_adopts_the_plain_one(self):
+        self.run_feature("seed", "ais-showcase-poses-on-models")
+        r = self.run_feature("seed", "ar-2168-ais-showcase-poses-on-models")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("ADOPTED", r.stdout)
+        dirs = sorted(p.name for p in (self.repo / "feature-research").iterdir())
+        self.assertEqual(dirs, ["ais-showcase-poses-on-models"])       # exactly one, the original
+
+    def test_a_plain_slug_adopts_the_ticket_prefixed_one(self):
+        self.run_feature("seed", "ar-2168-ais-showcase-poses-on-models")
+        r = self.run_feature("seed", "ais-showcase-poses-on-models")
+        self.assertIn("ADOPTED", r.stdout)
+        dirs = sorted(p.name for p in (self.repo / "feature-research").iterdir())
+        self.assertEqual(dirs, ["ar-2168-ais-showcase-poses-on-models"])
+
+    def test_unrelated_tasks_still_get_their_own_dir(self):
+        self.run_feature("seed", "ar-1-login-fix")
+        r = self.run_feature("seed", "ar-2-logout-fix")
+        self.assertNotIn("ADOPTED", r.stdout)
+        dirs = sorted(p.name for p in (self.repo / "feature-research").iterdir())
+        self.assertEqual(dirs, ["ar-1-login-fix", "ar-2-logout-fix"])
