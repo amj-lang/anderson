@@ -51,11 +51,13 @@ Never `max` (buys +0.6 points for +20k tokens) and never `low` (quality falls of
 medium). The usable band is medium → xhigh.
 
 TIER LINE: the tier and the crew it summons are never implicit. Whenever the tier is computed or
-re-computed, rewrite the `**Tier:**` line under `## 📈 Scorecard` in plan.md to exactly:
+re-computed, rewrite the `**Tier:**` line directly under the plan.md H1 (`# <task> — plan`) to
+exactly:
   `**Tier:** <TIER> — plan_review <review_model>/<effort or "skipped"> · implement sonnet/medium · diff_review <review_model>/<effort>`
 (models: planner is always opus/high and already ran; `<review_model>` is state.md `review_model`
-— fable, or opus with `--opus`.) The same line is echoed on the Gate 1 card, so you see the bill
-before you approve it. `/anderson:approve-plan` and `/anderson:rework` rewrite it on re-tier.
+— fable, or opus with `--opus`.) It sits at the top of the plan, above 🎯 What, so the tier is the
+first thing read; it is echoed again on the PLAN_REVIEW banner and the Gate 1 card, so you see the
+bill before you approve it. `/anderson:approve-plan` and `/anderson:rework` rewrite it on re-tier.
 
 BANNER RULE: finish setup and state.md edits, then print the banner as the last line before
 the agent call.
@@ -216,7 +218,7 @@ run in parallel and the reviewer judges files that don't exist yet.
    Otherwise print this PLAN-REVIEW banner as the LAST line before invoking the plan-reviewer
    (substitute `<review_model>` and `<review_effort>` with the state.md / table values):
    ```
-     ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · <review_model>/<review_effort>
+     ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · <review_model>/<review_effort> · tier <TIER>
      │  "[one quote from the pool]"
      ╰─
    ```

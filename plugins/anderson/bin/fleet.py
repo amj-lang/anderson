@@ -187,7 +187,7 @@ def anderson_state(root):
     except Exception:
         return {}
     st = {k: field(t, k) for k in
-          ("task", "stage", "iteration", "max_iterations", "plan_verdict", "diff_verdict", "review_model", "branch", "gate")}
+          ("task", "stage", "iteration", "max_iterations", "plan_verdict", "diff_verdict", "review_model", "branch", "gate", "tier")}
     st["task"] = st["task"] or os.path.basename(os.path.dirname(p))
     st["mtime"] = os.path.getmtime(p)
     return st
@@ -670,7 +670,7 @@ def enrich(s, now):
         "task": st.get("task") or "", "title": tr.get("title") or "", "stage": stage, "persona": persona, "pglyph": PGLYPH[gk],
         "mood": mood, "model": model_spec, "iteration": it, "max_iter": mx,
         "plan_verdict": st.get("plan_verdict"), "diff_verdict": st.get("diff_verdict"), "branch": st.get("branch") or tr.get("branch"),
-        "gate": (st.get("gate") or "").lower(),
+        "gate": (st.get("gate") or "").lower(), "tier": (st.get("tier") or "").lower(),
         "dejavu": bool(it and it.isdigit() and int(it) > 0),
         "status": status, "now": now_txt, "text": tr.get("text") or "",
         "cost": s.get("cost_usd"), "ctx_pct": ctx_pct, "ctx_tokens": toks,
@@ -749,7 +749,7 @@ def scan_workspace(ws):
 # never half-miss one: render() L1127 unpacks r["lines"] raw, footer() sums r["cost"] without .get()
 _WS_BASE = dict(
     pid=None, cwd="", root="", task="", title="", stage="", persona="", pglyph="", mood="", model="",
-    iteration=None, max_iter=None, plan_verdict=None, diff_verdict=None, branch=None, gate="",
+    iteration=None, max_iter=None, plan_verdict=None, diff_verdict=None, branch=None, gate="", tier="",
     dejavu=False, text="", cost=None, ctx_pct=None, ctx_tokens=None, lines=(None, None),
     start=None, last_seen=None, agents=(0, 0, ""), idle=False, transcript_path=None,
     tmux_pane=None, tmux_addr=None, shipped=False, hb_ts=None, hidden=False,
@@ -925,21 +925,21 @@ def demo_rows():
            persona=st("diff_review")[1], pglyph=PGLYPH["smith"], mood="adversary", model="fable/high",
            iteration="1", max_iter="2", dejavu=True, status="ring", now=f"{G['ring']} ring",
            text="47 passed, 0 failed. Verdict: fix_first, one unproven criterion.", cost=1.42, ctx_pct=61,
-           start=now - 12 * 60, diff_verdict="fix_first"),
+           start=now - 12 * 60, diff_verdict="fix_first", tier="hard"),
         mk(sid="demo-2", repo="ai-shoot-service", task="remove-db-triggers", stage="implement",
            persona=st("implement")[1], pglyph=PGLYPH["neo"], mood="action", model="sonnet/medium",
            iteration="0", max_iter="2", dejavu=False, status="work", now=f"{G['run']} Edit orders.py",
            text="Replacing the trigger with an explicit write in process_order().", cost=0.88, ctx_pct=34,
-           start=now - 4 * 60),
+           start=now - 4 * 60, tier="normal"),
         mk(sid="demo-3", repo="claude-loop", task="readbility", stage="grill",
            persona=st("grill")[1], pglyph=PGLYPH["grill"], mood="insight", model="you",
            iteration="0", max_iter="2", dejavu=False, status="ring", now=f"{G['ring']} ring",
            text="Question 3 of 7: should the What block cap at three lines or three sentences?", cost=0.12,
-           ctx_pct=9, start=now - 41 * 60),
+           ctx_pct=9, start=now - 41 * 60, tier="trivial"),
         mk(sid="demo-4", repo="fashion-webapp-2", task="sku-bulk-upload", stage="plan",
            persona=st("plan")[1], pglyph=PGLYPH["arch"], mood="design", model="opus/high",
            iteration="2", max_iter="2", dejavu=True, status="sentinel", now=f"{G['dead']} sentinel",
-           text="", cost=0.31, ctx_pct=None, start=now - 2 * 3600, pid=None),
+           text="", cost=0.31, ctx_pct=None, start=now - 2 * 3600, pid=None, tier="critical"),
     ]
 
 
@@ -1107,6 +1107,7 @@ COLS = [  # key, title, width (None = elastic), align, min terminal width to sho
     ("task",    "task",    None, "l", 0),
     ("persona", "persona", 14,   "l", 0),
     ("stage",   "stage",   15,   "l", 0),
+    ("tier",    "tier",    8,    "l", 110),
     ("model",   "model",   13,   "l", 140),
     ("now",     "now",     22,   "l", 85),
     ("cost",    "api$",    6,    "r", 100),
@@ -1176,6 +1177,11 @@ def ctx_bar(pct, w=10):
     return G["bar"] * n + G["trk"] * (w - n) + f" {int(pct):3d}%"
 
 
+# how hard the pipeline decided this task is (state.md `tier`). Upper-case for the two that cost
+# real review effort, so a screen of rows shows at a glance who is grinding.
+TIER_LABEL = {"trivial": "triv", "normal": "normal", "hard": "HARD", "critical": "CRITICAL", "pending": "…"}
+
+
 def cell(row, key, frame):
     if row.get("kind") in ("repo", "group"):
         if key == "flag":
@@ -1212,6 +1218,8 @@ def cell(row, key, frame):
         if row.get("iteration") is not None and row.get("max_iter"):
             s += f" {row['iteration']}/{row['max_iter']}"
         return s
+    if key == "tier":
+        return TIER_LABEL.get(row.get("tier") or "", "")
     if key == "model":
         return row["model"]
     if key == "now":
@@ -1308,7 +1316,8 @@ def detail_card(r, W, toast, t, airy=False):
             lines.append(("det", fit(d, W)))
     gap()
     L("task", f"{head} · {r['repo']}" + (f" · ⎇ {r['branch']}" if r.get("branch") else ""))
-    L("who", who + (f" · model {r['model']}" if r.get("model") else ""))
+    L("who", who + (f" · model {r['model']}" if r.get("model") else "")
+               + (f" · tier {TIER_LABEL.get(r.get('tier') or '', '')}" if r.get("tier") else ""))
     if r.get("stage"):
         L("verdicts", f"plan {r['plan_verdict'] or '—'} · diff {r['diff_verdict'] or '—'} · gate {r.get('gate') or 'none'}")
     gap()
@@ -1563,6 +1572,9 @@ MANUAL = """
   persona   who is on the job, from feature-research/*/state.md: ARCHITECT plan,
             INTERROGATOR grill (you), ORACLE plan_review, NEO implement,
             AGENT SMITH diff_review, THE ONE shipped, T. ANDERSON: no pipeline yet
+  tier      how hard the pipeline decided this task is, from state.md `tier`: triv · normal ·
+            HARD · CRITICAL (upper-case = the two that buy a heavier review). `…` until the
+            planner's scorecard has been routed
   ctx       from the statusline heartbeat (bin/heartbeat.py); falls back to the transcript's
             last usage when no heartbeat is wired
   footer    session 46% · 4h07 left │ week 41% · resets Fri 19:00   (red past 90%: extra-usage

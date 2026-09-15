@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.47.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.48.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -521,7 +521,8 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
   sessions from elsewhere land in an `elsewhere` group. No repos found under the launch dir falls
   back to today's flat session list. Each row: repo · anderson task · **persona on the job**
   (▲ ARCHITECT, ◇ INTERROGATOR, ◎ ORACLE, ● NEO, ▣ AGENT SMITH, ★ THE ONE, ○ T. ANDERSON = no
-  pipeline yet) · stage `n/max` · model · **now** (`▶ Bash pytest -q`, `▶ Agent implementer`,
+  pipeline yet) · stage `n/max` · **tier** (how hard the pipeline decided the task is: `triv` ·
+  `normal` · `HARD` · `CRITICAL`, from state.md) · model · **now** (`▶ Bash pytest -q`, `▶ Agent implementer`,
   `☎ ring` = waits on you, `☎ permission Bash`, `✝ sentinel` = process gone, `⟲` = rework loop) ·
   $ · context bar · age. Detail pane: verdicts, lines ±, tmux pane, last words, a mood-matched line
   from `quotes.txt`. Runs **outside** Claude (python stdlib curses, zero tokens) in its own tmux
@@ -637,6 +638,13 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.48.0** — **The tier is visible everywhere the work is.** The difficulty tier already decided
+what the review gates cost, but you had to dig for it. It now leads the plan (a `**Tier:**` line
+directly under the H1, above 🎯 What, instead of buried in the Scorecard), rides the PLAN_REVIEW
+banner so you see it before the critique starts, and has its own column on the fleet overview —
+`triv · normal · HARD · CRITICAL`, upper-case for the two that buy a heavier review — so a screen of
+rows shows at a glance which agents are grinding and which are coasting.
 
 - **0.47.0** — **A busy repo gets a worktree, not a hijack.** Spawning an agent onto a repo that is
 already parked on a feature branch used to drop it straight into that checkout, on top of whatever
@@ -791,7 +799,7 @@ Licenses in `assets/NOTICE.md`.
   carry `(as of 4m ago)`, and copies older than six hours are dropped rather than shown wrong.
 - **0.33.1** — **Fleet: detail card; red footer at 90% usage; test fix.** When the terminal has
   ten or more free lines below the table, the selected session gets a labelled card instead of three
-  dense lines: `task` (with repo and `⎇ branch`), `who` (persona · stage · model), `verdicts` (plan,
+  dense lines: `task` (with repo and `⎇ branch`), `who` (persona · stage · model · tier), `verdicts` (plan,
   diff, gate), `status` (what it does now, last activity, session age), `context` (bar, tokens,
   lines ±, `← /compact` past 80%), `where` (pane, pid, session id), `prompt` (first prompt when an
   anderson task is running), `last` (last words), **`next`** (the one thing you do now: which command,

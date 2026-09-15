@@ -38,7 +38,8 @@ curses, zero tokens); this command only installs the launcher and tells the huma
             group. `J`/`K` reorder a repo/group among its siblings, `space` (or `←`/`→`) collapses
             it; both persist per workspace. No repos found under the launch dir -> today's flat list.
 
-  row:      flags · repo · task · persona · stage n/max · model · now · ctx · age
+  row:      flags · repo · task · persona · stage n/max · tier · model · now · ctx · age
+            tier is how hard the pipeline decided the task is: triv · normal · HARD · CRITICAL
             ☎ waits on you   ▶ working   ✝ process gone   ⟲ rework loop
             ▲ ARCHITECT · ◇ INTERROGATOR · ◎ ORACLE · ● NEO · ▣ AGENT SMITH · ★ THE ONE · ○ no pipeline
 
