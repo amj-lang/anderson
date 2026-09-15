@@ -14,6 +14,8 @@
 #                         iTerm2 / Terminal.app tab that owns the session)
 #   fleet install --extras      same, plus the optional tools fleet can use: glow (o renders
 #                         markdown) and, on macOS, terminal-notifier (n desktop banners)
+#   fleet update          update the anderson plugin to its latest release (needs the `claude`
+#                         CLI; restart Claude Code to apply)
 #   fleet uninstall       remove that shim
 #   fleet --demo | --theme zion | --plain | --calm | --no-intro | --once   -> fleet.py flags
 set -euo pipefail
@@ -112,7 +114,27 @@ install_tmux(){
   esac
 }
 
+cached_version(){
+  newest="$(ls -d "$HOME"/.claude/plugins/cache/*/anderson/*/ 2>/dev/null | sort -V | tail -1 || true)"
+  if [ -n "$newest" ]; then basename "$newest"; else echo none; fi
+}
+
+# ponytail: shells out to the `claude` CLI, the only thing that knows how to fetch a plugin.
+do_update(){
+  command -v claude >/dev/null 2>&1 || die "claude CLI not found (from inside Claude Code: /plugin update anderson)"
+  before="$(cached_version)"
+  claude plugin marketplace update
+  claude plugin update anderson
+  after="$(cached_version)"
+  if [ "$before" = "$after" ]; then
+    printf 'anderson %s: already the latest\n' "$after"
+  else
+    printf 'anderson %s -> %s. restart Claude Code to apply; fleet picks it up on its next launch.\n' "$before" "$after"
+  fi
+}
+
 case "${1:-}" in
+  update)    do_update; exit 0 ;;
   install)   shift
              for a in "$@"; do
                case "$a" in
