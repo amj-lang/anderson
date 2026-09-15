@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.44.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.45.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -558,6 +558,13 @@ missing; `fleet install --extras` installs the first two, `--with-tmux` the thir
 
 `/anderson:fleet --extras` and `/anderson:fleet --with-tmux` pass the flags through.
 
+### Keeping fleet current
+
+`fleet update` refreshes the marketplace, updates the anderson plugin through the `claude` CLI, and
+prints what it moved from and to; restart Claude Code to apply it. The `~/.local/bin` shim resolves the
+newest cached version every time it runs, so it never needs re-installing after an update. Without the
+`claude` CLI on PATH, run `/plugin update anderson` from inside Claude Code instead.
+
   **Five themes**, cycled live with `t` or set with `--theme <name>`, remembered per user in
   `~/.claude/fleet/prefs.json` together with wording and motion:
 
@@ -628,6 +635,12 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.45.0** — **`fleet update` updates the plugin.** The shim in `~/.local/bin` already resolves the
+newest cached version at run time, but nothing told you a newer one existed, so a machine could sit on
+an old fleet for weeks. `fleet update` now refreshes the marketplace, updates the plugin through the
+`claude` CLI, and prints the version it moved from and to (or that you were already current); restart
+Claude Code to apply. No `claude` on PATH, it points you at `/plugin update anderson` instead.
 
 - **0.44.0** — **Fleet becomes the place work starts.** Rows are now the repos of the workspace fleet
 was launched from, one nested level, with live sessions underneath their repo and collapsible groups.

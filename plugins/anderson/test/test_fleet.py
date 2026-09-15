@@ -241,6 +241,30 @@ class TestLauncher(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertFalse(os.path.exists(shim))
 
+    def test_update_calls_the_claude_cli_and_reports_the_version_change(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = os.path.join(tmp, ".claude", "plugins", "cache", "dodge-this", "anderson")
+            os.makedirs(os.path.join(cache, "0.40.3"))
+            stub_dir = os.path.join(tmp, "stub")
+            os.makedirs(stub_dir)
+            stub = os.path.join(stub_dir, "claude")
+            with open(stub, "w") as f:
+                # the real CLI unpacks a new version into the cache; `plugin update` does that here
+                f.write('#!/usr/bin/env bash\necho "claude $*"\n'
+                        f'[ "$1" = "plugin" ] && [ "$2" = "update" ] && mkdir -p "{cache}/0.44.0"\nexit 0\n')
+            os.chmod(stub, 0o755)
+            env = {**os.environ, "HOME": tmp, "PATH": stub_dir + os.pathsep + os.environ["PATH"]}
+            r = subprocess.run(["bash", str(BIN / "fleet"), "update"], env=env, capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("claude plugin marketplace update", r.stdout)
+            self.assertIn("claude plugin update anderson", r.stdout)
+            self.assertIn("0.40.3 -> 0.44.0", r.stdout)
+            self.assertIn("restart Claude Code", r.stdout)
+            # second run, nothing new to fetch: says so instead of inventing a bump
+            r = subprocess.run(["bash", str(BIN / "fleet"), "update"], env=env, capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("0.44.0: already the latest", r.stdout)
+
 
 class TestJackIn(unittest.TestCase):
     def test_dev_tty_parsing(self):
