@@ -23,7 +23,26 @@ fi
 # had a `/`, is recorded as `branch:` and used verbatim at ship time.
 task="${slug##*/}"; dir="$ROOT/$task"; state="$dir/state.md"
 BRANCH_SEED=""; case "$slug" in */*) BRANCH_SEED="$slug" ;; esac
+ORIG_TASK="$task"; ADOPTED=""   # adopt_existing may point task/dir/state at an existing task dir
 RM_SEED=fable; for _a in "$@"; do [ "$_a" = "--opus" ] && RM_SEED=opus; done
+
+# Same work, richer slug: `/anderson:start ais-showcase-poses` then, once the ticket turns up,
+# `/anderson:start ar-2168-ais-showcase-poses` used to leave two task dirs for one session — and
+# fleet, which reads the newest state.md under the repo, then showed both agents on the same task.
+# So before seeding a new dir, adopt an existing one whose slug matches modulo a ticket prefix.
+adopt_existing() {
+  [ -d "$dir" ] && return 0
+  local base="${task#*[0-9]-}" n nb
+  for d in "$ROOT"/*/; do
+    [ -f "$d/state.md" ] || continue
+    n="$(basename "$d")"; nb="${n#*[0-9]-}"
+    if [ "$n" != "$task" ] && [ "$nb" = "$base" ]; then
+      task="$n"; dir="$ROOT/$task"; state="$dir/state.md"
+      ADOPTED="$n"
+      return 0
+    fi
+  done
+}
 
 seed_state() {
   mkdir -p "$dir"
@@ -138,9 +157,10 @@ ship() {
 
 case "${1:-}" in
   seed)          [ -n "$slug" ] || { echo "seed: no task slug given"; exit 64; }
-                 if [ -f "$state" ]; then echo "state: $state already there (stage $(get stage), review_model $(rmodel))"
+                 adopt_existing
+                 if [ -f "$state" ]; then echo "state: $state already there (stage $(get stage), review_model $(rmodel))${ADOPTED:+ — ADOPTED for this session, use task key $task, do NOT create $ORIG_TASK}"
                  else seed_state; echo "state: $state seeded (stage plan, review_model $RM_SEED)${BRANCH_SEED:+, branch $BRANCH_SEED}"; fi;;
-  start)         goal="${3:?need a goal}"; seed_state; set_field task "$task"; plan; plan_review;;
+  start)         goal="${3:?need a goal}"; adopt_existing; seed_state; set_field task "$task"; plan; plan_review;;
   --approve-plan) set_field plan_verdict ship; set_field gate none; implement; diff_review;;
   --approve-diff) ship;;
   --rework)      implement; diff_review;;

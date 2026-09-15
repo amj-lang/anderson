@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.48.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.48.2-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -638,6 +638,13 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.48.2** — **One session, one task dir.** The other half of the duplicate-task report: starting
+the same work twice under a slightly different slug (`ais-showcase-poses` first, then
+`ar-2168-ais-showcase-poses` once the ticket turned up) left two task dirs in the repo, and fleet —
+which falls back to the newest state.md — then put both agents on the same task. `feature.sh seed`
+now adopts an existing task dir whose slug matches modulo a ticket prefix, in either direction, and
+tells the command which key to use; unrelated tasks still get their own dir.
 
 - **0.48.1** — **Two agents in one repo no longer report each other's task.** `state.md` was picked
 by mtime, so every session rooted in a repo showed whichever task had been touched last: start a

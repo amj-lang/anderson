@@ -71,7 +71,11 @@ run in parallel and the reviewer judges files that don't exist yet.
 
 1. The seed line at the top already did the setup: `.gitignore` has `feature-research/` and
    `feature-research/<task>/state.md` exists (`state: … seeded` or `… already there`). Do NOT
-   recreate it. Only when that line reports an error or is missing, do steps 1-2 by hand:
+   recreate it. ADOPTED: when that line says `ADOPTED for this session, use task key <t>`, the
+   work already has a task dir under a different slug (same slug modulo a ticket prefix) — `<t>`
+   is the task key for EVERYTHING from here on (state.md, plan.md, every banner, the Gate cards).
+   Never create the slug you were invoked with: one session, one task dir, or fleet shows two
+   agents on the same task. Only when that line reports an error or is missing, do steps 1-2 by hand:
    append `feature-research/` to `.gitignore` if absent, and create state.md as in step 2.
    If `--opus` was parsed but the seed line says `review_model fable` (the flag sat past the
    second word), fix it: `sed -i.bak -E 's/^(review_model:[[:space:]]*).*/\1opus/' feature-research/<task>/state.md && rm -f feature-research/<task>/state.md.bak`.
