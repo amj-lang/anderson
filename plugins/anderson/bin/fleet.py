@@ -27,9 +27,9 @@ Operator watching the screens.
 
 Data, richest first, each optional (the view degrades, never breaks):
   ~/.claude/fleet/<sid>.status.json   heartbeat from bin/heartbeat.py (statusline): $, ctx, model
-  ~/.claude/fleet/<sid>.event.json    hooks/fleet_event.py: waiting-on-you vs working
+  ~/.claude/fleet/<sid>.event.json    hooks/fleet_event.py: waiting-on-you vs working, and which task
   ~/.claude/projects/<cwd>/<sid>.jsonl transcript tail: last tool, last words, ctx tokens
-  <repo>/feature-research/*/state.md  anderson stage/verdicts/iteration -> persona
+  <repo>/feature-research/<task>/state.md  that session's stage/verdicts/iteration/tier -> persona
   ps + lsof + tmux                    sessions with no hooks at all, and the pane to jack into
 
 Keys: ↑↓/jk tune · ⏎ jack in (revive, if dead) · w white rabbit (oldest ring) · r kill (row hidden too)
@@ -174,11 +174,18 @@ def repo_root(cwd):
     return cwd
 
 
-def anderson_state(root):
-    """Most recently touched feature-research/*/state.md under root, parsed leniently."""
+def anderson_state(root, task=None):
+    """The session's OWN state.md, parsed leniently. `task` comes from the hook, which sees which
+    task dir this session writes; without it (no hooks wired, or a session that has not touched one
+    yet) we fall back to the most recently touched state.md under root -- which is why two agents
+    sharing one checkout used to report each other's task."""
     if not root:
         return {}
-    paths = glob.glob(os.path.join(root, "feature-research", "*", "state.md"))
+    if task:
+        own = os.path.join(root, "feature-research", task, "state.md")
+        paths = [own] if os.path.exists(own) else []
+    else:
+        paths = glob.glob(os.path.join(root, "feature-research", "*", "state.md"))
     if not paths:
         return {}
     p = max(paths, key=lambda x: os.path.getmtime(x))
@@ -620,7 +627,7 @@ def enrich(s, now):
     if now - last_seen > STALE_S and not alive(s.get("pid")):
         return None
     root = repo_root(s.get("cwd"))
-    st = anderson_state(root)
+    st = anderson_state(root, ev.get("task"))
     stage = (st.get("stage") or "").lower()
     if stage in ("ship",):
         stage = "done"

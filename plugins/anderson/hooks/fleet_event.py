@@ -8,9 +8,23 @@ PostToolUse, Notification, Stop, SessionEnd in hooks/hooks.json.
 
 Emits nothing on stdout: this hook never steers the session. Never raises.
 """
-import json, os, sys, time
+import json, os, re, sys, time
 
 FLEET_DIR = os.path.expanduser(os.environ.get("ANDERSON_FLEET_DIR", "~/.claude/fleet"))
+
+TASK_PATH = re.compile(r"feature-research/([^/\s]+)/")
+TASK_CMD = re.compile(r"/anderson:(?:start|auto|rework|approve-plan|approve-diff|status)\s+([^\s]+)")
+
+
+def session_task(d, prev):
+    """Which anderson task THIS session is on. Two sessions can share one checkout, so the newest
+    state.md under the repo is not an answer -- the session that writes `feature-research/<task>/`
+    is the one that owns it. Read off the tool this session just ran, else the slash command it was
+    given; sticky, because most events (a Bash call, a Stop) say nothing about the task."""
+    ti = d.get("tool_input") or {}
+    hay = " ".join(str(ti.get(k) or "") for k in ("file_path", "path", "command", "pattern"))
+    m = TASK_PATH.search(hay) or TASK_CMD.search(str(d.get("prompt") or ""))
+    return m.group(1) if m else prev
 
 
 def claude_pid(start):
@@ -55,7 +69,13 @@ def main():
     if not sid or ev not in WAITING:
         return
     waiting, label = WAITING[ev]
+    path = os.path.join(FLEET_DIR, f"{sid}.event.json")
+    try:
+        prev = json.load(open(path)).get("task")
+    except Exception:
+        prev = None
     out = {
+        "task": session_task(d, prev),
         "session_id": sid,
         "cwd": d.get("cwd"),
         "transcript_path": d.get("transcript_path"),
@@ -70,7 +90,6 @@ def main():
         "ts": time.time(),
     }
     os.makedirs(FLEET_DIR, exist_ok=True)
-    path = os.path.join(FLEET_DIR, f"{sid}.event.json")
     tmp = f"{path}.{os.getpid()}.tmp"
     with open(tmp, "w") as f:
         json.dump(out, f)

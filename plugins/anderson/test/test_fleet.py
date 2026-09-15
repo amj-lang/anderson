@@ -180,6 +180,36 @@ class TestEmitters(unittest.TestCase):
             self.assertEqual(r0["status"], "ring")
             self.assertIn("permission", r0["now"])
 
+    def test_two_sessions_in_one_repo_each_keep_their_own_task(self):
+        """The bug: state.md was picked by mtime, so two agents sharing a checkout both reported
+        whichever task was touched last. The hook says which task each session is actually on."""
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {**os.environ, "ANDERSON_FLEET_DIR": tmp}
+            repo = pathlib.Path(tmp) / "repo"; (repo / ".git").mkdir(parents=True)
+            for name, stage in (("older-task", "implement"), ("newer-task", "plan")):
+                d = repo / "feature-research" / name; d.mkdir(parents=True)
+                (d / "state.md").write_text(f"task: {name}\nstage: {stage}\ntier: hard\n")
+            os.utime(repo / "feature-research" / "older-task" / "state.md", (1, 1))
+
+            def fire(sid, event, **kw):
+                payload = {"session_id": sid, "hook_event_name": event, "cwd": str(repo), **kw}
+                r = subprocess.run(["python3", str(HOOKS / "fleet_event.py")], input=json.dumps(payload),
+                                   text=True, env=env, capture_output=True)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                return json.load(open(os.path.join(tmp, f"{sid}.event.json")))
+
+            # session A edits its own task dir; session B is told its task as a slash command
+            a = fire("sid-a", "PostToolUse", tool_name="Edit",
+                     tool_input={"file_path": str(repo / "feature-research" / "older-task" / "plan.md")})
+            b = fire("sid-b", "UserPromptSubmit", prompt="/anderson:start newer-task do the thing")
+            self.assertEqual((a["task"], b["task"]), ("older-task", "newer-task"))
+            # sticky: a later event that says nothing about the task must not wipe it
+            self.assertEqual(fire("sid-a", "Stop")["task"], "older-task")
+            # and each session reads its OWN state.md, not the most recently touched one
+            self.assertEqual(fleet.anderson_state(str(repo), a["task"])["stage"], "implement")
+            self.assertEqual(fleet.anderson_state(str(repo), b["task"])["stage"], "plan")
+            self.assertEqual(fleet.anderson_state(str(repo))["task"], "newer-task")   # no hint: mtime, as before
+
     def test_garbage_input_never_raises(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = {**os.environ, "ANDERSON_FLEET_DIR": tmp}

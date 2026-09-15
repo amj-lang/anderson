@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.48.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.48.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -638,6 +638,13 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.48.1** — **Two agents in one repo no longer report each other's task.** `state.md` was picked
+by mtime, so every session rooted in a repo showed whichever task had been touched last: start a
+second agent there and both rows flipped to the same task, stage and tier. The hook now records
+which task dir each session actually writes (or the task named in its `/anderson:` command) and
+fleet reads that session's own state.md. Sticky across events that say nothing about the task, and
+sessions with no hooks keep the old mtime fallback.
 
 - **0.48.0** — **The tier is visible everywhere the work is.** The difficulty tier already decided
 what the review gates cost, but you had to dig for it. It now leads the plan (a `**Tier:**` line
