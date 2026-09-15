@@ -784,6 +784,13 @@ def _apply_order(names, order):
     return known + unknown
 
 
+def session_root(s):
+    """The repo a session belongs to. An agent spawned onto a busy repo runs in a worktree under
+    `.worktrees/`, which is a git root of its own -- it still rows under the repo it came from."""
+    rp = os.path.realpath(s.get("root") or s.get("cwd") or "")
+    return re.sub(r"/\.worktrees/[^/]+(/.*)?$", "", rp)
+
+
 def tree_rows(sessions, ws, filt, collapsed, order=(), hidden=(), show_hidden=False):
     """(scanned dirs + discovered sessions + saved order/collapse) -> the flat row list render()
     already eats: synthetic kind="group"|"repo" rows interleaved with untouched session rows.
@@ -805,8 +812,7 @@ def tree_rows(sessions, ws, filt, collapsed, order=(), hidden=(), show_hidden=Fa
 
     by_root = {}
     for s in sessions:
-        rp = os.path.realpath(s.get("root") or s.get("cwd") or "")
-        by_root.setdefault(rp, []).append(s)
+        by_root.setdefault(session_root(s), []).append(s)
 
     def repo_matches(name, kids):
         return not fl or fl in name.lower() or any(sess_match(s) for s in kids)
@@ -858,7 +864,7 @@ def tree_rows(sessions, ws, filt, collapsed, order=(), hidden=(), show_hidden=Fa
             for r in repos:
                 matched_roots.add(os.path.realpath(r["path"]))
 
-    elsewhere = [s for s in sessions if os.path.realpath(s.get("root") or s.get("cwd") or "") not in matched_roots]
+    elsewhere = [s for s in sessions if session_root(s) not in matched_roots]
     elsewhere = [s for s in elsewhere if sess_match(s)]
     if "elsewhere" in hid and not show_hidden:
         elsewhere = []
@@ -1594,7 +1600,11 @@ MANUAL = """
                            On a sentinel: revive it in a new window already running its resume.
                            On a repo/group row: opens a prompt box, then p/a/A spawns a claude
                            agent in that repo (or the workspace root, on a group) in a terminal of
-                           its own -- fleet stays on screen, it is never replaced by the agent
+                           its own -- fleet stays on screen, it is never replaced by the agent.
+                           A repo already on a feature branch is someone's work in progress, so the
+                           agent gets a worktree there instead: .worktrees/<task> on branch
+                           anderson/<task>, cut from the default branch. On the default branch the
+                           checkout is free and the agent uses it directly
   J / K     reorder        move the selected repo/group among its siblings (saved per workspace)
   space     collapse       toggle a repo/group row · ←/→ also collapse/expand
   D         pop out        a running session's tmux window, into its own OS terminal window
@@ -1867,6 +1877,49 @@ def slug(prompt):
     return s or ("task-" + time.strftime("%H%M"))
 
 
+def _git(args, cwd):
+    """git in `cwd`: stdout stripped on success (possibly ""), None when git fails or is missing."""
+    try:
+        r = subprocess.run(["git", "-C", cwd] + args, capture_output=True, text=True, timeout=10)
+        return r.stdout.strip() if r.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def default_branch(path):
+    """origin's HEAD when the remote says, else whichever of main/master exists, else None."""
+    head = _git(["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"], path)
+    if head:
+        return head.split("/", 1)[1] if "/" in head else head
+    for b in ("main", "master"):
+        if _git(["rev-parse", "--verify", "--quiet", b], path):
+            return b
+    return None
+
+
+def worktree_for(path, task):
+    """(cwd, note) for a spawn into `path`. A repo parked on a feature branch is someone's work in
+    progress, so the agent never lands in it: it gets `<repo>/.worktrees/<task>` on branch
+    `anderson/<task>`, cut from the default branch. On the default branch the checkout is free and
+    we use it as-is. Anything git can't do (no repo, no default branch, `worktree add` refuses)
+    falls back to the repo itself with a note saying so — a spawn is never blocked by this."""
+    cur = _git(["rev-parse", "--abbrev-ref", "HEAD"], path)
+    if not cur:
+        return path, ""
+    base = default_branch(path)
+    if not base or cur == base:
+        return path, ""
+    wt = os.path.join(path, ".worktrees", task)
+    if os.path.isdir(wt):
+        return wt, f"worktree .worktrees/{task} (reused) — {os.path.basename(path)} stays on {cur}"
+    start = f"origin/{base}" if _git(["rev-parse", "--verify", "--quiet", f"origin/{base}"], path) else base
+    if _git(["worktree", "add", "-b", f"anderson/{task}", wt, start], path) is None:
+        _git(["worktree", "add", wt, f"anderson/{task}"], path)      # branch already exists
+    if not os.path.isdir(wt):
+        return path, f"worktree failed — running in {os.path.basename(path)}, still on {cur}"
+    return wt, f"worktree .worktrees/{task} on anderson/{task} (off {start}) — {os.path.basename(path)} stays on {cur}"
+
+
 def spawn_cmd(row, prompt, mode):
     """(cwd, shell_cmd, window_name) for `⏎` on a repo/group row. Pure — phase-3's worktree swap
     is only the `cwd` line. cwd = the repo path, or the workspace root for a group row (router
@@ -1894,7 +1947,11 @@ def launch_agent(row, prompt, mode):
     if not shutil.which("claude"):
         return "claude not on PATH: install it first."
     cwd, cmd, window = spawn_cmd(row, prompt, mode)
-    return new_terminal(cmd, name=window, cwd=cwd, use_tmux=sys.platform != "darwin", detach=True)
+    note = ""
+    if row.get("kind") == "repo" and (prompt or "").strip():
+        cwd, note = worktree_for(cwd, slug(prompt))
+    msg = new_terminal(cmd, name=window, cwd=cwd, use_tmux=sys.platform != "darwin", detach=True)
+    return f"{msg}  ·  {note}" if note else msg
 
 
 def tmux_session(ws=None):

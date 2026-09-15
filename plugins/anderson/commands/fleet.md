@@ -48,7 +48,9 @@ curses, zero tokens); this command only installs the launcher and tells the huma
             ⏎ on a sentinel revives it in a new terminal · ⏎ on a repo/group row opens a prompt box,
               then p/a/A spawns a claude agent (bare / /anderson:start / /anderson:auto) into that
               repo — or the workspace root, on a group — in a terminal of its own; fleet keeps the
-              window it is in, the agent never takes it over
+              window it is in, the agent never takes it over. Repo already on a feature branch? the
+              agent gets a worktree there (`.worktrees/<task>`, branch `anderson/<task>`, off the
+              default branch), so the work in progress sitting in that checkout is never touched
             c copy `claude --resume` · n desktop notification on ring (skipped, with the
               sound, when that session's terminal is already frontmost; fleet --ping tests the banner)
             m sound on/off · s next ring sound (phone · snare · hitech · freeze · blip · rift · jump;
