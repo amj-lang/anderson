@@ -127,6 +127,19 @@ class TestState(unittest.TestCase):
             self.assertEqual((st["task"], st["stage"], st["iteration"], st["max_iterations"]),
                              ("new", "diff_review", "1", "2"))
 
+    def test_tier_is_read_from_state_and_rendered_as_a_column(self):
+        """How hard each agent is working has to be visible on the overview, not only in plan.md."""
+        with tempfile.TemporaryDirectory() as tmp:
+            d = pathlib.Path(tmp) / "feature-research" / "t"; d.mkdir(parents=True)
+            (d / "state.md").write_text("task: t\nstage: implement\ntier: critical\n")
+            self.assertEqual(fleet.anderson_state(tmp)["tier"], "critical")
+        self.assertEqual(fleet.cell({"tier": "critical"}, "tier", 0), "CRITICAL")
+        self.assertEqual(fleet.cell({"tier": "trivial"}, "tier", 0), "triv")
+        self.assertEqual(fleet.cell({"tier": ""}, "tier", 0), "")          # no pipeline: blank, not a guess
+        head = next(ln for kind, ln in fleet.render(fleet.demo_rows(), 160) if kind == "colhdr")
+        self.assertIn("tier", head)
+        self.assertTrue(any("CRITICAL" in ln for _, ln in fleet.render(fleet.demo_rows(), 160)))
+
     def test_enc_cwd_matches_claude_projects_dir(self):
         self.assertEqual(fleet.enc_cwd("/Users/alex_mj/workspace/claude-loop"), "-Users-alex-mj-workspace-claude-loop")
 

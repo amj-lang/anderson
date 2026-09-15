@@ -27,7 +27,7 @@ Missing or `pending` tier (a pipeline started before tiering existed) → treat 
 `<review_effort>` in the banner.
 
 TIER LINE: a re-tier that does not show up in the plan is a silent price change. After writing
-`tier:` back to state.md, rewrite the `**Tier:**` line under `## 📈 Scorecard` in plan.md to:
+`tier:` back to state.md, rewrite the `**Tier:**` line under the plan.md H1 to:
   `**Tier:** <TIER> — implement sonnet/medium · diff_review <review_model>/<review_effort>`
 and note the escalation inline when the tier changed (`was <old>: <one-line why>`).
 

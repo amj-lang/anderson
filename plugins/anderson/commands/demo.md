@@ -19,7 +19,7 @@ Print in exactly this order (sub-bullet = quote pool to pick from):
   Pool: "Every unanswered question is a bug with a delay." / "The plan you cannot defend out loud is not yet a plan." / "Pin every fork before the code picks one for you."
   (opens with a one-line manifest — `grill · N questions · a🔴 b🟡 c🟢` + a rule — then asks 🔴 → 🟡 one/few at a time, each as a 3-line card `🔴 n/N ▰▰▱▱▱▱▱▱▱▱` / question / → recommendation, batches 🟢 at the end; questions are triaged from the plan's own decision tree, ✅ acceptance criteria (`derived` rows are 🔴 — confirm/edit/drop), 💥 blast radius, 📈 scorecard, and 🧯 error-handling `needs-context` rows — the blast-radius walk is where completeness gets challenged; each row you defer is recorded under state.md `## ❓ Open questions`)
 
-╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · fable/high
+╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · fable/high · tier HARD
   Pool: "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system."
   Then the gate marker (live runs print a TL;DR card — what · criteria/proof counts ·
   scorecard · verdict — so plan.md only needs opening when a line raises doubt):
