@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.45.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.46.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -535,11 +535,11 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
   brings the owning IDE forward for integrated terminals, so tmux is optional: `fleet install
   --with-tmux` adds it via brew / apt / dnf if you want panes) — or **spawn an agent** on a
   repo/group row: `⏎` opens a prompt box, then `p`/`a`/`A` launches a claude agent (bare /
-  `/anderson:start` / `/anderson:auto`) into that repo — or the workspace root, on a group — as a
-  new tmux window. `J`/`K` reorder a repo/group among its siblings, `space` (`←`/`→` too)
+  `/anderson:start` / `/anderson:auto`) into that repo — or the workspace root, on a group — in a
+  terminal of its own, so the monitor keeps the window it is in. `J`/`K` reorder a repo/group among its siblings, `space` (`←`/`→` too)
   collapses/expands it; both persist per workspace. `D` pops a session's tmux window out into its
   own OS terminal window. `w` white rabbit
-  (oldest ring, expanding any collapsed group in the way) · `r` kill (asks first; the row is hidden with it) · `b` hide the row (any row, the process is left alone) · `h` show hidden rows (`b` on one un-hides) · `c` copy the
+  (oldest ring, expanding any collapsed group in the way) · `r` kill (asks first; the row is hidden with it) · `b` hide the row (any row, the process is left alone) or, on a repo/group row, that whole repo and its agents (saved per workspace) · `h` show hidden rows and repos (`b` on one un-hides) · `c` copy the
   `claude --resume` command for that session · `n` desktop notification on ring · `m` sound · `s` next ring sound · `/` filter ·
   `t` theme · `p` wording · `?` manual · `q`.
 
@@ -635,6 +635,13 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.46.0** — **The monitor stays put, and you can hide a repo.** Spawning an agent used to take
+over the window fleet was in: it now opens a terminal of its own (a real OS window on macOS, a `-d`
+tmux window elsewhere), so the fleet you launched from is still there when the agent starts. The
+prompt box was a dim quote line nobody could find while typing, and is now a solid bar with a block
+cursor. `b` on a repo or group row hides that repo and its agents, saved per workspace like order and
+collapse; `h` lists the hidden ones, folded and dim, and `b` brings one back.
 
 - **0.45.0** — **`fleet update` updates the plugin.** The shim in `~/.local/bin` already resolves the
 newest cached version at run time, but nothing told you a newer one existed, so a machine could sit on

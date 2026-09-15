@@ -44,10 +44,11 @@ curses, zero tokens); this command only installs the launcher and tells the huma
 
   keys:     ↑↓ tune · 1-9 / ⏎ jack in (session row) or spawn an agent (repo/group row) · J/K reorder
               a repo/group · space collapse/expand (←/→ too) · D pop a session's window out into
-              its own terminal · w oldest waiting · r kill (asks; hides the row) · b hide row · h show hidden
+              its own terminal · w oldest waiting · r kill (asks; hides the row) · b hide row, or a whole repo · h show hidden
             ⏎ on a sentinel revives it in a new terminal · ⏎ on a repo/group row opens a prompt box,
               then p/a/A spawns a claude agent (bare / /anderson:start / /anderson:auto) into that
-              repo — or the workspace root, on a group — as a new tmux window
+              repo — or the workspace root, on a group — in a terminal of its own; fleet keeps the
+              window it is in, the agent never takes it over
             c copy `claude --resume` · n desktop notification on ring (skipped, with the
               sound, when that session's terminal is already frontmost; fleet --ping tests the banner)
             m sound on/off · s next ring sound (phone · snare · hitech · freeze · blip · rift · jump;

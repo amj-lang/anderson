@@ -49,10 +49,10 @@ FULL_REPAINT_S = 10.0        # erase + redraw the whole screen this often; the d
 
 # ──────────────────────────────────────────────────────────────────────── glyphs
 UNI = dict(eyes="⌐■-■", cur="▸", ring="☎", dead="✝", loop="⟲", run="▶", ship="★", hid="◌",
-           bar="▓", trk="░", rule="─", ell="…", det="▍",
+           bar="▓", trk="░", rule="─", ell="…", det="▍", cursor="█",
            rain=("0·1 1", "1 0·1", " 1·10", "1·0 1"), raincol="01·10")
 ASCII = dict(eyes="[-_-]", cur=">", ring="!", dead="x", loop="~", run=">", ship="*", hid="h",
-             bar="#", trk=".", rule="-", ell="~", det="|",
+             bar="#", trk=".", rule="-", ell="~", det="|", cursor="_",
              rain=("0.1 1", "1 0.1", " 1.10", "1.0 1"), raincol="01.10")
 G = dict(UNI)
 
@@ -784,10 +784,12 @@ def _apply_order(names, order):
     return known + unknown
 
 
-def tree_rows(sessions, ws, filt, collapsed, order=()):
+def tree_rows(sessions, ws, filt, collapsed, order=(), hidden=(), show_hidden=False):
     """(scanned dirs + discovered sessions + saved order/collapse) -> the flat row list render()
     already eats: synthetic kind="group"|"repo" rows interleaved with untouched session rows.
-    No repos found under `ws` -> return `sessions` verbatim (today's behaviour, criterion 7)."""
+    No repos found under `ws` -> return `sessions` verbatim (today's behaviour, criterion 7).
+    `hidden` is the set of repo/group names dismissed with `b`: they and their sessions are left
+    out entirely, until show_hidden (`h`) lists them again, dim and folded, for `b` to bring back."""
     scan = scan_workspace(ws) if ws else []
     if not scan:
         if filt:
@@ -795,6 +797,7 @@ def tree_rows(sessions, ws, filt, collapsed, order=()):
             return [s for s in sessions if fl in (s.get("repo", "") + " " + s.get("task", "")).lower()]
         return sessions
     collapsed = collapsed or set()
+    hid = set(hidden or ())
     fl = (filt or "").lower()
 
     def sess_match(s):
@@ -812,12 +815,17 @@ def tree_rows(sessions, ws, filt, collapsed, order=()):
 
     def emit_repo(r, indent):
         rp = os.path.realpath(r["path"])
-        matched_roots.add(rp)
+        matched_roots.add(rp)            # claimed either way: a hidden repo hides its sessions too
         kids = by_root.get(rp, [])
+        is_hid = r["name"] in hid
+        if is_hid and not show_hidden:
+            return
         if not repo_matches(r["name"], kids):
             return
-        out.append(ws_row(r["name"], r["path"], "repo", kids, r["name"] in collapsed, ws, indent))
-        if r["name"] not in collapsed:
+        row = ws_row(r["name"], r["path"], "repo", kids, is_hid or r["name"] in collapsed, ws, indent)
+        row["hidden"] = is_hid
+        out.append(row)
+        if not is_hid and r["name"] not in collapsed:
             out.extend({**k, "indent": indent + 1} for k in kids if sess_match(k))
 
     for entry in _apply_order_entries(scan, order):
@@ -828,6 +836,15 @@ def tree_rows(sessions, ws, filt, collapsed, order=()):
         all_kids = []
         for r in repos:
             all_kids.extend(by_root.get(os.path.realpath(r["path"]), []))
+        if entry["name"] in hid:
+            for r in repos:
+                matched_roots.add(os.path.realpath(r["path"]))
+            if not show_hidden:
+                continue
+            row = ws_row(entry["name"], entry["path"], "group", all_kids, True, ws, 0, n_children=len(repos))
+            row["hidden"] = True
+            out.append(row)
+            continue
         if not (repo_matches(entry["name"], all_kids) or any(repo_matches(r["name"], by_root.get(os.path.realpath(r["path"]), [])) for r in repos)):
             for r in repos:
                 matched_roots.add(os.path.realpath(r["path"]))
@@ -843,6 +860,8 @@ def tree_rows(sessions, ws, filt, collapsed, order=()):
 
     elsewhere = [s for s in sessions if os.path.realpath(s.get("root") or s.get("cwd") or "") not in matched_roots]
     elsewhere = [s for s in elsewhere if sess_match(s)]
+    if "elsewhere" in hid and not show_hidden:
+        elsewhere = []
     if elsewhere:
         out.append(ws_row("elsewhere", "", "group", elsewhere, "elsewhere" in collapsed, ws, 0))
         if "elsewhere" not in collapsed:
@@ -984,7 +1003,7 @@ def ws_prefs(ws):
     v = (load_prefs()["workspaces"] or {}).get(ws)
     if not isinstance(v, dict):
         return None
-    return {"order": v.get("order") or [], "collapsed": v.get("collapsed") or []}
+    return {"order": v.get("order") or [], "collapsed": v.get("collapsed") or [], "hidden": v.get("hidden") or []}
 
 
 def save_ws_prefs(ws, **kw):
@@ -992,7 +1011,7 @@ def save_ws_prefs(ws, **kw):
     coerced to {} (load_prefs already does that), so a hand-edited prefs.json never crashes."""
     d = load_prefs()
     workspaces = dict(d["workspaces"])
-    cur = dict(workspaces.get(ws) or {"order": [], "collapsed": []})
+    cur = dict(workspaces.get(ws) or {"order": [], "collapsed": [], "hidden": []})
     cur.update({k: v for k, v in kw.items() if v is not None})
     workspaces[ws] = cur
     save_prefs(workspaces=workspaces)
@@ -1574,14 +1593,16 @@ MANUAL = """
                            owning app forward (WebStorm / VS Code / Cursor integrated terminals).
                            On a sentinel: revive it in a new window already running its resume.
                            On a repo/group row: opens a prompt box, then p/a/A spawns a claude
-                           agent in that repo (or the workspace root, on a group) as a tmux window
+                           agent in that repo (or the workspace root, on a group) in a terminal of
+                           its own -- fleet stays on screen, it is never replaced by the agent
   J / K     reorder        move the selected repo/group among its siblings (saved per workspace)
   space     collapse       toggle a repo/group row · ←/→ also collapse/expand
   D         pop out        a running session's tmux window, into its own OS terminal window
   w         white rabbit   jump to the oldest ringing session, expanding any collapsed group in the way
   r         red pill       kill the session's process (asks first); the row is hidden with it
-  b         blue pill      hide the row, any row; the process is left alone. On a hidden row: un-hide
-  h         hidden         show the hidden rows too (◌, dim), so you can bring one back with b
+  b         blue pill      hide the row, any row; the process is left alone. On a repo/group row:
+                           hide that repo and its agents, saved per workspace. On a hidden one: un-hide
+  h         hidden         show the hidden rows and repos too (◌, dim), so you can bring one back with b
   ctrl-L    redraw         repaint the whole screen (also automatic every 10 s and on resize)
   /         filter         substring on repo · task ; esc clears
   t         theme          matrix · construct · zion · nebuchadnezzar · agent (saved)
@@ -1778,26 +1799,31 @@ NEW_WINDOW_TERMINAL = """tell application "Terminal"
 end tell"""
 
 
-def new_terminal(cmd, name=None, cwd=None, use_tmux=True, verb=None):
+def new_terminal(cmd, name=None, cwd=None, use_tmux=True, verb=None, detach=False):
     """A new terminal already running `cmd`: tmux window first (`-c cwd`/`-n name` when given),
     else AppleScript on the terminal that can take a command (`cd cwd && cmd`), else the command
     lands on the clipboard. Shared by revive() (no name/cwd: byte-identical to before) and the
     spawn flow (both). use_tmux=False forces the OS-window branch: pop_out()'s `cmd` is itself
     a `tmux attach`, and a tmux new-window running that nests (tmux refuses, no window appears)
     when fleet is already inside tmux — the default now. `verb` overrides the "spawned"/"resumed"
-    wording (pop_out() is neither: it's popping an existing window into its own terminal)."""
+    wording (pop_out() is neither: it's popping an existing window into its own terminal).
+    detach=True creates the tmux window without switching to it, so whatever you were looking at
+    (the monitor) stays on screen."""
     full = f"cd {shlex_quote(cwd)} && {cmd}" if cwd else cmd
     verb = verb or ("spawned" if name else "resumed")
     if use_tmux and os.environ.get("TMUX"):
         try:
             args = ["tmux", "new-window"]
+            if detach:
+                args.append("-d")
             if cwd:
                 args += ["-c", cwd]
             if name:
                 args += ["-n", name]
             args.append(cmd)
             subprocess.run(args, timeout=5, check=True)
-            return f'Operator. {verb} in tmux window "{name}".' if name else f"Operator. {verb} in a new tmux window."
+            where = " (still here; prefix+n to reach it)" if detach else ""
+            return f'Operator. {verb} in tmux window "{name}".{where}' if name else f"Operator. {verb} in a new tmux window.{where}"
         except Exception as e:
             return f"launch failed: {e}  ·  {copy_cmd(full)}"
     if sys.platform == "darwin":
@@ -1861,12 +1887,14 @@ def spawn_cmd(row, prompt, mode):
 
 
 def launch_agent(row, prompt, mode):
-    """`⏎` → prompt box → p/a/A: spawn a claude agent into a repo/group row as a tmux window.
-    Stateless: no registry of launched sessions, spawn just fires new_terminal() and forgets."""
+    """`⏎` → prompt box → p/a/A: spawn a claude agent into a repo/group row, in a terminal of its
+    own. Stateless: no registry of launched sessions, spawn just fires new_terminal() and forgets.
+    The monitor never gets replaced by the agent: where a real OS window is available (macOS) the
+    agent gets one, and the tmux fallback creates its window detached."""
     if not shutil.which("claude"):
         return "claude not on PATH: install it first."
     cwd, cmd, window = spawn_cmd(row, prompt, mode)
-    return new_terminal(cmd, name=window, cwd=cwd)
+    return new_terminal(cmd, name=window, cwd=cwd, use_tmux=sys.platform != "darwin", detach=True)
 
 
 def tmux_session(ws=None):
@@ -2141,6 +2169,7 @@ def run_tui(args):
         else:
             collapsed = set(wprefs.get("collapsed") or [])
             order = list(wprefs.get("order") or [])
+        hidden_repos = set((wprefs or {}).get("hidden") or [])
         prompt_mode, prompt_row, prompt_buf = False, None, ""
         menu_mode = False
         pending_sel_sid = None
@@ -2193,7 +2222,7 @@ def run_tui(args):
                         if THEME["eggs"] != "quiet":
                             say("He is The One.", 4)
                 shipped = new_ship
-                rows = tree_rows(all_rows, ws, filt, collapsed, order)
+                rows = tree_rows(all_rows, ws, filt, collapsed, order, hidden_repos, SHOW_HIDDEN)
                 if pending_sel_sid:
                     idx = next((i for i, rr in enumerate(rows) if rr["sid"] == pending_sel_sid), None)
                     if idx is not None:
@@ -2213,9 +2242,9 @@ def run_tui(args):
                            for y, ln in enumerate(MANUAL.strip("\n").split("\n")[: h - 1])]
             else:
                 if prompt_mode:
-                    shown_toast = f"⏎ spawns in {prompt_row['repo']}: {prompt_buf}_   (esc cancels)"
+                    shown_toast = f"task in {prompt_row['repo']} {G['cur']} {prompt_buf}{G['cursor']}   {'⏎' if G is not ASCII else 'enter'} next · esc cancels"
                 elif menu_mode:
-                    shown_toast = f"{prompt_row['repo']}: p plain · a /anderson:start · A /anderson:auto   \"{prompt_buf or '(empty: bare claude)'}\"   (esc cancels)"
+                    shown_toast = f"spawn in {prompt_row['repo']} {G['cur']} \"{prompt_buf or '(empty: bare claude)'}\"   p plain · a /anderson:start · A /anderson:auto · esc cancels"
                 else:
                     shown_toast = confirm or toast
                 lines = render(rows, w - 1, sel, frame, filt if filt_mode else "", shown_toast, set(burst), now, height=h - 1, ws=ws, all_rows=all_rows)
@@ -2230,6 +2259,8 @@ def run_tui(args):
                         a = col(THEME["ring"]) | DIM          # breathe, once a second
                     if kind == "quote" and confirm:
                         a = col("red") | BOLD
+                    if kind == "quote" and (prompt_mode or menu_mode):
+                        a = col(THEME["accent"]) | BOLD | REV   # typing has to be findable, not a dim quote
                     painted.append((ln, a))
                     if span and top <= y < top + win_n and kind not in ("burst",):
                         r = rows[win_off + (y - top)]
@@ -2396,7 +2427,16 @@ def run_tui(args):
                 elif rows:
                     confirm = f"red pill: kill {rows[sel]['repo']} · {rows[sel]['task'] or rows[sel]['sid'][:8]} ?  How far down does the rabbit hole go? [y/N]"
             elif k == ord("b"):
-                if rows and rows[sel].get("kind"):
+                if rows and rows[sel].get("kind") in ("repo", "group"):
+                    name = rows[sel]["repo"]
+                    if name in hidden_repos:
+                        hidden_repos.discard(name)
+                        say(f"{name} back in the list.")
+                    else:
+                        hidden_repos.add(name)
+                        say(f"blue pill: {name} hidden, its agents with it (they keep running).  h shows hidden rows", 5)
+                    save_ws_prefs(ws, hidden=sorted(hidden_repos)); last_scan = 0
+                elif rows and rows[sel].get("kind"):
                     say("nothing to hide here — pick a session row")
                 elif rows and rows[sel].get("hidden"):
                     unhide(rows[sel]["sid"]); last_scan = 0
@@ -2408,7 +2448,7 @@ def run_tui(args):
                     say(f"blue pill: row hidden{live}. you wake up in your bed and believe whatever you want to.  h shows hidden rows", 5)
             elif k == ord("h"):
                 SHOW_HIDDEN = not SHOW_HIDDEN; last_scan = 0
-                say(f"hidden rows shown ({G['hid']} dim) · b on one brings it back · h hides them again" if SHOW_HIDDEN else "hidden rows hidden.", 5)
+                say(f"hidden rows and repos shown ({G['hid']} dim) · b on one brings it back · h hides them again" if SHOW_HIDDEN else "hidden rows hidden.", 5)
             elif k == ord("t"):
                 nxt = THEME_ORDER[(THEME_ORDER.index(THEME["name"]) + 1) % len(THEME_ORDER)]
                 set_theme(nxt, calm); save_prefs(theme=nxt); prev = None
@@ -2919,7 +2959,7 @@ def main(argv):
         saved = ws_prefs(ws)
         collapsed = set(saved["collapsed"]) if saved else {e["name"] for e in scan_workspace(ws) if e["kind"] == "group"}
         order = list(saved["order"]) if saved else []
-        rows = tree_rows(all_rows, ws, "", collapsed, order)
+        rows = tree_rows(all_rows, ws, "", collapsed, order, set(saved["hidden"]) if saved else ())
         for _, ln in render(rows, width, sel=0, frame=int(time.time()) % 4, ws=ws, all_rows=all_rows):
             print(ln)
         return

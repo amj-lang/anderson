@@ -74,6 +74,26 @@ class TestWorkspaceScan(unittest.TestCase):
             sess = [make_session(bare, task="alpha"), make_session(bare, sid="s2", task="beta")]
             self.assertEqual(fleet.tree_rows(sess, bare, "alpha", set()), [sess[0]])
 
+    def test_hidden_repo_takes_its_sessions_with_it_and_does_not_leak_into_elsewhere(self):
+        sess = [make_session(os.path.join(self.tmp, "claude-loop")),
+                make_session(os.path.join(self.tmp, "autoretouch", "ai-shoot-service"), sid="s2")]
+        rows = fleet.tree_rows(sess, self.tmp, "", set(), (), {"claude-loop"})
+        self.assertNotIn("claude-loop", [r["repo"] for r in rows])
+        self.assertNotIn(sess[0]["sid"], [r["sid"] for r in rows])       # not re-homed under `elsewhere`
+        self.assertNotIn("elsewhere", [r["repo"] for r in rows])
+        self.assertIn("s2", [r["sid"] for r in rows])                    # the other repo is untouched
+
+    def test_hidden_group_hides_its_repos_too_and_show_hidden_lists_it_folded(self):
+        rows = fleet.tree_rows([], self.tmp, "", set(), (), {"autoretouch"})
+        names = [r["repo"] for r in rows]
+        self.assertNotIn("autoretouch", names)
+        self.assertNotIn("ai-shoot-service", names)
+        rows = fleet.tree_rows([], self.tmp, "", set(), (), {"autoretouch"}, show_hidden=True)
+        grp = next(r for r in rows if r["repo"] == "autoretouch")
+        self.assertTrue(grp["hidden"])                                   # dim, flagged, and `b` un-hides it
+        self.assertTrue(grp["collapsed"])
+        self.assertNotIn("ai-shoot-service", [r["repo"] for r in rows])  # revealed folded, not expanded
+
     def test_collapsed_group_hides_its_repos_but_keeps_its_summary(self):
         sess = [make_session(os.path.join(self.tmp, "autoretouch", "ai-shoot-service"), status="ring")]
         rows = fleet.tree_rows(sess, self.tmp, "", {"autoretouch"})
@@ -178,10 +198,10 @@ class TestOrderAndCollapsePrefs(unittest.TestCase):
     def test_ws_prefs_roundtrip_is_additive_and_per_workspace(self):
         self.assertIsNone(fleet.ws_prefs("/ws/a"))
         fleet.save_ws_prefs("/ws/a", order=["b", "a"], collapsed=["b"])
-        self.assertEqual(fleet.ws_prefs("/ws/a"), {"order": ["b", "a"], "collapsed": ["b"]})
+        self.assertEqual(fleet.ws_prefs("/ws/a"), {"order": ["b", "a"], "collapsed": ["b"], "hidden": []})
         self.assertIsNone(fleet.ws_prefs("/ws/other"))            # a different workspace keeps its own
         fleet.save_prefs(theme="zion")                            # an unrelated pref write never wipes it
-        self.assertEqual(fleet.ws_prefs("/ws/a"), {"order": ["b", "a"], "collapsed": ["b"]})
+        self.assertEqual(fleet.ws_prefs("/ws/a"), {"order": ["b", "a"], "collapsed": ["b"], "hidden": []})
 
     def test_malformed_workspaces_value_is_ignored_not_fatal(self):
         import json
@@ -199,7 +219,7 @@ class TestOrderAndCollapsePrefs(unittest.TestCase):
         # {"<ws>": {"order": []}} (no "collapsed") used to KeyError on --once's saved["collapsed"]
         import json
         json.dump({"workspaces": {"/ws/a": {"order": ["x"]}}}, open(fleet.PREFS_FILE, "w"))
-        self.assertEqual(fleet.ws_prefs("/ws/a"), {"order": ["x"], "collapsed": []})
+        self.assertEqual(fleet.ws_prefs("/ws/a"), {"order": ["x"], "collapsed": [], "hidden": []})
 
     def test_apply_order_unseen_names_appended_alphabetically(self):
         self.assertEqual(fleet._apply_order(["z", "a", "b"], ["b", "z"]), ["b", "z", "a"])
@@ -269,6 +289,37 @@ class TestSpawn(unittest.TestCase):
             self.assertIn("not on PATH", fleet.launch_agent(row, "hi", "p"))
         finally:
             fleet.shutil.which = old
+
+    def test_launch_agent_never_replaces_the_fleet_window(self):
+        """The monitor has to survive a spawn: on macOS the agent gets its own OS window, and the
+        tmux fallback creates the window with -d so focus stays on fleet."""
+        row = {"kind": "repo", "repo": "x", "path": "/ws/x", "ws": "/ws"}
+        old_tmux = os.environ.get("TMUX")
+        os.environ["TMUX"] = "/tmp/tmux-0/default,123,0"
+        seen = []
+
+        def fake_run(args, *a, **k):
+            seen.append(args)
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        try:
+            with mock.patch.object(fleet.subprocess, "run", side_effect=fake_run), \
+                 mock.patch.object(fleet.shutil, "which", side_effect=lambda n: "/usr/bin/" + n), \
+                 mock.patch.object(fleet.sys, "platform", "linux"):
+                fleet.launch_agent(row, "hi", "p")
+            self.assertEqual(seen[0][:3], ["tmux", "new-window", "-d"])
+
+            seen.clear()
+            with mock.patch.object(fleet.subprocess, "run", side_effect=fake_run), \
+                 mock.patch.object(fleet.shutil, "which", side_effect=lambda n: "/usr/bin/" + n), \
+                 mock.patch.object(fleet.sys, "platform", "darwin"):
+                fleet.launch_agent(row, "hi", "p")
+            self.assertEqual(seen[0][0], "osascript")                   # a real window, not a tmux one
+        finally:
+            if old_tmux is None:
+                os.environ.pop("TMUX", None)
+            else:
+                os.environ["TMUX"] = old_tmux
 
     def test_new_terminal_tmux_failure_says_so_and_copies_to_clipboard(self):
         """criterion 5's failure half: tmux (or the launch) fails -> fleet says what failed AND
