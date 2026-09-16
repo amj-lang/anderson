@@ -168,7 +168,7 @@ def field(text, key):
 def repo_root(cwd):
     d = cwd or ""
     while d and d != "/":
-        if os.path.isdir(os.path.join(d, "feature-research")) or os.path.isdir(os.path.join(d, ".git")):
+        if os.path.isdir(os.path.join(d, "feature-research")) or _is_repo_dir(d):
             return d
         d = os.path.dirname(d)
     return cwd
@@ -708,19 +708,22 @@ def workspace_root(cwd):
     itself (no repo found -> today's flat list, criterion 7)."""
     cwd = cwd or os.getcwd()
     r = repo_root(cwd)
-    if r and os.path.isdir(os.path.join(r, ".git")):
+    if r and _is_repo_dir(r):
         return os.path.dirname(r)
     return cwd
 
 
 def _is_repo_dir(p):
-    return os.path.isdir(os.path.join(p, ".git"))
+    # a git worktree or submodule checkout has `.git` as a FILE, not a dir -- exists(), not isdir(),
+    # or every worktree sitting in the workspace is invisible to the scan and to repo_root()
+    return os.path.exists(os.path.join(p, ".git"))
 
 
 def scan_workspace(ws):
-    """Two levels under `ws`, os.scandir only (no git subprocess): a direct repo is a `repo`
+    """Three levels under `ws`, os.scandir only (no git subprocess): a direct repo is a `repo`
     entry, a dir holding repos one level deeper is a `group` entry with its own `repos` list.
-    Memoised WS_SCAN_TTL seconds per workspace."""
+    A non-repo dir *inside* a group is not a nested group -- its repos flatten into the group as
+    `sub/repo` entries, so the tree stays two deep. Memoised WS_SCAN_TTL seconds per workspace."""
     now = time.time()
     cached = _WS_CACHE.get(ws)
     if cached and now - cached[0] < WS_SCAN_TTL:
@@ -740,8 +743,19 @@ def scan_workspace(ws):
             subrepos = []
             try:
                 for e2 in sorted(os.scandir(e.path), key=lambda x: x.name):
-                    if not e2.name.startswith(".") and e2.is_dir(follow_symlinks=False) and _is_repo_dir(e2.path):
+                    if e2.name.startswith(".") or not e2.is_dir(follow_symlinks=False):
+                        continue
+                    if _is_repo_dir(e2.path):
                         subrepos.append({"name": e2.name, "path": e2.path, "kind": "repo"})
+                        continue
+                    # ponytail: flattened, not a nested group -- one unreadable subdir must not
+                    # drop its siblings, so its scan gets its own try. Depth 4 stays invisible.
+                    try:
+                        for e3 in sorted(os.scandir(e2.path), key=lambda x: x.name):
+                            if not e3.name.startswith(".") and e3.is_dir(follow_symlinks=False) and _is_repo_dir(e3.path):
+                                subrepos.append({"name": f"{e2.name}/{e3.name}", "path": e3.path, "kind": "repo"})
+                    except Exception:
+                        pass
             except Exception:
                 pass
             if subrepos:
