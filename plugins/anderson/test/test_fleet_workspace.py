@@ -136,6 +136,37 @@ class TestWorkspaceScan(unittest.TestCase):
         self.assertIn("ringing", grp["now"])                      # rolled-up summary survives collapse
         self.assertEqual(grp["status"], "ring")                   # Q12: reuses the ring-pulse path
 
+    def test_only_the_deepest_hidden_ring_shouts(self):
+        """Expanded, a ringing session is on screen: its repo and its group must not pulse too.
+        Collapse the repo and the ring rolls up to the row that is still visible, one row only."""
+        sess = [make_session(os.path.join(self.tmp, "autoretouch", "ai-shoot-service"), status="ring")]
+        def synthetic(collapsed):
+            return {r["repo"]: r for r in fleet.tree_rows(sess, self.tmp, "", collapsed) if r.get("kind")}
+        rows = synthetic(set())
+        self.assertEqual(rows["autoretouch"]["status"], "work")     # group expanded: quiet
+        self.assertEqual(rows["ai-shoot-service"]["status"], "work")  # repo expanded: quiet
+        rows = synthetic({"ai-shoot-service"})
+        self.assertEqual(rows["ai-shoot-service"]["status"], "ring")  # the ring it hides is its own
+        self.assertEqual(rows["autoretouch"]["status"], "work")       # still one shouting row, not two
+
+    def test_focus_drills_into_a_group_then_a_repo_and_back_out(self):
+        sess = [make_session(os.path.join(self.tmp, "autoretouch", "ai-shoot-service"))]
+        rows = fleet.tree_rows(sess, self.tmp, "", set())
+        self.assertIn("claude-loop", [r["repo"] for r in rows])
+        inside = fleet.focus_rows(rows, ("autoretouch",))
+        self.assertEqual([r["repo"] for r in inside],
+                          ["ai-shoot-service", "ai-shoot-service", "fashion-webapp-2"])   # repo, session, repo
+        self.assertEqual(inside[0]["indent"], 0)                    # rebased: the subtree is the screen
+        deeper = fleet.focus_rows(rows, ("autoretouch", "ai-shoot-service"))
+        self.assertEqual([r["sid"] for r in deeper], ["s1"])        # just that repo's sessions
+        self.assertIsNone(fleet.focus_rows(rows, ("gone",)))        # caller drops back to the overview
+
+    def test_entry_for_maps_a_session_root_to_its_scan_path(self):
+        self.assertEqual(fleet.entry_for(self.tmp, os.path.join(self.tmp, "autoretouch", "ai-shoot-service")),
+                          ("autoretouch", "ai-shoot-service"))
+        self.assertEqual(fleet.entry_for(self.tmp, os.path.join(self.tmp, "claude-loop")), ("", "claude-loop"))
+        self.assertEqual(fleet.entry_for(self.tmp, "/nowhere"), ("", ""))
+
     def test_repo_row_carries_every_session_key(self):
         rows = fleet.tree_rows([], self.tmp, "", set())
         repo_row = next(r for r in rows if r.get("kind") == "repo")
