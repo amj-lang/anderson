@@ -35,17 +35,21 @@ curses, zero tokens); this command only installs the launcher and tells the huma
   tree:     rows are the repos of the workspace fleet was launched from, one nested level: a repo
             holding a rework loop is a row, a dir holding several repos is a collapsible group row,
             live sessions nest under their repo, and sessions from elsewhere land in an `elsewhere`
-            group. `J`/`K` reorder a repo/group among its siblings, `space` (or `←`/`→`) collapses
-            it; both persist per workspace. No repos found under the launch dir -> today's flat list.
+            group. `J`/`K` reorder a repo/group among its siblings, `space` folds one in place;
+            both persist per workspace. `→` drills into the selected repo/group so only its contents
+            fill the screen (the path shows in the header), `←` comes back out one level. A row only
+            rings for a ring you cannot see: expanded, the ringing session itself pulses, never its
+            parents. No repos found under the launch dir -> today's flat list.
 
   row:      flags · repo · task · persona · stage n/max · tier · model · now · ctx · age
             tier is how hard the pipeline decided the task is: triv · normal · HARD · CRITICAL
             ☎ waits on you   ▶ working   ✝ process gone   ⟲ rework loop
             ▲ ARCHITECT · ◇ INTERROGATOR · ◎ ORACLE · ● NEO · ▣ AGENT SMITH · ★ THE ONE · ○ no pipeline
 
-  keys:     ↑↓ tune · 1-9 / ⏎ jack in (session row) or spawn an agent (repo/group row) · J/K reorder
-              a repo/group · space collapse/expand (←/→ too) · D pop a session's window out into
-              its own terminal · w oldest waiting · r kill (asks; hides the row) · b hide row, or a whole repo · h show hidden
+  keys:     ↑↓ tune · →/← drill into a repo/group or step back out · 1-9 / ⏎ jack in (session row)
+              or spawn an agent (repo/group row) · J/K reorder a repo/group · space collapse/expand
+              in place · D pop a session's window out into its own terminal · w oldest waiting
+              (zooms into its repo) · r kill (asks; hides the row) · b hide row, or a whole repo · h show hidden
             ⏎ on a sentinel revives it in a new terminal · ⏎ on a repo/group row opens a prompt box,
               then p/a/A spawns a claude agent (bare / /anderson:start / /anderson:auto) into that
               repo — or the workspace root, on a group — in a terminal of its own; fleet keeps the
@@ -54,6 +58,8 @@ curses, zero tokens); this command only installs the launcher and tells the huma
               default branch), so the work in progress sitting in that checkout is never touched
             c copy `claude --resume` · n desktop notification on ring (skipped, with the
               sound, when that session's terminal is already frontmost; fleet --ping tests the banner)
+            a new ring while you sit on the overview zooms you into the repo that rang; drilled into
+              a repo already, rings elsewhere leave your screen where it is
             m sound on/off · s next ring sound (phone · snare · hitech · freeze · blip · rift · jump;
               fleet --play all auditions them, --ring NAME picks, own .wav in ~/.claude/fleet/sounds/)
             o read plan.md / audit.md right here (glow, else less; q returns)

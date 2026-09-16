@@ -32,7 +32,7 @@ Data, richest first, each optional (the view degrades, never breaks):
   <repo>/feature-research/<task>/state.md  that session's stage/verdicts/iteration/tier -> persona
   ps + lsof + tmux                    sessions with no hooks at all, and the pane to jack into
 
-Keys: ↑↓/jk tune · ⏎ jack in (revive, if dead) · w white rabbit (oldest ring) · r kill (row hidden too)
+Keys: ↑↓/jk tune · →/← in/out of a repo · ⏎ jack in (revive, if dead) · w white rabbit · r kill
       b hide the row (process untouched) · h show hidden · / filter · t theme · p wording · ? manual · q
 Prefs (theme, wording, motion) persist in ~/.claude/fleet/prefs.json.
 """
@@ -794,7 +794,9 @@ def ws_row(name, path, kind, sessions, collapsed, ws=None, indent=0, n_children=
         now_txt = f"({n_children}) · {now_txt}"
     return {**_WS_BASE, "sid": f"{kind}:{path}", "repo": name, "root": path, "cwd": path,
             "kind": kind, "path": path, "ws": ws, "indent": indent, "collapsed": collapsed,
-            "status": "ring" if n_ring else "work", "now": now_txt}
+            # a parent only rings for a ring you cannot see: expanded, the ringing row below it is
+            # the one that pulses, so exactly one line per ring shouts instead of the whole branch
+            "status": "ring" if (n_ring and collapsed) else "work", "now": now_txt}
 
 
 def _apply_order(names, order):
@@ -894,6 +896,39 @@ def tree_rows(sessions, ws, filt, collapsed, order=(), hidden=(), show_hidden=Fa
         if "elsewhere" not in collapsed:
             out.extend({**s, "indent": 1} for s in elsewhere)
     return out
+
+
+def entry_for(ws, root):
+    """(group name, repo name) of the scanned entry that owns `root`, ('', '') when it owns none."""
+    rp = os.path.realpath(root or "")
+    for e in scan_workspace(ws):
+        if e["kind"] == "repo":
+            if os.path.realpath(e["path"]) == rp:
+                return "", e["name"]
+        else:
+            for sub in e["repos"]:
+                if os.path.realpath(sub["path"]) == rp:
+                    return e["name"], sub["name"]
+    return "", ""
+
+
+def focus_rows(rows, focus):
+    """→ drills in: the rows under the repo/group path `focus` (("group",) or ("group", "repo")),
+    indents rebased to 0 so the subtree reads as the whole screen. None when a step of the path is
+    not in `rows` (hidden, gone, filtered out) -- the caller drops back to the overview."""
+    for name in focus:
+        i = next((i for i, r in enumerate(rows)
+                  if r.get("kind") in ("repo", "group") and r["repo"] == name), None)
+        if i is None:
+            return None
+        base = rows[i].get("indent", 0)
+        out = []
+        for r in rows[i + 1:]:
+            if r.get("indent", 0) <= base:
+                break
+            out.append({**r, "indent": r.get("indent", 0) - base - 1})
+        rows = out
+    return rows
 
 
 def _apply_order_entries(entries, order):
@@ -1390,7 +1425,7 @@ def _row_window(rows, W, filt, height, sel):
     return off, visible
 
 
-def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, height=None, ws=None, all_rows=None):
+def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, height=None, ws=None, all_rows=None, focus=""):
     """Pure: -> list of (kind, line). Every line is exactly `width` cells (see --selftest).
     all_rows (the full session list, pre-collapse) drives the header/footer aggregates so a
     collapsed group doesn't hide sessions from the counts; defaults to `rows` for callers that
@@ -1405,7 +1440,8 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
     n_dead = sum(r["status"] == "sentinel" and not r.get("hidden") for r in sess_rows)
     n_live = len(sess_rows) - n_dead - n_hid
     ws_name = os.path.basename((ws or "").rstrip("/"))
-    left = f"{G['eyes']}  T H E  O P E R A T O R" + (f" · {ws_name}" if ws_name else "")
+    crumb = " / ".join(x for x in ([ws_name] + list(focus or ())) if x)
+    left = f"{G['eyes']}  T H E  O P E R A T O R" + (f" · {crumb}" if crumb else "")
     right = f"{words('fleet')} · {n_live} {words('live')} · {n_ring} {words('ring')} · {n_dead} {words('deads' if n_dead != 1 else 'dead')}{f' · {n_hid} hidden' if n_hid else ''}{header_tail(frame)}"
     lines.append(("hdr", fit(fit(left, max(0, W - dw(right) - 1)) + " " + right, W)))
     lim = usage_limits(bars=True)
@@ -1426,7 +1462,8 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
     lines.append(("colhdr", fit(hdr, W)))
     if not rows:
         lines.append(("empty", fit("", W)))
-        lines.append(("empty", fit("   " + words("empty"), W)))
+        empty = f"nothing running in {' / '.join(focus)}.   {G['cur']} ← back out" if focus else words("empty")
+        lines.append(("empty", fit("   " + empty, W)))
     for i, r in enumerate(view):
         idx = i + off
         cur = G["cur"] if idx == sel else " "
@@ -1481,10 +1518,10 @@ def footer(rows, W, filt="", all_rows=None):
     d = G["det"]
     fleet = sum(r["cost"] or 0 for r in (all_rows if all_rows is not None else rows))
     lim = usage_limits()
-    keys = ("↑↓ tune · 1-9/⏎ jack in or spawn · J/K reorder · space collapse · D pop out · o read plan · O in IDE · a agent log · w rabbit · "
+    keys = ("↑↓ tune · ←→ out/in · 1-9/⏎ jack in or spawn · J/K reorder · space collapse · D pop out · o read plan · O in IDE · a agent log · w rabbit · "
             "🔴 r kill · 🔵 b hide · 👻 h hidden · c resume · "
             "🔔 n notify · 🔊 m sound · 🎵 s ring · $ cost · +/- zoom · 🔍 / filter · 🎨 t theme · p wording · ? manual · q quit") \
-        if G is not ASCII else ("jk tune · 1-9/enter jack in or spawn · J/K reorder · space collapse · D pop out · o read plan · O in IDE · a agent log · w rabbit · "
+        if G is not ASCII else ("jk tune · left/right out/in · 1-9/enter jack in or spawn · J/K reorder · space collapse · D pop out · o read plan · O in IDE · a agent log · w rabbit · "
                                 "r kill · b hide · h hidden · c resume · "
                                 "n notify · m sound · s ring · $ cost · +/- zoom · / filter · t theme · p wording · ? manual · q quit")
     if filt:
@@ -1639,9 +1676,15 @@ MANUAL = """
                            anderson/<task>, cut from the default branch. On the default branch the
                            checkout is free and the agent uses it directly
   J / K     reorder        move the selected repo/group among its siblings (saved per workspace)
-  space     collapse       toggle a repo/group row · ←/→ also collapse/expand
+  → / ←     in / out       → drills into the selected repo or group: only what is inside it fills
+                           the screen, the workspace path shows in the header. ← comes back out one
+                           level. A ring arriving while you are on the overview zooms you into that
+                           repo by itself; drilled in, rings elsewhere leave your screen alone
+  space     collapse       fold/unfold a repo or group in place, without leaving the overview
+                           (saved per workspace). A folded row carries its children's ☎: expanded,
+                           only the ringing session row itself pulses, never its parents
   D         pop out        a running session's tmux window, into its own OS terminal window
-  w         white rabbit   jump to the oldest ringing session, expanding any collapsed group in the way
+  w         white rabbit   jump to the oldest ringing session, zooming into the repo that holds it
   r         red pill       kill the session's process (asks first); the row is hidden with it
   b         blue pill      hide the row, any row; the process is left alone. On a repo/group row:
                            hide that repo and its agents, saved per workspace. On a hidden one: un-hide
@@ -2263,6 +2306,8 @@ def run_tui(args):
         prompt_mode, prompt_row, prompt_buf = False, None, ""
         menu_mode = False
         pending_sel_sid = None
+        pending_sel_name = None
+        focus = ()             # ponytail: in-memory, never saved -- fleet always opens on the overview
 
         def activate(row):
             """`⏎` / `1`-`9`: a session row jacks in (unchanged); a repo/group row opens the
@@ -2296,6 +2341,14 @@ def run_tui(args):
                         notify(f"{r['repo']} · {r['task'] or r.get('title') or 'session'}", r["now"])
                     if last_scan and SOUND and not watched:
                         ring_sound()
+                    if last_scan and not focus and not filt:
+                        # only from the overview: once you have drilled in, a ring elsewhere
+                        # must not yank the screen out from under you
+                        path = tuple(x for x in entry_for(ws, session_root(r)) if x)
+                        if path:
+                            focus = path
+                            pending_sel_sid = r["sid"]
+                            say(f"{' / '.join(path)} is ringing — zoomed in. ← back to the overview.", 5)
                 rung = new_ring
                 new_hot = hot_rows(all_rows)
                 for sid in new_hot - hot_seen:
@@ -2312,12 +2365,20 @@ def run_tui(args):
                         if THEME["eggs"] != "quiet":
                             say("He is The One.", 4)
                 shipped = new_ship
-                rows = tree_rows(all_rows, ws, filt, collapsed, order, hidden_repos, SHOW_HIDDEN)
-                if pending_sel_sid:
-                    idx = next((i for i, rr in enumerate(rows) if rr["sid"] == pending_sel_sid), None)
+                rows = tree_rows(all_rows, ws, filt, collapsed - set(focus), order, hidden_repos, SHOW_HIDDEN)
+                if focus:
+                    sub = focus_rows(rows, focus)
+                    if sub is None:
+                        focus = ()          # the repo went away (hidden, deleted, filtered out)
+                    else:
+                        rows = sub
+                if pending_sel_sid or pending_sel_name:
+                    idx = next((i for i, rr in enumerate(rows)
+                                if rr["sid"] == pending_sel_sid
+                                or (pending_sel_name and rr.get("kind") and rr["repo"] == pending_sel_name)), None)
                     if idx is not None:
                         sel = idx
-                    pending_sel_sid = None
+                    pending_sel_sid = pending_sel_name = None
                 sel = min(sel, max(0, len(rows) - 1))
                 last_scan = now
             burst = {k: v for k, v in burst.items() if v > now}
@@ -2337,7 +2398,7 @@ def run_tui(args):
                     shown_toast = f"spawn in {prompt_row['repo']} {G['cur']} \"{prompt_buf or '(empty: bare claude)'}\"   p plain · a /anderson:start · A /anderson:auto · esc cancels"
                 else:
                     shown_toast = confirm or toast
-                lines = render(rows, w - 1, sel, frame, filt if filt_mode else "", shown_toast, set(burst), now, height=h - 1, ws=ws, all_rows=all_rows)
+                lines = render(rows, w - 1, sel, frame, filt if filt_mode else "", shown_toast, set(burst), now, height=h - 1, ws=ws, all_rows=all_rows, focus=focus)
                 painted = []
                 hot = set()
                 span = ctx_span(w - 1)
@@ -2459,19 +2520,9 @@ def run_tui(args):
                 ringing = [r for r in all_rows if r["status"] == "ring"]
                 if ringing:
                     r = min(ringing, key=lambda r: r["last_seen"])
-                    rp = os.path.realpath(r.get("root") or r.get("cwd") or "")
-                    found = False
-                    for entry in scan_workspace(ws):
-                        if entry["kind"] == "group":
-                            for sub in entry.get("repos", []):
-                                if os.path.realpath(sub["path"]) == rp:
-                                    collapsed.discard(entry["name"])
-                                    collapsed.discard(sub["name"])
-                                    found = True
-                        elif os.path.realpath(entry["path"]) == rp:
-                            collapsed.discard(entry["name"])
-                            found = True
-                    if not found:
+                    path = tuple(x for x in entry_for(ws, session_root(r)) if x)
+                    focus = path                    # a rabbit in another repo: zoom there, not just unfold
+                    if not path:
                         collapsed.discard("elsewhere")
                     pending_sel_sid = r["sid"]; last_scan = 0
                     say("follow the white rabbit.")
@@ -2490,14 +2541,22 @@ def run_tui(args):
                         say("no more room to move.")
                 elif rows:
                     say("repos and groups reorder, sessions follow their repo")
-            elif k in (ord(" "), curses.KEY_LEFT, curses.KEY_RIGHT):
+            elif k == curses.KEY_RIGHT:
+                if rows and rows[sel].get("kind") in ("repo", "group"):
+                    focus = focus + (rows[sel]["repo"],)
+                    sel = 0; last_scan = 0
+                elif rows:
+                    say("→ goes into a repo or a group; this row is a session (⏎ jacks in)")
+            elif k == curses.KEY_LEFT:
+                if focus:
+                    pending_sel_name = focus[-1]
+                    focus = focus[:-1]; last_scan = 0
+                else:
+                    say("already at the top of the workspace.")
+            elif k == ord(" "):
                 if rows and rows[sel].get("kind") in ("repo", "group"):
                     name = rows[sel]["repo"]
-                    if k == curses.KEY_RIGHT:
-                        collapsed.discard(name)
-                    elif k == curses.KEY_LEFT:
-                        collapsed.add(name)
-                    elif name in collapsed:
+                    if name in collapsed:
                         collapsed.discard(name)
                     else:
                         collapsed.add(name)
