@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.48.2-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.48.3-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -638,6 +638,14 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.48.3** — **fleet sees three levels, and worktrees.** Two ways a repo could sit in your
+workspace and never get a row. Repos one level deeper than the scan reached
+(`workspace/autoretouch/mpe/watermark`) were dropped with the plain dir holding them: they now
+flatten into the group as `mpe/watermark`, so the tree still stays two deep. And a checkout whose
+`.git` is a *file* rather than a directory — every `git worktree add` and every submodule — failed
+the repo test everywhere it was made, so it vanished from the scan *and* sent `workspace_root()`
+walking past it to the wrong workspace. `.git` now counts either way.
 
 - **0.48.2** — **One session, one task dir.** The other half of the duplicate-task report: starting
 the same work twice under a slightly different slug (`ais-showcase-poses` first, then

@@ -42,6 +42,38 @@ class TestWorkspaceScan(unittest.TestCase):
         self.assertEqual({r["name"] for r in by_name["autoretouch"]["repos"]},
                           {"ai-shoot-service", "fashion-webapp-2"})
 
+    def test_scan_flattens_depth_three_repos_into_the_group(self):
+        """A non-repo dir inside a group (workspace/autoretouch/mpe/) is not a nested group: its
+        repos join the group as `mpe/<repo>` rather than vanishing."""
+        make_repo(os.path.join(self.tmp, "autoretouch", "mpe", "watermark"))
+        make_repo(os.path.join(self.tmp, "autoretouch", "mpe", "simple-shadow"))
+        os.makedirs(os.path.join(self.tmp, "autoretouch", "mpe", "not-a-repo"))
+        fleet._WS_CACHE.clear()
+        grp = {e["name"]: e for e in fleet.scan_workspace(self.tmp)}["autoretouch"]
+        self.assertEqual({r["name"] for r in grp["repos"]},
+                          {"ai-shoot-service", "fashion-webapp-2", "mpe/watermark", "mpe/simple-shadow"})
+        flat = {r["name"]: r for r in grp["repos"]}["mpe/watermark"]
+        self.assertEqual(flat["kind"], "repo")
+        self.assertEqual(flat["path"], os.path.join(self.tmp, "autoretouch", "mpe", "watermark"))
+
+    def test_tree_rows_shows_a_flattened_repo_and_its_sessions(self):
+        make_repo(os.path.join(self.tmp, "autoretouch", "mpe", "watermark"))
+        fleet._WS_CACHE.clear()
+        wt = os.path.join(self.tmp, "autoretouch", "mpe", "watermark")
+        rows = fleet.tree_rows([make_session(wt, sid="s9")], self.tmp, "", set())
+        self.assertIn(("repo", "mpe/watermark"), [(r.get("kind"), r["repo"]) for r in rows])
+        self.assertIn("s9", [r["sid"] for r in rows])
+
+    def test_scan_sees_a_worktree_checkout_whose_dot_git_is_a_file(self):
+        """`git worktree add` / a submodule writes `.git` as a file. It is still a repo row."""
+        wt = os.path.join(self.tmp, "ar-core-eval")
+        os.makedirs(wt)
+        with open(os.path.join(wt, ".git"), "w") as fh:
+            fh.write("gitdir: /elsewhere/.git/worktrees/ar-core-eval\n")
+        fleet._WS_CACHE.clear()
+        self.assertEqual({e["name"]: e for e in fleet.scan_workspace(self.tmp)}["ar-core-eval"]["kind"], "repo")
+        self.assertEqual(fleet.workspace_root(wt), self.tmp)
+
     def test_workspace_root_steps_one_level_up_from_a_repo(self):
         self.assertEqual(fleet.workspace_root(os.path.join(self.tmp, "claude-loop")), self.tmp)
 
