@@ -2072,7 +2072,10 @@ def rebase_row(path):
     ok, out = _git_out(["rebase", onto], path)
     if not ok:
         _git_out(["rebase", "--abort"], path)
-        return f"CONFLICTS rebasing {cur} onto {onto} — aborted, nothing pushed. This one is yours to resolve by hand."
+        tail = out.splitlines()[-1] if out else "?"
+        if "CONFLICT" in out:
+            return f"CONFLICTS rebasing {cur} onto {onto} — aborted, nothing pushed. This one is yours to resolve by hand."
+        return f"rebase of {cur} onto {onto} failed — aborted, nothing pushed: {tail}"
     if not origin:
         return f"{cur} rebased onto {base}. No origin, so nothing was pushed."
     known = _git(["rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{cur}"], path)

@@ -16,6 +16,12 @@ def git(cwd, *a):
     return subprocess.run(["git", "-C", cwd, *a], capture_output=True, text=True, env=ENV, check=True).stdout.strip()
 
 
+def identify(cwd):
+    """A committer for the repo itself: fleet shells out to git with the ambient environment, and a
+    CI runner has no global user.name (a rebase needs one to write commits)."""
+    git(cwd, "config", "user.name", "t"); git(cwd, "config", "user.email", "t@t")
+
+
 def commit(cwd, name, text):
     pathlib.Path(cwd, name).write_text(text)
     git(cwd, "add", name); git(cwd, "commit", "-qm", f"add {name}")
@@ -27,11 +33,12 @@ class TestRebaseRow(unittest.TestCase):
         self.origin = os.path.join(self.tmp, "origin.git")
         seed = os.path.join(self.tmp, "seed")
         subprocess.run(["git", "init", "-q", "-b", "main", seed], capture_output=True, check=True)
-        commit(seed, "base", "1")
+        identify(seed); commit(seed, "base", "1")
         subprocess.run(["git", "init", "-q", "--bare", "-b", "main", self.origin], capture_output=True, check=True)
         git(seed, "remote", "add", "origin", self.origin); git(seed, "push", "-q", "origin", "main")
         self.repo = os.path.join(self.tmp, "work")
         subprocess.run(["git", "clone", "-q", self.origin, self.repo], capture_output=True, env=ENV, check=True)
+        identify(self.repo)
         git(self.repo, "checkout", "-qb", "feat")
         commit(self.repo, "mine", "mine")
         git(self.repo, "push", "-q", "-u", "origin", "feat")
