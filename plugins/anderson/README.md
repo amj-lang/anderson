@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.50.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.51.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -537,7 +537,8 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
   --with-tmux` adds it via brew / apt / dnf if you want panes) — or **spawn an agent** on a
   repo/group row: `⏎` opens a prompt box, then `p`/`a`/`A` launches a claude agent (bare /
   `/anderson:start` / `/anderson:auto`) into that repo — or the workspace root, on a group — in a
-  terminal of its own, so the monitor keeps the window it is in. If that repo is already parked on a
+  terminal of its own, so the monitor keeps the window it is in. Drilled into a repo that has no agents
+in it there is no row to select, and `⏎` spawns into that repo anyway. If that repo is already parked on a
   feature branch, the agent does not land in it: it gets a worktree (`.worktrees/<task>` on branch
   `anderson/<task>`, cut from the default branch), and its row still nests under the repo. `J`/`K` reorder a repo/group among its siblings, `space` (`←`/`→` too)
   collapses/expands it; both persist per workspace. `D` pops a session's tmux window out into its
@@ -638,6 +639,11 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.51.0** — **An empty repo is a starting point, not a dead end.** Drilling into a repo with no
+agents left you on a screen with nothing to select, so `⏎` had no row to spawn from and the only way
+forward was `←` back to the overview. Drilled in with no rows, `⏎` now opens the prompt box for that
+repo itself (the target is rebuilt from the scan), and the empty screen says so.
 
 - **0.50.0** — **`R`: rebase onto main, force-push one branch.** A branch that has been running for a
 day drifts behind `main`, and catching it up by hand means leaving fleet. `R` on a repo, worktree or

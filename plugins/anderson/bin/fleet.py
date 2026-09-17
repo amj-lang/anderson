@@ -931,6 +931,21 @@ def focus_rows(rows, focus):
     return rows
 
 
+def focus_target(ws, focus):
+    """The repo/group row `focus` is drilled into, rebuilt from the scan. Drilled into a repo with
+    no agents there is nothing to select, so `⏎` has no row to spawn from: this gives it one.
+    None when the path no longer scans (renamed, deleted)."""
+    entries = scan_workspace(ws) if ws else []
+    row = None
+    for name in focus:
+        e = next((x for x in entries if x["name"] == name), None)
+        if e is None:
+            return None
+        row = ws_row(e["name"], e["path"], e["kind"], [], False, ws=ws)
+        entries = e.get("repos") or []
+    return row
+
+
 def _apply_order_entries(entries, order):
     names = _apply_order([e["name"] for e in entries], order)
     by_name = {e["name"]: e for e in entries}
@@ -1462,7 +1477,8 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
     lines.append(("colhdr", fit(hdr, W)))
     if not rows:
         lines.append(("empty", fit("", W)))
-        empty = f"nothing running in {' / '.join(focus)}.   {G['cur']} ← back out" if focus else words("empty")
+        empty = (f"nothing running in {' / '.join(focus)}.   {G['cur']} {'⏎' if G is not ASCII else 'enter'} spawn an agent here · ← back out"
+                 if focus else words("empty"))
         lines.append(("empty", fit("   " + empty, W)))
     for i, r in enumerate(view):
         idx = i + off
@@ -1671,6 +1687,9 @@ MANUAL = """
                            On a repo/group row: opens a prompt box, then p/a/A spawns a claude
                            agent in that repo (or the workspace root, on a group) in a terminal of
                            its own -- fleet stays on screen, it is never replaced by the agent.
+                           Drilled into a repo with no agents in it, there is no row to select:
+                           ⏎ spawns into that repo anyway, so an empty repo is a starting point
+                           rather than a dead end.
                            A repo already on a feature branch is someone's work in progress, so the
                            agent gets a worktree there instead: .worktrees/<task> on branch
                            anderson/<task>, cut from the default branch. On the default branch the
@@ -2600,6 +2619,9 @@ def run_tui(args):
             elif k in (10, 13, curses.KEY_ENTER):
                 if rows:
                     say(activate(rows[sel]))
+                elif focus:
+                    tgt = focus_target(ws, focus)      # drilled into an empty repo: spawn into it
+                    say(activate(tgt) if tgt else f"{' / '.join(focus)} is gone from the workspace — ← backs out.")
             elif k == ord("o"):
                 if rows:
                     say(view_gate(rows[sel], scr), 4); prev = None; last_full = now
