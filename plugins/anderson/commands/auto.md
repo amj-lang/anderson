@@ -91,6 +91,14 @@ IMPLEMENT banner (stage offset 6):
 ```
 IMPLEMENT pool (14): "Make it small enough to be wrong cheaply." / "Touch only what the plan told you to touch." / "One reviewable step beats ten clever ones." / "The first version should be obvious, not impressive." / "Done is a diff someone else can understand." / "I know kung fu." / "There is no spoon." / "Don't think you are; know you are." / "Free your mind." / "He is beginning to believe." / "Change the diff, not the mandate." / "Small enough to revert is small enough to trust." / "The plan is the path; walk it, don't wander." / "Stop trying to be clever and be correct."
 
+REPAIR banner (stage offset 6b — prints ONLY when tests go red):
+```
+  ╭─ ⌐■-■  REPAIR · 6b/9 · TRINITY · opus/high
+  │  "[quote from REPAIR pool]"
+  ╰─
+```
+REPAIR pool (14): "A red test is a witness — interrogate it, never silence it." / "Dodge this." / "The failing line is the symptom; find the organ." / "Name the cause in one line, or you have not found it." / "A test bent until it passes is a bug with paperwork." / "Flakes do not get fixed; they get named." / "Fix the function every caller shares, not the caller that complained." / "Two reds traded is not one red solved." / "Nobody has ever done this before — that is why it is going to work." / "Green earned by deletion is red in disguise." / "The suite is the one witness that cannot be charmed." / "Patch the cause; the symptom was never the enemy." / "If the approach cannot pass, say so — do not keep patching." / "One try, then the specialist. Flailing is not debugging."
+
 DIFF GATE banner (stage offset 7):
 ```
   ╭─ ⌐■-■  DIFF GATE · 7/9 · AGENT SMITH · <review_model>/<review_effort>
@@ -161,6 +169,9 @@ Quote: pick one line from the stage's pool; vary it across stages.
       frozen_test:         none
       frozen_test_hash:    none
       rework_round:        0
+      repair_round:        0
+      max_repair:          2
+      repair_verdict:      none
       open_findings:       0
       plan_panel:          pending
       diff_panel:          pending
@@ -427,7 +438,43 @@ Quote: pick one line from the stage's pool; vary it across stages.
    c. Invoke the **implementer** subagent: execute `feature-research/<task-id>/plan.md`;
       make the frozen test pass; fill the Evidence column of plan.md `## ✅ Acceptance
       criteria` (per its agent instructions); write `feature-research/<task-id>/audit.md`.
-      Set stage=diff_gate after invocation.
+
+   d. ONE TRY, THEN THE SPECIALIST. Run `<test_cmd> <frozen_test>` (single-file filter).
+      GREEN → set stage=diff_gate, continue to step 7. RED → the implementer already had its
+      one attempt and kept the failure, so do NOT re-invoke it (a sonnet implementer looping on
+      a red test is exactly the flail this stage exists to stop): go to step 6b (REPAIR).
+
+6b. REPAIR — TRINITY root-causes the red. Runs ONLY when tests are red, never speculatively,
+    and never in parallel with the panel (it edits the tree the reviewers read).
+
+   a. Update state.md: set `stage: repair`, increment `repair_round:`, set
+      `repair_verdict: pending`.
+
+   b. Budget: if `repair_round > max_repair` (default 2) → abort with a `needs-human` report
+      (`stage: aborted`, reason `repair-budget`, include the last red output and
+      `feature-research/<task-id>/repair.md`), print, STOP.
+
+   c. (BANNER RULE) Print the REPAIR banner now, last line before invoking the test-fixer.
+
+   d. Invoke the **test-fixer** subagent (model opus, effort high — `--opus`/`review_model` do
+      not apply; this stage is opus/high always), seeded with: the failing test name(s), the
+      exact command that ran them, the captured output, `frozen_test`, the plan's
+      "Files touched" list, and `repair.md` from earlier rounds if it exists. It writes
+      `feature-research/<task-id>/repair.md` and sets `repair_verdict:`.
+
+   e. Read `repair_verdict:` and route:
+      - `fixed` → re-run `<test_cmd>` (FULL suite). Green → set stage=diff_gate, continue to
+        step 7 (the tamper guard at 7b still runs: a fixer that touched the frozen test is
+        caught there, as designed). Still red → back to 6b-a (next repair round).
+      - `flake` → note the flaky test under `## Done so far`, append `flake` to `override:`,
+        set the `needs-human` label flag for SHIP, and continue to step 7.
+      - `replan` → the approach cannot satisfy the criterion. Take the REPLAN BOUNCE of step
+        7h-iii (once): if `replan_bounced: no`, set it `yes`, re-invoke the **planner** with the
+        fixer's objection, then resume at step 6 with the fresh plan. Already bounced → abort
+        `needs-human`, reason `no-convergence`, print, STOP.
+      - `needs-human` → abort with the fixer's report, `stage: aborted`, print, STOP.
+
+   f. Record the round in `## Done so far`.
 
 7. DIFF GATE — CI veto + tier-sized blind reviewer panel + arbiter-on-split.
    Order is deliberate: free objective gate (CI) runs FIRST and short-circuits a red build before
@@ -476,7 +523,10 @@ Quote: pick one line from the stage's pool; vary it across stages.
 
       iv. SHORT-CIRCUIT: if CI/suite veto FAILED (`ci_conclusion` not `success`/`pass`), a red
           build is dispositive — do NOT run the reviewer panel (no tokens on a known-bad diff). Set
-          `diff_panel: ci-veto` and go straight to the rework loop (step 7h).
+          `diff_panel: ci-veto` and go to REPAIR (step 6b): a red build is TRINITY's job, not the
+          implementer's. When 6b returns green it re-enters this gate at step 7b (tamper guard →
+          CI veto → panel). The rework loop (step 7h) is for REVIEW findings; a red suite never
+          reaches it.
 
    d. Scope / forbidden-path guard + RE-TIER. Measure diff against branch base with
       `git diff --name-only` and `git diff --stat`; record files-changed and lines-changed
@@ -607,7 +657,9 @@ Quote: pick one line from the stage's pool; vary it across stages.
              (`stage: aborted`, reason `no-convergence`, list the recurring findings), print, STOP.
            Otherwise (findings shrinking normally): continue to iv.
       iv. Budget: if `rework_round > max_iterations` → abort (`stage: aborted`, reason `budget`).
-      v. Otherwise: update `open_findings:`, invoke the **implementer** again (fix ONLY "Still open"),
+      v. Otherwise: update `open_findings:`, invoke the **implementer** again (fix ONLY "Still open"
+         — review findings; a red suite goes to REPAIR at step 6b instead, and if the implementer's
+         round leaves the frozen test red, step 6d routes there too),
          then re-enter the diff gate at step 7b — tamper guard + CI veto (re-push → re-await) +
          tier-sized panel all re-run on the new diff. Bounded by max_iterations.
 

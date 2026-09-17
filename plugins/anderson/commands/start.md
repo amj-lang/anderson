@@ -92,6 +92,8 @@ run in parallel and the reviewer judges files that don't exist yet.
    gate:            none
    iteration:       0
    max_iterations:  2
+   repair_round:    0
+   repair_verdict:  none
    exit_rule:       all tests pass and lint clean, only major issues fixed
    review_model:    fable
    tier:            pending

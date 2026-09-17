@@ -34,6 +34,11 @@ Print in exactly this order (sub-bullet = quote pool to pick from):
 ╭─ ⌐■-■  IMPLEMENT · 4/5 · NEO · sonnet/medium
   Pool: "Make it small enough to be wrong cheaply." / "Ship the truth, not the hope." / "One reviewable step beats ten clever ones."
 
+╭─ ⌐■-■  REPAIR · 4b/5 · TRINITY · opus/high      (only when tests go red — shown here for the preview)
+  Pool: "A red test is a witness — interrogate it, never silence it." / "Dodge this." / "One try, then the specialist. Flailing is not debugging."
+  The implementer gets ONE try at a failing test; a suite still red after it goes to TRINITY,
+  who root-causes it on opus/high and hands back a green tree (or says the plan is the problem).
+
 ╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · fable/medium
   Pool: "Your green tests are a comfort, not a verdict." / "Untested is unknown, and unknown is unsafe." / "Every assumption is a door you left unlocked."
   Then the gate marker:

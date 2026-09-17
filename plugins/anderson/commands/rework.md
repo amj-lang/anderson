@@ -6,7 +6,9 @@ Task slug = "$ARGUMENTS"; the task key (state dir name) is its LAST `/`-segment,
 branch name like `user/ar-123-title` resolves to `feature-research/ar-123-title/`.
 Blocking findings are already in state.md "Still open".
 Run exactly the implement → diff_review → halt sequence from approve-plan,
-incrementing iteration and stopping if it exceeds max_iterations.
+incrementing iteration and stopping if it exceeds max_iterations. A round that leaves the tests
+RED goes to TRINITY (step 1b), never back to the implementer: the implementer gets one try at a
+failing test, and looping it on a red suite is the failure mode this stage exists to stop.
 
 REVIEW MODEL: the diff-review gate runs on the model in state.md `review_model:` (`fable` default,
 `opus` if the pipeline was started with `--opus`; missing field → treat as `fable`). Read it
@@ -46,6 +48,23 @@ run in parallel and the reviewer judges files that don't exist yet.
    Pool: same as approve-plan.md step 1.
    Then invoke the implementer subagent: fix only "Still open". Writes audit.md.
    Set stage=diff_review.
+1b. TESTS RED? — the implementer gets ONE try at a failing test, then TRINITY takes it.
+   After the implementer returns, run the repo's test command. GREEN → step 2. RED → set
+   `stage: repair`, `repair_round:` += 1 (abort to you at `repair_round > 2`, reason
+   `repair-budget`), and (BANNER RULE) print this REPAIR banner as the LAST line before invoking
+   the test-fixer:
+   ```
+     ╭─ ⌐■-■  REPAIR · 4b/5 · TRINITY · opus/high
+     │  "[one quote from the pool]"
+     ╰─
+   ```
+   Pool (14): "A red test is a witness — interrogate it, never silence it." / "Dodge this." / "The failing line is the symptom; find the organ." / "Name the cause in one line, or you have not found it." / "A test bent until it passes is a bug with paperwork." / "Flakes do not get fixed; they get named." / "Fix the function every caller shares, not the caller that complained." / "Two reds traded is not one red solved." / "Nobody has ever done this before — that is why it is going to work." / "Green earned by deletion is red in disguise." / "The suite is the one witness that cannot be charmed." / "Patch the cause; the symptom was never the enemy." / "If the approach cannot pass, say so — do not keep patching." / "One try, then the specialist. Flailing is not debugging."
+   Then invoke the **test-fixer** subagent (ALWAYS opus/high — `review_model` and `--opus` do not
+   apply to it), seeded with the failing test name(s), the command, its output, and the plan's
+   "Files touched" list. It writes `feature-research/<task>/repair.md` and sets `repair_verdict:`.
+   Route on that verdict: `fixed` → re-run the full suite; green → step 2, still red → another
+   repair round. `flake` → note it and go to step 2. `replan` or `needs-human` → print the
+   fixer's report and STOP for you (the approach, not the code, is the problem).
 2. (BANNER RULE) Print this DIFF-REVIEW banner as the LAST line before invoking the reviewer (substitute `<review_model>` with the state.md value):
    ```
      ╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · <review_model>/<review_effort>

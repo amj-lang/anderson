@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.51.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.52.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -127,6 +127,7 @@ The fleet terminal boots into the same rain:
 | THE INTERROGATOR | `grill`       | you — triaged, graded Q&A (🔴🟡🟢)     | — (human)      |
 | THE ORACLE       | `plan_review` | edits the plan inline + appends review to `## 🔭 Review` | fable / xhigh  |
 | NEO              | `implement`   | executes the approved plan             | sonnet / medium|
+| TRINITY          | `repair`      | root-causes a red suite (only when red)| opus / high    |
 | AGENT SMITH      | `diff_review` | read-only diff review                  | fable / high\* |
 | THE ONE          | `done`        | shipped — commit + PR                  | — (terminal)   |
 
@@ -520,7 +521,7 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
   a dir holding several repos is a collapsible group row, live sessions nest under their repo, and
   sessions from elsewhere land in an `elsewhere` group. No repos found under the launch dir falls
   back to today's flat session list. Each row: repo · anderson task · **persona on the job**
-  (▲ ARCHITECT, ◇ INTERROGATOR, ◎ ORACLE, ● NEO, ▣ AGENT SMITH, ★ THE ONE, ○ T. ANDERSON = no
+  (▲ ARCHITECT, ◇ INTERROGATOR, ◎ ORACLE, ● NEO, ✚ TRINITY, ▣ AGENT SMITH, ★ THE ONE, ○ T. ANDERSON = no
   pipeline yet) · stage `n/max` · **tier** (how hard the pipeline decided the task is: `triv` ·
   `normal` · `HARD` · `CRITICAL`, from state.md) · model · **now** (`▶ Bash pytest -q`, `▶ Agent implementer`,
   `☎ ring` = waits on you, `☎ permission Bash`, `✝ sentinel` = process gone, `⟲` = rework loop) ·
@@ -639,6 +640,20 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.52.0** — **TRINITY: a red suite is a diagnosis problem, not a typing problem.** The
+implementer (sonnet/medium) used to own every red test, including the ones it had just failed to
+fix — so it looped, and a loop on a test it never root-caused is how tests end up skipped,
+loosened or quietly deleted. Now it gets exactly ONE try; a test still red after it goes to
+TRINITY, a new `repair` stage running the **test-fixer** subagent on **opus/high** (always —
+`--opus` and `review_model` do not reach it). TRINITY reproduces the failure, re-runs it once to
+rule out a flake, names the root cause in one line before editing anything, fixes the cause in
+production code, and proves both the single test and the FULL suite green. It may never weaken,
+skip, `xfail`, retry, widen or delete a test — and the frozen test's tamper hash still guards the
+gate. It writes `repair.md` with a verdict: `fixed` · `flake` · `replan` (the approach cannot pass
+— bounce to the planner instead of patching) · `needs-human`. Budget: 2 rounds. In auto mode a CI
+veto now routes here instead of to the rework loop, which is for review findings only. Sequential
+by design: the fixer edits the tree the reviewers read, so it never runs beside the panel.
 
 - **0.51.0** — **An empty repo is a starting point, not a dead end.** Drilling into a repo with no
 agents left you on a screen with nothing to select, so `⏎` had no row to spawn from and the only way

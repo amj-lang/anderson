@@ -6,7 +6,8 @@ additions, no commentary before or after. It is static help, not a dashboard
 (that is `/anderson:status <slug>`).
 
 ```
-ANDERSON — gated build loop: plan → grill → plan-review 🛑 → implement → diff-review 🛑 → ship
+ANDERSON — gated build loop: plan → grill → plan-review 🛑 → implement → [repair] → diff-review 🛑 → ship
+                              [repair] fires only when tests are red
 
   /anderson:start <slug> <goal> [--opus]               begin gated task; halts at Gate 1 (plan)
   /anderson:approve-plan <slug>                        pass Gate 1 → implement + diff-review; halts at Gate 2
@@ -23,6 +24,11 @@ ANDERSON — gated build loop: plan → grill → plan-review 🛑 → implement
             effort level on fewer tokens, so reach for this only when the Fable budget is
             spent. Generative stages (planner, implementer) stay Opus/Sonnet. Set once at
             start/auto, persists in state.md across approve-plan/rework. Place at the end.
+
+  repair:   tests red? the implementer gets ONE try, then TRINITY (test-fixer, ALWAYS opus/high,
+            untouched by --opus) root-causes it: reproduce, flake-check, name the cause, smallest
+            fix, full suite green. It may never weaken, skip or delete a test. Verdicts: fixed ·
+            flake · replan · needs-human; budget 2 rounds, then it escalates to you.
 
   tier:     trivial|normal|hard|critical, derived from the plan Scorecard, re-tiered on the
             real diff (escalates only). Drives review effort — plan critique runs one rung

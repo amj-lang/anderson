@@ -70,8 +70,12 @@ class TestNEXT(unittest.TestCase):
     def test_grill_not_in_next(self):
         self.assertNotIn("grill", NEXT)
 
+    def test_repair_rejoins_at_diff_review(self):
+        """TRINITY's stage is not a dead end: a repaired tree goes to the reviewer, like implement."""
+        self.assertEqual(NEXT["repair"], NEXT["implement"])
+
     def test_exact_keys(self):
-        self.assertEqual(set(NEXT), {"plan", "plan_review", "implement", "diff_review"})
+        self.assertEqual(set(NEXT), {"plan", "plan_review", "implement", "repair", "diff_review"})
 
 
 class TestEscalation(unittest.TestCase):

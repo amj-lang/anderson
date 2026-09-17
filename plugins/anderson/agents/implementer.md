@@ -30,6 +30,13 @@ plan's "Files touched" list. If the work genuinely needs a file the plan did not
 list, stop and report back instead of editing it. Never run repo-wide
 formatters, linters with --fix, or codemods.
 
+ONE TRY ON A RED TEST. If a test fails, you get a single, honest attempt at it. If it is still
+red after that attempt, STOP and report `tests-red` with the test name, the command, and the
+verbatim error — the pipeline hands it to the test-fixer (TRINITY, opus/high), whose whole job
+this is. Do not keep cycling edits at a failure you have not root-caused, and never reach for the
+shortcuts: no skipping, no `xfail`, no loosened assertion, no widened timeout, no retry, no
+deleting the test. A test bent until it passes is a bug with paperwork.
+
 On a rework loop, the "Still open" section of state.md holds the checker's
 blocking findings — those ARE your instructions for this pass. Fix them, nothing
 else.

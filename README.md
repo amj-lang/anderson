@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.51.0-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.52.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -50,6 +50,8 @@ flowchart LR
     g1 --> impl[🟢 implement] --> dr[🕴 diff_review] --> g2{{HUMAN GATE 2}} --> ship[🔑 ship]
     pr -. regrill .-> grill
     dr -. fix_first .-> impl
+    impl -. tests red .-> rep[✨ repair]
+    rep --> dr
 ```
 
 |     | Stage         | Persona                  | Model · effort              |
@@ -58,10 +60,13 @@ flowchart LR
 | 🕶  | `grill`       | THE INTERROGATOR (you)   | human                       |
 | 🔮  | `plan_review` | THE ORACLE               | fable · xhigh, then GATE 1  |
 | 🟢  | `implement`   | NEO                      | sonnet · medium             |
+| ✨  | `repair`      | TRINITY (only when red)  | opus · high                 |
 | 🕴  | `diff_review` | AGENT SMITH              | fable · high, then GATE 2   |
 | 🔑  | `ship`        | THE ONE                  | branch + commit + push + PR |
 
 The grill interrogates the plan one question at a time before any code exists. `regrill` sends the plan reviewer's doubts back to the grill; `fix_first` loops the implementer, capped by `max_iterations`.
+
+A red test suite does not loop the implementer. It gets one try; if the tests are still red, `repair` hands them to TRINITY on opus/high, which root-causes the failure and may never weaken, skip or delete a test to get green.
 
 Each gate shows you a TL;DR card: what changes, how many criteria and of which proof type, the scorecard, the verdict. You open the full plan only when a line raises doubt. Both gates halt unconditionally.
 
