@@ -1519,10 +1519,10 @@ def footer(rows, W, filt="", all_rows=None):
     fleet = sum(r["cost"] or 0 for r in (all_rows if all_rows is not None else rows))
     lim = usage_limits()
     keys = ("↑↓ tune · ←→ out/in · 1-9/⏎ jack in or spawn · J/K reorder · space collapse · D pop out · o read plan · O in IDE · a agent log · w rabbit · "
-            "🔴 r kill · 🔵 b hide · 👻 h hidden · c resume · "
+            "🔴 r kill · ⤴ R rebase · 🔵 b hide · 👻 h hidden · c resume · "
             "🔔 n notify · 🔊 m sound · 🎵 s ring · $ cost · +/- zoom · 🔍 / filter · 🎨 t theme · p wording · ? manual · q quit") \
         if G is not ASCII else ("jk tune · left/right out/in · 1-9/enter jack in or spawn · J/K reorder · space collapse · D pop out · o read plan · O in IDE · a agent log · w rabbit · "
-                                "r kill · b hide · h hidden · c resume · "
+                                "r kill · R rebase · b hide · h hidden · c resume · "
                                 "n notify · m sound · s ring · $ cost · +/- zoom · / filter · t theme · p wording · ? manual · q quit")
     if filt:
         keys = f"/{filt}_   (esc clears)"
@@ -1534,7 +1534,7 @@ def footer(rows, W, filt="", all_rows=None):
     out = [("rule", rule(W))]
     kw, groups = W - dw(d) - 1, keys.split(" · ")
     optional = ["$ cost", "+/- zoom", "p wording", "🎨 t theme", "t theme", "c resume", "O in IDE", "a agent log", "o read plan", "w rabbit",
-                "👻 h hidden", "h hidden", "🔵 b hide", "b hide", "🔴 r kill", "r kill", "D pop out", "space collapse", "J/K reorder"]
+                "👻 h hidden", "h hidden", "🔵 b hide", "b hide", "🔴 r kill", "r kill", "⤴ R rebase", "R rebase", "D pop out", "space collapse", "J/K reorder"]
     while True:
         klines, cur = [], ""
         for grp in groups:                       # wrap between key groups, never inside one
@@ -1685,6 +1685,13 @@ MANUAL = """
                            only the ringing session row itself pulses, never its parents
   D         pop out        a running session's tmux window, into its own OS terminal window
   w         white rabbit   jump to the oldest ringing session, zooming into the repo that holds it
+  R         rebase         rebase this checkout's branch onto main/master and force-push it (asks
+                           first). The ONLY force push fleet does: --force-with-lease, on that one
+                           branch, never the base and never another ref. It refuses when the
+                           checkout is on main/master itself, when the tree is dirty, and when
+                           GitHub does not report the base branch as protected -- unverifiable
+                           counts as unprotected. Conflicts abort the rebase and push nothing:
+                           those are yours to resolve by hand
   r         red pill       kill the session's process (asks first); the row is hidden with it
   b         blue pill      hide the row, any row; the process is left alone. On a repo/group row:
                            hide that repo and its agents, saved per workspace. On a hidden one: un-hide
@@ -1996,6 +2003,88 @@ def worktree_for(path, task):
     return wt, f"worktree .worktrees/{task} on anderson/{task} (off {start}) — {os.path.basename(path)} stays on {cur}"
 
 
+def _sh(cmd, cwd, timeout=20):
+    """Any non-git command in `cwd`: stdout stripped on success, None when it fails or is missing."""
+    try:
+        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+        return r.stdout.strip() if r.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def _git_out(args, cwd, timeout=180):
+    """(ok, stdout+stderr) for the git calls whose failure text IS the answer: fetch, rebase, push."""
+    try:
+        r = subprocess.run(["git", "-C", cwd] + args, capture_output=True, text=True, timeout=timeout)
+        return r.returncode == 0, (r.stdout + r.stderr).strip()
+    except Exception as e:
+        return False, str(e)
+
+
+def base_protected(path, base):
+    """Is `base` protected on the remote? True / False / None when it cannot be told (no gh, not a
+    GitHub remote, API refused). The plain branch endpoint, not /protection: `protected` is true for
+    a classic rule OR a ruleset and any collaborator can read it, while /protection needs admin and
+    would read as 'unprotected' for everyone else."""
+    if not shutil.which("gh"):
+        return None
+    nwo = _sh(["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"], path)
+    if not nwo:
+        return None
+    return {"true": True, "false": False}.get(
+        _sh(["gh", "api", f"repos/{nwo}/branches/{base}", "--jq", ".protected"], path))
+
+
+def rebase_row(path):
+    """`R`: rebase this checkout's branch onto the default branch, then force-push that branch.
+
+    The only force push fleet ever does, and it is fenced in: --force-with-lease on one explicit
+    <branch>:refs/heads/<branch> refspec -- never the base, never --all, never another ref. It
+    refuses outright when the checkout sits on the base branch itself, when the tree is dirty, and
+    when GitHub does not report the base as protected; "cannot tell" counts as unprotected, because
+    an unprotected base is what makes a mis-aimed force push unrecoverable. Conflicts are the user's:
+    the rebase is aborted and nothing is pushed."""
+    cur = _git(["rev-parse", "--abbrev-ref", "HEAD"], path)
+    if not cur:
+        return f"not a git checkout: {path}"
+    if cur == "HEAD":
+        return "detached HEAD — check out a branch first."
+    base = default_branch(path)
+    if not base:
+        return "no main/master here — nothing to rebase onto."
+    if cur == base:
+        return f"this checkout IS {base}. R rebases a feature branch or a worktree, never the base itself."
+    if _git(["status", "--porcelain", "-uno"], path):
+        return f"{cur} has uncommitted changes — commit or stash them first."
+    prot = base_protected(path, base)
+    if prot is not True:
+        why = (f"{base} is NOT protected on the remote" if prot is False else
+               f"cannot verify that {base} is protected (no gh, or not a GitHub remote)")
+        return f"REFUSED: {why}. Protect it (branch protection or a ruleset) first — no force push until then."
+    origin = _git(["remote", "get-url", "origin"], path) is not None
+    onto = base
+    if origin:
+        ok, out = _git_out(["fetch", "origin", base], path)
+        if not ok:
+            return f"fetch origin {base} failed: {out.splitlines()[-1] if out else '?'}"
+        _git_out(["fetch", "origin", cur], path)      # best effort: a fresh tracking ref keeps the lease honest
+        onto = f"origin/{base}"
+    ok, out = _git_out(["rebase", onto], path)
+    if not ok:
+        _git_out(["rebase", "--abort"], path)
+        return f"CONFLICTS rebasing {cur} onto {onto} — aborted, nothing pushed. This one is yours to resolve by hand."
+    if not origin:
+        return f"{cur} rebased onto {base}. No origin, so nothing was pushed."
+    known = _git(["rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{cur}"], path)
+    spec = f"{cur}:refs/heads/{cur}"
+    args = ["push", "--force-with-lease", "origin", spec] if known else ["push", "-u", "origin", spec]
+    ok, out = _git_out(args, path)
+    if not ok:
+        return f"{cur} rebased onto {onto}, but the push was refused: {out.splitlines()[-1] if out else '?'}"
+    how = "force-pushed (--force-with-lease)" if known else "pushed (new branch)"
+    return f"{cur} rebased onto {onto} and {how} — {cur} only, nothing else touched."
+
+
 def spawn_cmd(row, prompt, mode):
     """(cwd, shell_cmd, window_name) for `⏎` on a repo/group row. Pure — phase-3's worktree swap
     is only the `cwd` line. cwd = the repo path, or the workspace root for a group row (router
@@ -2285,7 +2374,7 @@ def run_tui(args):
             boot(scr, curses, col)
         rows, all_rows, sel, filt, filt_mode = [], [], 0, "", False
         toast, toast_until = "", 0
-        confirm = None
+        confirm, confirm_do = None, None
         manual = False
         typed = ""
         rung, shipped, burst, hot_seen = set(), set(), {}, set()
@@ -2321,6 +2410,18 @@ def run_tui(args):
         def say(msg, secs=3):
             nonlocal toast, toast_until
             toast, toast_until = msg, time.time() + secs
+
+        def kill_row(r):
+            """`r` confirmed: SIGTERM the session and hide its row."""
+            nonlocal last_scan
+            if not r["pid"]:
+                return "no pid for that session (demo or unknown)"
+            try:
+                os.kill(int(r["pid"]), signal.SIGTERM)
+                dismiss(r["sid"]); last_scan = 0
+                return f"red pill: SIGTERM → pid {r['pid']} · row hidden"
+            except Exception as e:
+                return f"red pill failed: {e}"
 
         while True:
             now = time.time()
@@ -2472,19 +2573,10 @@ def run_tui(args):
                 continue
             if confirm:
                 if k in (ord("y"), ord("Y")):
-                    r = rows[sel]
-                    if r["pid"]:
-                        try:
-                            os.kill(int(r["pid"]), signal.SIGTERM)
-                            dismiss(r["sid"]); last_scan = 0
-                            say(f"red pill: SIGTERM → pid {r['pid']} · row hidden")
-                        except Exception as e:
-                            say(f"red pill failed: {e}")
-                    else:
-                        say("no pid for that session (demo or unknown)")
+                    say(confirm_do(), 8)
                 else:
                     say("blue sky. nothing happened.")
-                confirm = None; continue
+                confirm = confirm_do = None; continue
             if filt_mode:
                 if k == 27:
                     filt, filt_mode = "", False
@@ -2575,6 +2667,20 @@ def run_tui(args):
                     say("nothing to kill here — pick a session row")
                 elif rows:
                     confirm = f"red pill: kill {rows[sel]['repo']} · {rows[sel]['task'] or rows[sel]['sid'][:8]} ?  How far down does the rabbit hole go? [y/N]"
+                    confirm_do = lambda r=rows[sel]: kill_row(r)
+            elif k == ord("R"):
+                if rows and rows[sel].get("kind") == "group":
+                    say("R rebases one checkout — pick a repo or a session row")
+                elif rows:
+                    path = rows[sel].get("root") or rows[sel].get("cwd") or ""
+                    cur = _git(["rev-parse", "--abbrev-ref", "HEAD"], path)
+                    base = default_branch(path)
+                    if not cur or not base:
+                        say(f"no branch to rebase in {os.path.basename(path) or path}")
+                    else:
+                        confirm = (f"rebase {cur} onto {base} and force-push {cur} (--force-with-lease, "
+                                   f"{base} must be protected)?  [y/N]")
+                        confirm_do = lambda p=path: rebase_row(p)
             elif k == ord("b"):
                 if rows and rows[sel].get("kind") in ("repo", "group"):
                     name = rows[sel]["repo"]
