@@ -24,6 +24,13 @@
 >   + hand-off), never force-push outside its own `anderson/auto/*` branch (squash-to-clean on its own
 >   branch is allowed). The verification engine is unchanged. See the AUTO-MODE OVERRIDE POLICY block
 >   in `commands/auto.md`.
+> - **A red suite goes to TRINITY, not back to the implementer (0.52.0)** — the implementer gets ONE
+>   try at a failing test; still red and the run enters a `repair` stage running the **test-fixer**
+>   subagent on **opus/high** (fixed — `--opus` / `review_model` do not reach it). It reproduces,
+>   flake-checks, names the root cause before editing, fixes the cause, and proves the single test
+>   AND the full suite green; it may never weaken, skip or delete a test. Verdicts: `fixed` · `flake`
+>   · `replan` (take the replan bounce) · `needs-human`; budget 2 rounds. The CI veto now
+>   short-circuits to REPAIR, and the rework loop is REVIEW findings only.
 > - **Error handling + open-questions report (0.15.0)** — the planner enumerates failure paths in a
 >   `## 🧯 Error handling` table, classing each `deduced` (handle now) or `needs-context` (a business
 >   call). Since auto has no grill, the `needs-context` ones are captured (step 4g) and surfaced in a
@@ -56,13 +63,13 @@ and executable ground truth — *not* through self-approval (which lowers succes
 
 ## Decision: add a mode, do not rewrite
 
-Anderson's value is its subagents (`planner`, `plan-reviewer`, `implementer`, `reviewer`) and the
-rework loop. Those are unchanged between gated and autonomous use. The only difference is **who
+Anderson's value is its subagents (`planner`, `plan-reviewer`, `implementer`, `test-fixer`,
+`reviewer`) and the rework loop. Those are unchanged between gated and autonomous use. The only difference is **who
 answers the gates** — a human (interactive) vs. panels + CI (autonomous). That is a front-end swap.
 
 | | Gated mode (today) | `auto` mode (new) |
 |---|---|---|
-| Subagents | planner / plan-reviewer / implementer / reviewer | **same, shared** |
+| Subagents | planner / plan-reviewer / implementer / test-fixer / reviewer | **same, shared** |
 | Rework loop | `/anderson:rework` | **same, shared** |
 | Plan gate | human grill + approve | critic panel + criteria-coverage check |
 | Diff gate | human review | reviewer panel + **CI veto** |
@@ -74,7 +81,7 @@ drives the subagents and panels end-to-end. Everything it calls already exists.
 
 ```
 anderson/
-  agents/      planner, plan-reviewer, implementer, reviewer   ← unchanged, shared
+  agents/      planner, plan-reviewer, implementer, test-fixer, reviewer   ← unchanged, shared
   skills/
     start, approve-plan, approve-diff, rework   ← gated (kept untouched)
     auto                                        ← NEW: non-halting orchestrator
@@ -134,6 +141,14 @@ Adapters (Linear, GitHub Issues, chat, CLI) are **out of scope for this doc** �
 
 6. IMPLEMENT    implementer → make red green → audit.md.
                 Implementer runs a self-review pass before the panel (cheap; cuts panel rounds).
+                ONE try at a failing test, then it reports `tests-red` and stops.
+
+6b. REPAIR      test-fixer (TRINITY, opus/high, always) — ONLY when tests are red.
+    (conditional) Reproduce → flake-check → name the root cause → smallest fix in production code
+                → single test AND full suite green. Never weakens, skips or deletes a test; the
+                frozen-test tamper guard still applies at gate 7. Verdicts: fixed / flake /
+                replan (→ replan bounce) / needs-human. Budget 2 rounds, then escalate.
+                Sequential with the panel by construction — it edits the tree reviewers read.
 
 7. DIFF GATE    Blind reviewer panel (3, fresh context — diff + plan + task only, NOT the
                 implementer's self-justification) + objective checks:
@@ -141,7 +156,8 @@ Adapters (Linear, GitHub Issues, chat, CLI) are **out of scope for this doc** �
                   - frozen RED test unchanged (test-tamper guard)
                   - diff within scope_paths and under size cap
                   - no forbidden-path edits; dependency changes flagged needs-human
-                CI red OR ≥2/3 reviewers refute → /rework (bounded) → re-review.
+                CI red → REPAIR (6b), not the rework loop — a red build is a diagnosis problem.
+                ≥2/3 reviewers refute → /rework (bounded) → re-review.
                 Thrash breaker: open-findings set must shrink each round, else stop + escalate.
 
 8. SHIP         Push branch; open DRAFT PR with plan + audit trail + test results +
@@ -221,6 +237,9 @@ These are the additions that most affect success rate.
   and escalate. Prevents fix-one-break-another spirals that burn the budget.
 - **Finding dedup across rounds** — if the same finding recurs, the implementer is not converging →
   bail to human.
+- **Red suite ≠ rework** — the rework loop carries REVIEW findings to the implementer. A red test or
+  a red build goes to the test-fixer (step 6b) on its own 2-round budget, because looping a
+  sonnet implementer on a failure it never root-caused is how tests get skipped, loosened or deleted.
 - **`max_rework_rounds`** (default ≈ 3) — still failing → stop, open a draft PR labeled `needs-human`,
   report the blocker.
 

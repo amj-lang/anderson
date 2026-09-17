@@ -49,13 +49,21 @@ curses, zero tokens); this command only installs the launcher and tells the huma
   keys:     ↑↓ tune · →/← drill into a repo/group or step back out · 1-9 / ⏎ jack in (session row)
               or spawn an agent (repo/group row) · J/K reorder a repo/group · space collapse/expand
               in place · D pop a session's window out into its own terminal · w oldest waiting
-              (zooms into its repo) · r kill (asks; hides the row) · b hide row, or a whole repo · h show hidden
+              (zooms into its repo) · r kill (asks; hides the row) · R rebase this checkout's
+              branch onto main/master and force-push it (asks; refuses unless the base is protected) ·
+              b hide row, or a whole repo · h show hidden
             ⏎ on a sentinel revives it in a new terminal · ⏎ on a repo/group row opens a prompt box,
               then p/a/A spawns a claude agent (bare / /anderson:start / /anderson:auto) into that
               repo — or the workspace root, on a group — in a terminal of its own; fleet keeps the
               window it is in, the agent never takes it over. Repo already on a feature branch? the
               agent gets a worktree there (`.worktrees/<task>`, branch `anderson/<task>`, off the
               default branch), so the work in progress sitting in that checkout is never touched
+            drilled into a repo with no agents in it there is no row to select, and ⏎ spawns into
+              that repo anyway — an empty repo is a starting point, not a dead end
+            R is the only force push fleet ever does: --force-with-lease on the one branch it just
+              rebased, never the base, never another ref. It refuses on main/master itself, on a
+              dirty tree, and when GitHub does not report the base as protected (unverifiable counts
+              as unprotected). Conflicts abort the rebase, push nothing, and stay yours to resolve
             c copy `claude --resume` · n desktop notification on ring (skipped, with the
               sound, when that session's terminal is already frontmost; fleet --ping tests the banner)
             a new ring while you sit on the overview zooms you into the repo that rang; drilled into

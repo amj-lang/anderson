@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.52.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.52.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -145,7 +145,8 @@ high   [ YOU ]   xhigh (edits)            medium        high* (read-only)
 | plan         | `planner`      | opus   | high   | —     | writes `plan.md` + blast radius + scorecard |
 | grill        | *(you)*        | —      | —      | human | triages questions from the plan's own decision tree + ✅ criteria (`derived` rows are 🔴) + 💥 blast radius + 🧯 error rows, grades 🔴 ARCH/🟡 BEHAVIOR/🟢 PREF, prints a one-line manifest, asks 🔴→🟡 as 3-line cards (`🔴 n/N ▰▰▱▱…` + question + recommendation) with an adaptive progress bar, batches 🟢; folds decisions into `plan.md` — no subagent |
 | plan_review  | `plan-reviewer`| fable  | xhigh  | human | **edits** `plan.md` inline + appends review to `## 🔭 Review`; re-scores + checks blast radius; verdict `ship`/`fix_first`/`regrill` |
-| implement    | `implementer`  | sonnet | medium | —     | writes `audit.md`                     |
+| implement    | `implementer`  | sonnet | medium | —     | writes `audit.md`; ONE try at a failing test, then hands off |
+| repair       | `test-fixer`   | opus   | high   | —     | only when tests are red: root-causes the failure, writes `repair.md` — never tiered, never `--opus`-able |
 | diff_review  | `reviewer`     | fable  | high\* | human | diff review appended to `plan.md` `## 🔭 Review` |
 
 \* Review effort is not fixed: both critiques are sized by the **tier** computed from the plan's
@@ -302,8 +303,8 @@ persona, and model on one line; a quote picked deterministically per stage on th
 ```
 
 The agents are also colour-coded in the subagent panel (planner=blue,
-plan-reviewer=purple, implementer=green, reviewer=orange), so you can tell at a glance
-which one is working.
+plan-reviewer=purple, implementer=green, test-fixer=red, reviewer=orange), so you can tell at a
+glance which one is working.
 
 State persists in `feature-research/<task>/state.md` in the current repo, so you
 can stop at a gate and resume later.
@@ -356,7 +357,7 @@ opening when a line raises doubt.
 
 Each agent declares its own `model` + `effort` in frontmatter, and these switch
 automatically per stage (planner opus/high, plan-reviewer fable/xhigh, implementer
-sonnet/medium, reviewer fable/high, xhigh on risky diffs). Resolution order is: `CLAUDE_CODE_SUBAGENT_MODEL`
+sonnet/medium, test-fixer opus/high, reviewer fable/high, xhigh on risky diffs). Resolution order is: `CLAUDE_CODE_SUBAGENT_MODEL`
 env var → per-invocation override → **agent frontmatter** → main session. The rank of
 the first two against each other is unverified — if you set the env var *and* start a
 pipeline with `--opus`, the transcript grep below is ground truth for what actually ran.
@@ -640,6 +641,13 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.52.1** — **Docs caught up with the last three changes.** The `repair` stage is now in the
+places that describe the pipeline rather than only the changelog: the stage/agent table, the auto-mode
+spec (step 6b, the CI-veto route, "a red suite is not a rework"), `docs/tiering.md` (repair is never
+tiered — a red test is a diagnosis, not a matter of doubt), the agent colour legend and the models
+section. Fleet's `R` (rebase + the one fenced force push) and ⏎-spawn-from-an-empty-repo are in the
+key tables, not just the in-app manual.
 
 - **0.52.0** — **TRINITY: a red suite is a diagnosis problem, not a typing problem.** The
 implementer (sonnet/medium) used to own every red test, including the ones it had just failed to

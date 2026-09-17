@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.52.0-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.52.1-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -127,11 +127,14 @@ A zero-token python curses terminal that runs outside Claude. One row per Claude
 | `n`         | desktop notification when a session rings       |
 | `m` / `s`   | ring sound on/off, next ring sound              |
 | `r`         | kill the session (asks first)                   |
+| `R`         | rebase this checkout onto main/master, force-push that branch (asks first) |
 | `/`         | filter                                          |
 | `?`         | manual                                          |
 
 - Personas come from each repo's `feature-research/*/state.md`, so you see who is on the job across repos.
 - `⏎` on a dead session (`✝ sentinel`) revives it in a new window already running `claude --resume`.
+- `→` drills into a repo; with no agents in it, `⏎` still spawns one there.
+- `R` is the only force push fleet performs: `--force-with-lease`, on the branch it just rebased, never the base. It refuses on a dirty tree, on main/master itself, and when GitHub does not report the base branch as protected. Conflicts abort and stay yours.
 - The header shows your `/usage` windows as bars.
 - Needs nothing but python3. `glow`, `terminal-notifier` and `tmux` are optional.
 
