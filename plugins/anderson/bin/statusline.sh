@@ -44,6 +44,7 @@ if [ -n "$st" ] && [ -f "$st" ]; then
     grill)       who="THE INTERROGATOR · you" ;;
     plan_review) who="THE ORACLE · $rmodel/xhigh" ;;
     implement)   who="NEO · sonnet/medium" ;;
+    repair)      who="TRINITY · opus/high" ;;
     diff_review) who="AGENT SMITH · $rmodel/high" ;;
     done)        who="shipped" ;;
     *)           who="${stage:-?}" ;;

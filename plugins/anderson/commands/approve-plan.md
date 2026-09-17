@@ -49,6 +49,23 @@ run in parallel and the reviewer judges files that don't exist yet.
    Pool (24): "Make it small enough to be wrong cheaply." / "Ship the truth, not the hope." / "One reviewable step beats ten clever ones." / "Prove it, then trust it." / "Code is read far more than it is run; write for the reader." / "The first version should be obvious, not impressive." / "Touch only what the plan told you to touch." / "A clever line today is a confused colleague tomorrow." / "Build the boring thing well before the interesting thing at all." / "Done is a diff someone else can understand." / "I know kung fu." / "There is no spoon." / "Don't think you are; know you are." / "There is a difference between knowing the path and walking the path." / "Stop trying to hit me and hit me." / "Guns. Lots of guns." / "I didn't say it would be easy; I just said it would be the truth." / "Free your mind." / "He is beginning to believe." / "That's why it's going to work." / "Change the diff, not the mandate." / "Small enough to revert is small enough to trust." / "Touch what the plan named; leave the rest asleep." / "Stop trying to be clever and be correct."
    Then invoke the **implementer** subagent: execute plan.md; on
    a rework loop fix only "Still open". Writes audit.md. Set stage=diff_review.
+1b. TESTS RED? — the implementer gets ONE try at a failing test, then TRINITY takes it.
+   After the implementer returns, run the repo's test command. GREEN → step 2. RED → set
+   `stage: repair`, `repair_round:` += 1 (abort to you at `repair_round > 2`, reason
+   `repair-budget`), and (BANNER RULE) print this REPAIR banner as the LAST line before invoking
+   the test-fixer:
+   ```
+     ╭─ ⌐■-■  REPAIR · 4b/5 · TRINITY · opus/high
+     │  "[one quote from the pool]"
+     ╰─
+   ```
+   Pool (14): "A red test is a witness — interrogate it, never silence it." / "Dodge this." / "The failing line is the symptom; find the organ." / "Name the cause in one line, or you have not found it." / "A test bent until it passes is a bug with paperwork." / "Flakes do not get fixed; they get named." / "Fix the function every caller shares, not the caller that complained." / "Two reds traded is not one red solved." / "Nobody has ever done this before — that is why it is going to work." / "Green earned by deletion is red in disguise." / "The suite is the one witness that cannot be charmed." / "Patch the cause; the symptom was never the enemy." / "If the approach cannot pass, say so — do not keep patching." / "One try, then the specialist. Flailing is not debugging."
+   Then invoke the **test-fixer** subagent (ALWAYS opus/high — `review_model` and `--opus` do not
+   apply to it), seeded with the failing test name(s), the command, its output, and the plan's
+   "Files touched" list. It writes `feature-research/<task>/repair.md` and sets `repair_verdict:`.
+   Route on that verdict: `fixed` → re-run the full suite; green → step 2, still red → another
+   repair round. `flake` → note it and go to step 2. `replan` or `needs-human` → print the
+   fixer's report and STOP for you (the approach, not the code, is the problem).
 2. (BANNER RULE) Print this DIFF-REVIEW banner as the LAST line before invoking the reviewer (substitute `<review_model>` with the state.md value):
    ```
      ╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · <review_model>/<review_effort>

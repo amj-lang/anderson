@@ -62,12 +62,13 @@ PERSONA = {
     "grill":       ("grill", "INTERROGATOR", "you",           "insight"),
     "plan_review": ("orac",  "ORACLE",       "{rm}/xhigh",    "insight"),
     "implement":   ("neo",   "NEO",          "sonnet/medium", "action"),
+    "repair":      ("trin",  "TRINITY",      "opus/high",     "action"),
     "diff_review": ("smith", "AGENT SMITH",  "{rm}/high",     "adversary"),
     "done":        ("one",   "THE ONE",      "shipped",       "mentor"),
     "aborted":     ("smith", "AGENT SMITH",  "aborted",       "adversary"),
 }
-PGLYPH_UNI = dict(arch="▲", grill="◇", orac="◎", neo="●", smith="▣", one="★", none="○")
-PGLYPH_ASCII = dict(arch="A", grill="?", orac="O", neo="N", smith="S", one="*", none="o")
+PGLYPH_UNI = dict(arch="▲", grill="◇", orac="◎", neo="●", trin="✚", smith="▣", one="★", none="○")
+PGLYPH_ASCII = dict(arch="A", grill="?", orac="O", neo="N", trin="+", smith="S", one="*", none="o")
 PGLYPH = dict(PGLYPH_UNI)
 
 
@@ -1332,6 +1333,8 @@ def next_step(r):
         return f"read plan.md + audit.md (o) → /anderson:approve-diff {task}" + (f"  · verdict {v}: /anderson:rework {task}" if v == "fix_first" else "")
     if st == "implement":
         return "NEO is writing code; nothing to do until diff review"
+    if st == "repair":
+        return "tests went red — TRINITY is root-causing them; nothing to do until diff review"
     if st == "done":
         return "shipped. PR is up; read what you merged"
     if r["status"] == "ring":
@@ -1645,7 +1648,9 @@ MANUAL = """
 
   persona   who is on the job, from feature-research/*/state.md: ARCHITECT plan,
             INTERROGATOR grill (you), ORACLE plan_review, NEO implement,
-            AGENT SMITH diff_review, THE ONE shipped, T. ANDERSON: no pipeline yet
+            TRINITY repair (tests went red: opus/high root-causes them, never the
+            implementer looping), AGENT SMITH diff_review, THE ONE shipped,
+            T. ANDERSON: no pipeline yet
   tier      how hard the pipeline decided this task is, from state.md `tier`: triv · normal ·
             HARD · CRITICAL (upper-case = the two that buy a heavier review). `…` until the
             planner's scorecard has been routed

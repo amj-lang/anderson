@@ -234,6 +234,45 @@ class TestStatuslineWrapper(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(tmp, "abc.status.json")))
 
 
+class TestRepairPersona(unittest.TestCase):
+    """TRINITY (`repair`) has to be wired in every surface that renders a stage, or a red-suite
+    session shows up as an unknown stage with no persona."""
+
+    ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+    def test_fleet_knows_the_stage_in_both_charsets(self):
+        gk, persona, model, mood = fleet.PERSONA["repair"]
+        self.assertEqual((persona, model), ("TRINITY", "opus/high"))    # never the review model
+        self.assertIn(gk, fleet.PGLYPH_UNI)
+        self.assertIn(gk, fleet.PGLYPH_ASCII)
+        self.assertNotIn(persona, [p for k, (_, p, _, _) in fleet.PERSONA.items() if k != "repair"])
+
+    def test_the_stage_renders_a_row_and_a_next_step(self):
+        row = {**fleet._WS_BASE, "sid": "s", "repo": "r", "task": "t", "kind": None,
+               "stage": "repair", "gate": "none", "status": "work"}
+        self.assertIn("TRINITY", fleet.next_step(row))
+
+    def test_banner_and_statusline_carry_it(self):
+        out = subprocess.run(["bash", str(BIN / "banner.sh"), "repair"], capture_output=True, text=True)
+        self.assertIn("TRINITY", out.stdout)
+        self.assertIn("test-fixer", out.stdout)
+        self.assertIn("opus", out.stdout)
+        self.assertIn('repair)      who="TRINITY \u00b7 opus/high" ;;',
+                      (BIN / "statusline.sh").read_text())
+
+    def test_the_agent_runs_on_opus_high_and_may_not_weaken_a_test(self):
+        md = (self.ROOT / "agents" / "test-fixer.md").read_text()
+        self.assertIn("model: opus", md)
+        self.assertIn("effort: high", md)
+        for forbidden in ("NEVER delete", "NEVER loosen"):
+            self.assertIn(forbidden, md)
+
+    def test_the_implementer_hands_a_still_red_test_over(self):
+        md = (self.ROOT / "agents" / "implementer.md").read_text()
+        self.assertIn("ONE TRY ON A RED TEST", md)
+        self.assertIn("test-fixer", md)
+
+
 class TestPrefsAndWording(unittest.TestCase):
     def test_prefs_roundtrip_and_plain_wording(self):
         with tempfile.TemporaryDirectory() as tmp:

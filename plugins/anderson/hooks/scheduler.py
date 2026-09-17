@@ -12,6 +12,7 @@ NEXT = {
     "plan":        ("grill",       "grill", None),
     "plan_review": ("plan_review", True,    None),
     "implement":   ("diff_review", False,   "Use the reviewer subagent. stage=diff_review."),
+    "repair":      ("diff_review", False,   "Use the reviewer subagent. stage=diff_review."),
     "diff_review": ("diff_review", True,    None),
 }
 # 'grill' is deliberately NOT a key: once stage=grill the hook exits silently and

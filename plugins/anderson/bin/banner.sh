@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # anderson banner — sunglasses sigil + a random, mood-matched line.
-# Usage: banner.sh <stage>     stage = plan | plan_review | implement | diff_review | ship
+# Usage: banner.sh <stage>     stage = plan | plan_review | implement | repair | diff_review | ship
 # Lines (bin/quotes.txt) are tagged by mood; each stage draws from its mood bucket,
 # falling back to any line. Lines are original aphorisms (no third-party text).
 set -euo pipefail
@@ -22,6 +22,7 @@ case "$stage" in
   plan)        persona="THE ARCHITECT"; agent="planner";       spec="opus · high";     act="scoping → plan.md";         n="1/4"; mood="design";;
   plan_review) persona="THE ORACLE";    agent="plan-reviewer";  spec="fable · xhigh";    act="editing plan.md";           n="2/4"; mood="insight";;
   implement)   persona="NEO";           agent="implementer";    spec="sonnet · medium"; act="executing plan.md";         n="3/4"; mood="action";;
+  repair)      persona="TRINITY";       agent="test-fixer";     spec="opus · high";     act="root-causing a red suite";  n="3b/4"; mood="action";;
   diff_review) persona="AGENT SMITH";   agent="reviewer";       spec="fable · high";    act="read-only diff review";     n="4/4"; mood="adversary";;
   ship|done)   persona="THE ONE";       agent="";               spec="";                act="welcome to the real world"; n="✓";   mood="mentor";;
   *)           persona="ANDERSON";      agent="$stage";         spec="";                act="";                          n="•";   mood="";;
