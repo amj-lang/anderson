@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.49.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.50.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -542,7 +542,7 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
   `anderson/<task>`, cut from the default branch), and its row still nests under the repo. `J`/`K` reorder a repo/group among its siblings, `space` (`←`/`→` too)
   collapses/expands it; both persist per workspace. `D` pops a session's tmux window out into its
   own OS terminal window. `w` white rabbit
-  (oldest ring, expanding any collapsed group in the way) · `r` kill (asks first; the row is hidden with it) · `b` hide the row (any row, the process is left alone) or, on a repo/group row, that whole repo and its agents (saved per workspace) · `h` show hidden rows and repos (`b` on one un-hides) · `c` copy the
+  (oldest ring, expanding any collapsed group in the way) · `r` kill (asks first; the row is hidden with it) · `R` rebase that checkout's branch onto main/master and force-push it (asks first) — the only force push fleet does, `--force-with-lease` on that one branch, refused outright when the base branch is not protected on GitHub, when the tree is dirty, or on main itself; conflicts abort it and stay yours · `b` hide the row (any row, the process is left alone) or, on a repo/group row, that whole repo and its agents (saved per workspace) · `h` show hidden rows and repos (`b` on one un-hides) · `c` copy the
   `claude --resume` command for that session · `n` desktop notification on ring · `m` sound · `s` next ring sound · `/` filter ·
   `t` theme · `p` wording · `?` manual · `q`.
 
@@ -638,6 +638,17 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.50.0** — **`R`: rebase onto main, force-push one branch.** A branch that has been running for a
+day drifts behind `main`, and catching it up by hand means leaving fleet. `R` on a repo, worktree or
+session row rebases that checkout's branch onto the default branch and force-pushes it. It is the
+only force push fleet performs anywhere, and it is fenced in: `--force-with-lease`, one explicit
+`<branch>:refs/heads/<branch>` refspec, never the base and never another ref. It refuses before
+touching anything when the checkout sits on `main`/`master` itself, when the tree is dirty, or when
+GitHub does not report the base branch as protected — and an answer it cannot get (no `gh`, no GitHub
+remote) counts as unprotected, because an unprotected base is what makes a mis-aimed force push
+unrecoverable. Conflicts are never resolved for you: the rebase is aborted, nothing is pushed, and
+the message hands the job back.
 
 - **0.49.0** — **fleet sees three levels, and worktrees.** Two ways a repo could sit in your
 workspace and never get a row. Repos one level deeper than the scan reached
