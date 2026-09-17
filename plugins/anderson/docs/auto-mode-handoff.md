@@ -49,8 +49,8 @@ task:
 The bulk of the design. Gets the new mode.
 
 - **Add `/anderson:auto`** — a *non-halting orchestrator* skill. This is the only net-new code; it
-  drives the existing subagents (`planner`, `plan-reviewer`, `implementer`, `reviewer`) and the
-  rework loop end-to-end, swapping the human gates for agent panels + a CI veto.
+  drives the existing subagents (`planner`, `plan-reviewer`, `implementer`, `test-fixer`,
+  `reviewer`) and the rework loop end-to-end, swapping the human gates for agent panels + a CI veto.
 - **Do NOT touch** the gated skills (`start`, `approve-plan`, `approve-diff`, `rework`) or the
   subagents — `auto` reuses them as-is.
 - **Move `docs/auto-mode.md` here** as the living spec.

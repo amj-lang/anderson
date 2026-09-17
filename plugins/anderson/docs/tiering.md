@@ -67,6 +67,14 @@ Marginal cost of stepping down, in points lost per 1k tokens saved:
 **Never `max`** — buys +0.6 points over xhigh for +20,711 tokens. **Never `low`** — quality falls
 off a cliff below medium, at nearly 3× the marginal cost of the rung above it.
 
+### Repair is not tiered
+
+The `repair` stage (TRINITY, the test-fixer) runs on **opus/high for every tier**. Tiering sizes
+*critique* — how much doubt a diff has to survive. A red test is not a matter of doubt: it is a
+diagnosis, and a trivial-tier task with an undiagnosed failure is exactly as stuck as a critical one.
+`--opus` and `review_model` do not reach this stage either; its budget control is the 2-round cap,
+not a smaller model.
+
 ### Why the model stays Fable
 
 Every Opus 5 configuration except `low` is strictly dominated — a Fable config scores higher on
