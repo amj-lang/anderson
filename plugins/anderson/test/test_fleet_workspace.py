@@ -161,6 +161,24 @@ class TestWorkspaceScan(unittest.TestCase):
         self.assertEqual([r["sid"] for r in deeper], ["s1"])        # just that repo's sessions
         self.assertIsNone(fleet.focus_rows(rows, ("gone",)))        # caller drops back to the overview
 
+    def test_focus_target_gives_enter_a_row_to_spawn_from_in_an_empty_repo(self):
+        """Drilled into a repo with no agents, focus_rows() is empty: ⏎ has no selected row, so the
+        spawn target comes from the scan instead."""
+        rows = fleet.tree_rows([], self.tmp, "", set())
+        self.assertEqual(fleet.focus_rows(rows, ("autoretouch", "ai-shoot-service")), [])
+        tgt = fleet.focus_target(self.tmp, ("autoretouch", "ai-shoot-service"))
+        self.assertEqual((tgt["kind"], tgt["repo"]), ("repo", "ai-shoot-service"))
+        self.assertEqual(tgt["path"], os.path.join(self.tmp, "autoretouch", "ai-shoot-service"))
+        self.assertEqual(tgt["ws"], self.tmp)
+        # a group is a spawn target too (launch lands in the workspace root, as on the overview)
+        self.assertEqual(fleet.focus_target(self.tmp, ("autoretouch",))["kind"], "group")
+        # and spawn_cmd eats it unchanged
+        cwd, cmd, window = fleet.spawn_cmd(tgt, "LIN-9 fix it", "a")
+        self.assertEqual(cwd, tgt["path"])
+        self.assertEqual(window, "ai-shoot-service:lin-9")
+        self.assertIsNone(fleet.focus_target(self.tmp, ("gone",)))
+        self.assertIsNone(fleet.focus_target(self.tmp, ("autoretouch", "gone")))
+
     def test_entry_for_maps_a_session_root_to_its_scan_path(self):
         self.assertEqual(fleet.entry_for(self.tmp, os.path.join(self.tmp, "autoretouch", "ai-shoot-service")),
                           ("autoretouch", "ai-shoot-service"))
