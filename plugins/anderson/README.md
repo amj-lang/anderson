@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.53.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.53.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -630,6 +630,9 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.53.1** — **Root README explains the Opus 5.5 switch.** New "Why Opus 5.5" section: the
+Opus 5.5 vs Fable 5.1 launch benchmark table, what moved per stage in 0.53.0, and the caveat.
 
 - **0.53.0** — **Opus 5.5 takes every critique seat; Fable and `--opus` are gone.** Opus 5.5 beats
 Fable 5.1 on every benchmark Anthropic published at launch (Terminal-Bench 4.0 66.4% vs 55.8%,

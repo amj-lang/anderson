@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.53.0-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.53.1-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -111,7 +111,31 @@ A tier (trivial / normal / hard / critical) is derived from the plan's Scorecard
 
 \* Effort by tier, per the table above. The plan critique always runs a rung above the opus/medium planner. In auto, the arbiter backstops every panel outcome except a unanimous refute; repair stays opus · high on every tier.
 
-No stage runs on Fable and there is no model flag: Opus 5.5 beats Fable 5.1 on every published benchmark at a fraction of the per-token price. The numbers are in [docs/tiering.md](plugins/anderson/docs/tiering.md).
+## Why Opus 5.5
+
+Up to 0.52, both review gates ran on Fable. Against Opus 5 that was the right call: Fable scored higher on fewer tokens, so the higher per-token price paid for itself. Opus 5.5 flipped it. It beats Fable 5.1 on every benchmark Anthropic published at launch, and it costs 2.5× less per token. So since 0.53.0 every critique seat runs on Opus, and the `--opus` flag is gone.
+
+| Benchmark (Anthropic, launch) | Measures | Opus 5.5 | Fable 5.1 |
+| --- | --- | --- | --- |
+| Terminal-Bench 4.0 | agentic coding in a terminal | **66.4%** | 55.8% |
+| CursorBench 4.0 | agentic coding in an editor | **57.8%** | 51.8% |
+| FrontierCode v1.1 | agentic coding | **54.4%** | 50.3% |
+| AutomationBench | multi-step automation | **40.0%** | 31.4% |
+| GDPval-AA v2.1 | knowledge work (Elo) | **1846** | 1735 |
+| Humanity's Last Exam | multidisciplinary reasoning | **67.7%** | 65.6% |
+| OSWorld 2.0 | computer use | **81.8%** | 80.7% |
+| Price per token | | **2.5× cheaper** | |
+
+What moved in 0.53.0:
+
+- **Planner:** opus · high → opus · medium. Opus 5.5 at medium beats Opus 5 at high.
+- **Plan review:** fable → opus · high on every tier (trivial no longer skips it), opus · xhigh at critical. It always runs a rung above the planner.
+- **Diff review and auto arbiter:** fable → opus · high, opus · xhigh from hard up.
+- **auto hard/critical panel:** fable · xhigh → opus · high, a rung under the arbiter.
+- **Removed:** the `--opus` flag and the `review_model` state field. The tier alone sizes the effort.
+- **Unchanged:** implementer on sonnet · medium, repair on opus · high.
+
+The honest caveat, in Anthropic's words: "the gap between Opus 5.5 and Claude Fable 5.1 is narrower than these scores suggest." There is also no public head-to-head on code review, which is what these gates actually do. It doesn't change the call: a model that only matched Fable at 40% of the price would still win the seat. Full rules and tables in [docs/tiering.md](plugins/anderson/docs/tiering.md).
 
 ## Fleet: every Claude session on one screen
 
