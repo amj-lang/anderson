@@ -58,12 +58,12 @@ G = dict(UNI)
 
 # stage -> (glyph key, persona, model/effort, quote mood)
 PERSONA = {
-    "plan":        ("arch",  "ARCHITECT",    "opus/high",     "design"),
+    "plan":        ("arch",  "ARCHITECT",    "opus/medium",   "design"),
     "grill":       ("grill", "INTERROGATOR", "you",           "insight"),
-    "plan_review": ("orac",  "ORACLE",       "{rm}/xhigh",    "insight"),
+    "plan_review": ("orac",  "ORACLE",       "opus/{pe}",     "insight"),
     "implement":   ("neo",   "NEO",          "sonnet/medium", "action"),
     "repair":      ("trin",  "TRINITY",      "opus/high",     "action"),
-    "diff_review": ("smith", "AGENT SMITH",  "{rm}/high",     "adversary"),
+    "diff_review": ("smith", "AGENT SMITH",  "opus/{de}",     "adversary"),
     "done":        ("one",   "THE ONE",      "shipped",       "mentor"),
     "aborted":     ("smith", "AGENT SMITH",  "aborted",       "adversary"),
 }
@@ -195,7 +195,7 @@ def anderson_state(root, task=None):
     except Exception:
         return {}
     st = {k: field(t, k) for k in
-          ("task", "stage", "iteration", "max_iterations", "plan_verdict", "diff_verdict", "review_model", "branch", "gate", "tier")}
+          ("task", "stage", "iteration", "max_iterations", "plan_verdict", "diff_verdict", "branch", "gate", "tier")}
     st["task"] = st["task"] or os.path.basename(os.path.dirname(p))
     st["mtime"] = os.path.getmtime(p)
     return st
@@ -633,8 +633,7 @@ def enrich(s, now):
     if stage in ("ship",):
         stage = "done"
     gk, persona, model_spec, mood = PERSONA.get(stage, ("none", "T. ANDERSON", "", ""))
-    rm = (st.get("review_model") or "fable")
-    model_spec = model_spec.format(rm=rm)
+    model_spec = model_spec.format(**review_effort(st.get("tier")))
     if not model_spec:
         model_spec = _short_model(s.get("model") or tr.get("model") or "")
     # status: dead? then hook event if fresher than the transcript, else transcript inference
@@ -689,6 +688,12 @@ def enrich(s, now):
         "tmux_pane": s.get("tmux_pane"), "tmux_addr": s.get("tmux_addr"),
         "shipped": stage == "done", "hb_ts": s.get("hb_ts"),
     }
+
+
+def review_effort(tier):
+    """Tier -> review effort (docs/tiering.md): plan-review xhigh only at critical, diff-review from hard."""
+    t = (tier or "").lower()
+    return {"pe": "xhigh" if t == "critical" else "high", "de": "xhigh" if t in ("hard", "critical") else "high"}
 
 
 def _short_model(m):
@@ -994,7 +999,7 @@ def demo_rows():
     st = lambda s: PERSONA[s]
     return [
         mk(sid="demo-1", repo="fashion-webapp-2", task="ar-2270-sku-images-lightbox", stage="diff_review",
-           persona=st("diff_review")[1], pglyph=PGLYPH["smith"], mood="adversary", model="fable/high",
+           persona=st("diff_review")[1], pglyph=PGLYPH["smith"], mood="adversary", model="opus/xhigh",
            iteration="1", max_iter="2", dejavu=True, status="ring", now=f"{G['ring']} ring",
            text="47 passed, 0 failed. Verdict: fix_first, one unproven criterion.", cost=1.42, ctx_pct=61,
            start=now - 12 * 60, diff_verdict="fix_first", tier="hard"),
@@ -1009,7 +1014,7 @@ def demo_rows():
            text="Question 3 of 7: should the What block cap at three lines or three sentences?", cost=0.12,
            ctx_pct=9, start=now - 41 * 60, tier="trivial"),
         mk(sid="demo-4", repo="fashion-webapp-2", task="sku-bulk-upload", stage="plan",
-           persona=st("plan")[1], pglyph=PGLYPH["arch"], mood="design", model="opus/high",
+           persona=st("plan")[1], pglyph=PGLYPH["arch"], mood="design", model="opus/medium",
            iteration="2", max_iter="2", dejavu=True, status="sentinel", now=f"{G['dead']} sentinel",
            text="", cost=0.31, ctx_pct=None, start=now - 2 * 3600, pid=None, tier="critical"),
     ]
@@ -3085,7 +3090,7 @@ def selftest():
                 st = random.choice(stages)
                 gk, persona, ms, mood = PERSONA.get(st, ("none", "T. ANDERSON", "", ""))
                 rows.append(dict(sid=f"s{i}", pid=None, cwd="", root="", repo=random.choice(words), task=random.choice(words),
-                                 stage=st, persona=persona, pglyph=PGLYPH[gk], mood=mood, model=ms.format(rm="fable") or "fable",
+                                 stage=st, persona=persona, pglyph=PGLYPH[gk], mood=mood, model=ms.format(**review_effort(None)) or "opus",
                                  iteration=str(random.randint(0, 3)), max_iter="2", plan_verdict="ship", diff_verdict="pending",
                                  dejavu=random.random() < .5, status=random.choice(["ring", "work", "sentinel"]),
                                  now=random.choice([f"{G['run']} Bash pytest -q tests/orders/… very long command line", f"{G['ring']} ring"]),

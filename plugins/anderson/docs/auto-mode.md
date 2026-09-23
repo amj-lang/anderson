@@ -7,11 +7,11 @@
 > for the success-rate / token / latency balance:
 > - **Difficulty routing is IN** (was "v2 / out of scope") — a tier from the plan Scorecard, re-derived
 >   from diff size at the gate (max-only), sizes the whole downstream harness.
-> - **Plan gate (gate 4) is ONE `plan-reviewer`, not a 3-lens panel** (skipped for a trivial tier).
->   Plan errors are cheap; rigor is concentrated at the diff gate.
+> - **Plan gate (gate 4) is ONE `plan-reviewer`, not a 3-lens panel** (every tier; opus/high,
+>   opus/xhigh at critical — a rung above the opus/medium planner). Plan errors are cheap; rigor is concentrated at the diff gate.
 > - **Diff panel (gate 7) is tier-sized 1/2/3 and runs in PARALLEL** (each reviewer writes its own
 >   file + returns a verdict, so no shared-state collision). The panel model is tier-sized (sonnet for
->   trivial/normal, fable for hard/critical), and a **fable arbiter** backstops every panel that doesn't
+>   trivial/normal, opus for hard/critical), and an **opus arbiter** backstops every panel that doesn't
 >   unanimously refute — resolving splits on merit and signing off unanimous ships — with a forced
 >   `## Options considered` (+/−) table, instead of a flat majority-vote.
 > - **CI veto runs first and short-circuits** a red build before reviewer tokens are spent.
@@ -26,7 +26,7 @@
 >   in `commands/auto.md`.
 > - **A red suite goes to TRINITY, not back to the implementer (0.52.0)** — the implementer gets ONE
 >   try at a failing test; still red and the run enters a `repair` stage running the **test-fixer**
->   subagent on **opus/high** (fixed — `--opus` / `review_model` do not reach it). It reproduces,
+>   subagent on **opus/high** (fixed, never tiered). It reproduces,
 >   flake-checks, names the root cause before editing, fixes the cause, and proves the single test
 >   AND the full suite green; it may never weaken, skip or delete a test. Verdicts: `fixed` · `flake`
 >   · `replan` (take the replan bounce) · `needs-human`; budget 2 rounds. The CI veto now
@@ -189,7 +189,7 @@ Adapters (Linear, GitHub Issues, chat, CLI) are **out of scope for this doc** �
 ### Plan gate (gate 4)
 - Mechanical criteria-coverage check + **one** `plan-reviewer` with a refute posture: *"Refute this
   plan. Find why it fails or misses an acceptance criterion. Default to reject if uncertain."*
-- **Skipped entirely for a trivial tier.** Pass requires `ship` **and** every acceptance criterion
+- **Runs on every tier** (opus/high, opus/xhigh at critical). Pass requires `ship` **and** every acceptance criterion
   mapped to a plan step. One bounded plan-rework on failure, then abort.
 
 ### Diff reviewer panel + arbiter (gate 7)
@@ -197,12 +197,12 @@ Adapters (Linear, GitHub Issues, chat, CLI) are **out of scope for this doc** �
   each other (anchoring kills independence). Run **in parallel** — each writes its own review file and
   returns its verdict, so there is no shared-state collision.
 - Lenses (added in order): **correctness**, **regressions / security**, **does the diff match the plan?**
-- **Panel model is tiered** — trivial/normal panels run on **sonnet** (cost), hard/critical on **fable**
-  (a missed bug there has real blast radius). Effort follows: `high` for sonnet panelists, `xhigh` for
-  fable panelists and the arbiter.
-- **Arbiter backstops every panel** — one **fable** arbiter runs on every outcome except a unanimous
-  refute: it resolves a split **on merit, not headcount**, and on a unanimous *ship* it runs as a final
-  fable sign-off (independent re-review, no rubber-stamp). Justified in a required `## Options considered`
+- **Panel model is tiered** — trivial/normal panels run on **sonnet** (cost), hard/critical on **opus**
+  (a missed bug there has real blast radius). Every panelist runs at `high`, one rung under the arbiter
+  at hard/critical.
+- **Arbiter backstops every panel** — one **opus** arbiter (`high` at trivial/normal, `xhigh` at
+  hard/critical) runs on every outcome except a unanimous refute: it resolves a split **on merit, not
+  headcount**, and on a unanimous *ship* it runs as a final sign-off (independent re-review, no rubber-stamp). Justified in a required `## Options considered`
   (+/−) table. This replaces a flat ≥2/3 majority vote and the earlier "unanimous ship skips the arbiter"
   token-saver.
 - **CI is a veto, not a vote** — it runs FIRST and a red build short-circuits before any reviewer

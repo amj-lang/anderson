@@ -1,4 +1,4 @@
-"""Statusline shows the *active* review model (fable default / opus override), not a hardcoded one."""
+"""Statusline shows the tier-sized review effort, not a hardcoded one."""
 import os, pathlib, subprocess, tempfile, unittest
 
 STATUSLINE = pathlib.Path(__file__).resolve().parents[1] / "bin" / "statusline.sh"
@@ -17,13 +17,13 @@ def _run(state_body):
 
 
 class TestStatusline(unittest.TestCase):
-    def test_opus_review_model(self):
-        out = _run("task: x\nstage: plan_review\nreview_model: opus\n")
-        self.assertIn(b"opus/xhigh", out.stdout)
+    def test_plan_review_high_until_critical(self):
+        self.assertIn(b"opus/high", _run("task: x\nstage: plan_review\ntier: hard\n").stdout)
+        self.assertIn(b"opus/xhigh", _run("task: x\nstage: plan_review\ntier: critical\n").stdout)
 
-    def test_missing_review_model_defaults_fable(self):
-        out = _run("task: x\nstage: diff_review\n")
-        self.assertIn(b"fable/high", out.stdout)
+    def test_diff_review_xhigh_from_hard(self):
+        self.assertIn(b"opus/high", _run("task: x\nstage: diff_review\n").stdout)
+        self.assertIn(b"opus/xhigh", _run("task: x\nstage: diff_review\ntier: hard\n").stdout)
 
 
 if __name__ == "__main__":

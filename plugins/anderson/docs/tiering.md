@@ -1,8 +1,7 @@
-# Difficulty tiering — why the review gates cost what they cost
+# Difficulty tiering — what each stage runs on, and why
 
-`/anderson:start` used to spend the same on every task: a plan critique at `xhigh` and a diff
-critique at `high`, whatever the change was. A one-line copy fix and a schema migration got the
-same two Fable calls. This document is why that changed and how the replacement is calibrated.
+Every stage has a fixed model. The tier only sizes the **effort** of the critique stages. There is
+no model flag: since Opus 5.5, no stage runs on Fable (see [Why no Fable](#why-no-fable)).
 
 ## The tier
 
@@ -18,101 +17,75 @@ the real diff at `approve-plan` / `rework`. **First match wins, top-down. Tier o
 
 Re-tier triggers at the diff gate: `≥150 lines` OR `≥8 files` → at least HARD.
 
-Note the asymmetry. CRITICAL and HARD fire on **any one** dimension going bad; TRIVIAL needs
-**all three** to be good. Deliberately biased toward escalation — the cost of over-reviewing is
-tokens, the cost of under-reviewing is a bug you ship.
+CRITICAL and HARD fire on **any one** dimension going bad; TRIVIAL needs **all three** to be good.
+Deliberately biased toward escalation: over-reviewing costs tokens, under-reviewing ships a bug.
 
-## The effort table
+## Start mode (gated)
 
-| Tier | PLAN_REVIEW | DIFF_REVIEW |
+| # | Step | Persona | trivial | normal | hard | critical |
+|---|---|---|---|---|---|---|
+| 1 | PLAN | THE ARCHITECT | opus/medium | opus/medium | opus/medium | opus/medium |
+| 2 | GRILL | THE INTERROGATOR | you | you | you | you |
+| 3 | PLAN_REVIEW → Gate 1 | THE ORACLE | opus/high | opus/high | opus/high | opus/xhigh |
+| 4 | IMPLEMENT | NEO | sonnet/medium | sonnet/medium | sonnet/medium | sonnet/medium |
+| 4b | REPAIR (red only) | TRINITY | opus/high | opus/high | opus/high | opus/high |
+| 5 | DIFF_REVIEW → Gate 2 | AGENT SMITH | opus/high | opus/high | opus/xhigh | opus/xhigh |
+
+## Auto mode (no gates)
+
+| # | Step | Persona | trivial | normal | hard | critical |
+|---|---|---|---|---|---|---|
+| 3 | PLAN | THE ARCHITECT | opus/medium | opus/medium | opus/medium | opus/medium |
+| 4 | PLAN GATE | THE ORACLE | opus/high | opus/high | opus/high | opus/xhigh |
+| 6 | IMPLEMENT | NEO | sonnet/medium | sonnet/medium | sonnet/medium | sonnet/medium |
+| 6b | REPAIR (red only) | TRINITY | opus/high | opus/high | opus/high | opus/high |
+| 7 | DIFF PANEL | AGENT SMITH ×n | 1× sonnet/high | 2× sonnet/high | 3× opus/high | 3× opus/high |
+| 7g | ARBITER | AGENT SMITH | opus/high | opus/high | opus/xhigh | opus/xhigh |
+
+INGEST, BASELINE, RED, SHIP and REPORT are orchestrator steps: no subagent, no tiering.
+
+## The rules behind the tables
+
+- **The plan critique always runs at least one rung above the planner.** The planner is opus/medium,
+  so plan-review is opus/high, and opus/xhigh at CRITICAL. `plan.md` is the reference every
+  downstream check validates against: the implementer executes it verbatim and the diff reviewer
+  checks the diff *against* it, so a wrong plan is invisible to everything after it. Every tier
+  gets a plan critique, trivial included.
+- **The planner runs at medium, not high.** It cannot be tiered (the tier comes from its own
+  Scorecard), and Opus 5.5 at medium beats Opus 5 at high on coding and analysis evaluations.
+- **The implementer is the cheapest model that follows a plan reliably**: sonnet/medium. Haiku is
+  cheaper per token but weaker on multi-file plans, and every extra red suite buys an opus/high
+  repair, which costs more than Haiku saves.
+- **Repair is never tiered.** TRINITY runs opus/high on every tier. Tiering sizes *critique*, how
+  much doubt a diff has to survive. A red test is a diagnosis, and a trivial-tier task with an
+  undiagnosed failure is exactly as stuck as a critical one. Its budget control is the 2-round cap.
+- **The diff verdict is opus/high, opus/xhigh from HARD up.** In start mode that is AGENT SMITH;
+  in auto it is the arbiter, the final diff verdict there. Auto panelists run one rung under the
+  arbiter (sonnet/high at TRIVIAL/NORMAL, opus/high at HARD/CRITICAL), and the arbiter backstops
+  every panel outcome except a unanimous refute.
+- **Never `max`, never `low`.** `max` is uncapped thinking for a marginal gain; below medium,
+  critique quality drops faster than the tokens it saves.
+
+## Why no Fable
+
+Opus 5.5 beats Fable 5.1 on every benchmark Anthropic published at launch (2026-09-22):
+
+| Benchmark | Opus 5.5 | Fable 5.1 |
 |---|---|---|
-| TRIVIAL | *skipped* | medium |
-| NORMAL | high | medium |
-| HARD | xhigh | high |
-| CRITICAL | xhigh | xhigh |
+| Terminal-Bench 4.0 (agentic coding) | **66.4%** | 55.8% |
+| CursorBench 4.0 | **57.8%** | 51.8% |
+| FrontierCode v1.1 | **54.4%** | 50.3% |
+| AutomationBench | **40.0%** | 31.4% |
+| GDPval-AA v2.1 (Elo) | **1846** | 1735 |
+| Humanity's Last Exam | **67.7%** | 65.6% |
+| OSWorld 2.0 | **81.8%** | 80.7% |
 
-### Why the plan critique runs one rung above the diff critique
+It also costs 2.5× less per token (see the API pricing docs), and on a long real task (a C-to-Rust
+port) it finished faster at about half Fable's cost. Anthropic's own caveat: "the gap between
+Opus 5.5 and Claude Fable 5.1 is narrower than these scores suggest." Even at parity, a model at
+40% of the per-token price wins every critique seat, so the `--opus` / `--fable` flags and the
+`review_model` state field are gone.
 
-`plan.md` is the reference every downstream check validates against. The implementer executes it
-verbatim ("no scope additions"). The diff reviewer checks the diff *against* it. So a wrong plan
-is invisible to everything after it — a correct diff review will happily pass the wrong thing.
-
-A missed diff bug still faces CI, the implementer's tests, and the human at Gate 2. A missed plan
-error faces nothing. Asymmetric escape probability, asymmetric effort.
-
-This is the opposite of the rule in `auto.md` ("rigor budget is spent at the diff gate"), and the
-divergence is deliberate: auto's diff gate is a 3-reviewer blind panel plus an arbiter, so it can
-afford to be diff-heavy. Start mode's diff gate is one reviewer and a card you read.
-
-### Why the band is medium → xhigh
-
-From the Fable 5.1 effort benchmark (score, tokens/task):
-
-| Effort | Score | Tokens |
-|---|---|---|
-| max | 73.4% | 72,060 |
-| xhigh | 72.8% | 51,349 |
-| high | 69.4% | 33,153 |
-| medium | 68.0% | 23,801 |
-| low | 66.2% | 19,522 |
-
-Marginal cost of stepping down, in points lost per 1k tokens saved:
-
-| Step | Points | Tokens | Cost |
-|---|---|---|---|
-| xhigh → high | 3.4 | 18,196 | 0.19 /1k |
-| high → medium | 1.4 | 9,352 | **0.15 /1k** |
-| medium → low | 1.8 | 4,279 | 0.42 /1k |
-
-**Never `max`** — buys +0.6 points over xhigh for +20,711 tokens. **Never `low`** — quality falls
-off a cliff below medium, at nearly 3× the marginal cost of the rung above it.
-
-### Repair is not tiered
-
-The `repair` stage (TRINITY, the test-fixer) runs on **opus/high for every tier**. Tiering sizes
-*critique* — how much doubt a diff has to survive. A red test is not a matter of doubt: it is a
-diagnosis, and a trivial-tier task with an undiagnosed failure is exactly as stuck as a critical one.
-`--opus` and `review_model` do not reach this stage either; its budget control is the 2-round cap,
-not a smaller model.
-
-### Why the model stays Fable
-
-Every Opus 5 configuration except `low` is strictly dominated — a Fable config scores higher on
-fewer tokens:
-
-| Opus | Score | Tokens | Beaten by | Score | Tokens |
-|---|---|---|---|---|---|
-| medium | 64.3% | 23,612 | Fable low | 66.2% | 19,522 |
-| high | 66.7% | 27,932 | Fable medium | 68.0% | 23,801 |
-| xhigh | 69.3% | 54,239 | Fable high | 69.4% | **33,153** |
-| max | 70.0% | 61,838 | Fable high | 69.4% | 33,153 |
-
-Opus takes more steps to reach the same answer (72 vs 55 at xhigh), and steps are tokens. So
-`--opus` is an **escape valve for an exhausted Fable budget**, not a quality upgrade. Reach for it
-when the Fable sub-cap is spent and the work cannot wait, and understand you are paying more
-tokens for a worse review.
-
-## What it saves
-
-Baseline was 84,502 tokens/task (xhigh plan + high diff), identical for every task.
-
-| Tier | Now | Was | Δ |
-|---|---|---|---|
-| TRIVIAL | 23,801 | 84,502 | **−72%** |
-| NORMAL | 56,954 | 84,502 | **−33%** |
-| HARD | 84,502 | 84,502 | 0% |
-| CRITICAL | 102,698 | 84,502 | **+22%** |
-
-HARD lands on exactly the old budget. TRIVIAL and NORMAL get cheaper; CRITICAL gets more than it
-used to, which is the point — the old `Risk ≥ 8` escalation ignored Testability, Coupling and
-Confidence entirely, so a task that could not be verified without a human got a plain `high`
-review unless its Risk score happened to clear 8.
-
-At a 15/55/25/5 tier mix that is roughly **−28% Fable tokens per task**.
-
-## Caveat
-
-The benchmark measures agentic coding (70-78 steps/task, the model doing the work). These stages
-do single-pass critique. The ordering should hold; the exact point deltas should not be trusted to
-two decimals. If NORMAL diff reviews start missing things, that is the tier to lift first — it is
-the thinnest automated check in the pipeline.
+What is not measured: no public head-to-head code-review benchmark exists, and these stages do
+single-pass critique, not the long agentic runs the benchmarks score. If reviews start missing
+things, lift effort in the thinnest seat first (NORMAL diff review) before reaching for a model.

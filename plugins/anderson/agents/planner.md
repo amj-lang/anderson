@@ -3,7 +3,7 @@ name: planner
 description: "Produces a scoped, written implementation plan for one task. Read-only on the codebase; writes only to feature-research/<task>/. Never edits source. Use at pipeline stage `plan`."
 tools: Read, Grep, Glob, Write
 model: opus
-effort: high
+effort: medium
 color: blue
 ---
 

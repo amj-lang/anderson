@@ -11,16 +11,15 @@ State for "$ARGUMENTS" (task key = last `/`-segment, so a pasted branch name res
 
 Summarize for me: current stage, which agent runs next and at what model/effort, both verdicts,
 `tier`, and iteration vs max_iterations. Review effort is derived from state.md `tier` — the plan
-critique runs one rung above the diff critique, capped at xhigh:
+critique always runs at least one rung above the opus/medium planner:
   | tier     | PLAN_REVIEW | DIFF_REVIEW |
-  | trivial  | skipped     | medium      |
-  | normal   | high        | medium      |
-  | hard     | xhigh       | high        |
+  | trivial  | high        | high        |
+  | normal   | high        | high        |
+  | hard     | high        | xhigh       |
   | critical | xhigh       | xhigh       |
 A missing or `pending` tier means the tier has not been computed yet (it is derived from the
-plan Scorecard at plan-review time) or the run predates tiering — report it as `hard`. For the review stages (plan-review,
-diff-review) the model is state.md `review_model` (`fable` default, `opus` when the
-pipeline was started with `--opus`); a missing field means an older run — treat as `fable`.
+plan Scorecard at plan-review time) or the run predates tiering — report it as `hard`. Both review stages run on opus;
+an older state.md may still carry a `review_model:` field — ignore it.
 If `CLAUDE_CODE_SUBAGENT_MODEL` is set, report it as the override in effect over the
 stage's declared model, not as an error to clear. One short block, no padding. If stage is
 `grill`, the next step is the interactive grilling of the plan (no subagent, no model)

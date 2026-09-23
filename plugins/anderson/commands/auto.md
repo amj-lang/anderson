@@ -3,19 +3,15 @@ description: "Run the full plan → implement → review pipeline non-halting to
 argument-hint: <task-id> <title> [body|@taskspec-file]
 allowed-tools: Bash, Read, Edit, Write
 ---
-Parse $ARGUMENTS: FIRST strip an optional `--opus` token from anywhere in $ARGUMENTS
-(it is a flag, not content) — if present, the two review gates run on Opus instead of
-the default Fable (see REVIEW MODEL below); record it for the state seed. THEN from the remaining
-words: first word = task-id (run-lock key + state dir name); second word = title;
+Parse $ARGUMENTS: first word = task-id (run-lock key + state dir name); second word = title;
 remainder = body (or @path to TaskSpec file on disk). task-id and title required;
 body optional (acceptance_criteria derived if absent).
 
-REVIEW MODEL: the two critique gates (PLAN GATE plan-reviewer, DIFF GATE reviewer panel
-+ arbiter) run on the model in state.md `review_model:` — `fable` by default, `opus` when
-`--opus` was passed. Fable is the stronger critical analyst; Opus stays the default for the
-generative stages (planner, implementer), which `--opus` never touches. Plan-reviewer effort
-is xhigh; reviewer effort is tiered (see MODEL TIERING in 7f): `high` for TRIVIAL/NORMAL
-panelists, `xhigh` for HARD/CRITICAL panelists and the arbiter. Every banner and invocation below reads `review_model` from state.md.
+MODELS: fixed, no flag — the tier alone sizes effort (docs/tiering.md). Planner opus/medium;
+plan-reviewer opus/high (opus/xhigh at CRITICAL — always a rung above the planner); implementer
+sonnet/medium; test-fixer opus/high; diff panel sonnet/high at TRIVIAL/NORMAL, opus/high at
+HARD/CRITICAL; arbiter opus/high at TRIVIAL/NORMAL, opus/xhigh at HARD/CRITICAL (see MODEL
+TIERING in 7f). No stage runs on Fable.
 
 BANNER RULE (every stage below): finish ALL setup and state.md edits for stage FIRST,
 then print stage's banner as LAST line before stage's work begins (immediately
@@ -40,8 +36,8 @@ NON-NEGOTIABLE HARD RULES (no override, ever):
    branch, or human-authored branch requires explicit human consent.
 
 BANNER POOL — auto stages use these Matrix-flavoured banners in framed `╭─ ⌐■-■` format.
-In the two review banners (PLAN GATE, DIFF GATE) `<review_model>` is a placeholder: substitute
-the state.md `review_model:` value (`opus` or `fable`) when printing.
+In the two review banners (PLAN GATE, DIFF GATE) `<review_effort>` is a placeholder: substitute
+the tier's effort (steps 4e and 7f) when printing.
 
 INGEST banner (stage offset 1):
 ```
@@ -61,7 +57,7 @@ BASELINE pool (14): "Never build a fix on a broken tree." / "Green at the start,
 
 PLAN banner (stage offset 3):
 ```
-  ╭─ ⌐■-■  PLAN · 3/9 · THE ARCHITECT · opus/high
+  ╭─ ⌐■-■  PLAN · 3/9 · THE ARCHITECT · opus/medium
   │  "[quote from PLAN pool]"
   ╰─
 ```
@@ -69,7 +65,7 @@ PLAN pool (14): "Design twice, so reality only has to happen once." / "The most 
 
 PLAN GATE banner (stage offset 4):
 ```
-  ╭─ ⌐■-■  PLAN GATE · 4/9 · THE ORACLE · <review_model>/xhigh
+  ╭─ ⌐■-■  PLAN GATE · 4/9 · THE ORACLE · opus/<review_effort>
   │  "[quote from PLAN GATE pool]"
   ╰─
 ```
@@ -101,7 +97,7 @@ REPAIR pool (14): "A red test is a witness — interrogate it, never silence it.
 
 DIFF GATE banner (stage offset 7):
 ```
-  ╭─ ⌐■-■  DIFF GATE · 7/9 · AGENT SMITH · <review_model>/<review_effort>
+  ╭─ ⌐■-■  DIFF GATE · 7/9 · AGENT SMITH · opus/<review_effort>
   │  "[quote from DIFF GATE pool]"
   ╰─
 ```
@@ -179,7 +175,6 @@ Quote: pick one line from the stage's pool; vary it across stages.
       ci_conclusion:       none
       red_reason:          none
       tier:                pending
-      review_model:        fable
       panel_model:         pending
       reviewers:           0
       arbiter:             none
@@ -197,7 +192,6 @@ Quote: pick one line from the stage's pool; vary it across stages.
       ## ❓ Open questions
       ```
       Where `<slug>` = title lowercased, spaces replaced with hyphens, truncated to 30 chars.
-      Set `review_model:` to `opus` if the `--opus` flag was parsed from $ARGUMENTS, else `fable`.
       If file already exists (re-run after abort), overwrite with this fresh block.
 
    f. Parse body/acceptance_criteria: if body present, scan for an "acceptance criteria",
@@ -339,7 +333,7 @@ Quote: pick one line from the stage's pool; vary it across stages.
       Record `tier: <trivial|normal|hard|critical>` in state.md. This tier is PROVISIONAL — step 7d
       re-tiers against actual diff size and takes the MAX (tier can only escalate, never drop).
 
-4. PLAN GATE — criteria-coverage check + ONE plan-reviewer (skipped for a TRIVIAL tier). Plan errors
+4. PLAN GATE — criteria-coverage check + ONE plan-reviewer (every tier). Plan errors
    are cheap to fix (rework; nothing ships), so this side stays light — rigor budget is
    spent at the diff gate.
 
@@ -349,12 +343,10 @@ Quote: pick one line from the stage's pool; vary it across stages.
       verify at least one `## 🛠 How` step in `plan.md` maps to it. Collect unmapped criteria as
       blocking findings.
 
-   c. TRIVIAL shortcut: if `tier: trivial` AND no unmapped criteria → set `plan_panel: clear` (a
-      trivial plan does not earn a reviewer) and continue to step 5.
-
    d. (BANNER RULE) Print the PLAN GATE banner now, last line before invoking the plan-reviewer.
 
-   e. Invoke ONE **plan-reviewer** subagent (model override = state.md `review_model`, effort xhigh)
+   e. Invoke ONE **plan-reviewer** subagent (effort override `high`, or `xhigh` when tier is
+      CRITICAL — always a rung above the opus/medium planner)
       with a refute posture: "Refute this plan — find why it
       fails, misses an acceptance criterion, or under-counts the blast radius; default to reject
       (`fix_first`) if uncertain. Make inline fixes (your normal mode). Append your report under
@@ -456,8 +448,8 @@ Quote: pick one line from the stage's pool; vary it across stages.
 
    c. (BANNER RULE) Print the REPAIR banner now, last line before invoking the test-fixer.
 
-   d. Invoke the **test-fixer** subagent (model opus, effort high — `--opus`/`review_model` do
-      not apply; this stage is opus/high always), seeded with: the failing test name(s), the
+   d. Invoke the **test-fixer** subagent (model opus, effort high — never tiered; this
+      stage is opus/high always), seeded with: the failing test name(s), the
       exact command that ran them, the captured output, `frozen_test`, the plan's
       "Files touched" list, and `repair.md` from earlier rounds if it exists. It writes
       `feature-research/<task-id>/repair.md` and sets `repair_verdict:`.
@@ -587,15 +579,14 @@ Quote: pick one line from the stage's pool; vary it across stages.
          End your final message with exactly two lines: `VERDICT: ship|fix_first` and
          `FINDINGS: <count of blocking findings>`."
       MODEL TIERING (where the harness supports a per-invocation model override): size panelist
-      model to tier — run TRIVIAL and NORMAL panelists on a faster/cheaper tier (sonnet), run
-      HARD and CRITICAL panelists on the reviewer default (state.md `review_model`, effort override
-      `xhigh` — `fable`, or `opus` under `--opus`), since a missed bug at those tiers has real blast
-      radius and a stronger reviewer earns its cost there. TRIVIAL/NORMAL panelists run at `high`
-      (reviewer frontmatter default). Arbiter ALWAYS runs at the reviewer default model with effort
-      `xhigh` regardless of tier. `<review_effort>` in the DIFF GATE banner = `xhigh` when tier is
-      HARD/CRITICAL, else `high`. If no override available, all panelists run at the
-      reviewer default — model tiering is a cost optimization, not a correctness requirement. Record
-      the model the panel actually ran on as `panel_model: <sonnet|opus|fable>` in state.md
+      model to tier — run TRIVIAL and NORMAL panelists on sonnet (cheaper; the arbiter backstops
+      them), run HARD and CRITICAL panelists on the reviewer default (opus), since a missed bug at
+      those tiers has real blast radius. Every panelist runs at `high` (reviewer frontmatter
+      default) — one rung under the arbiter at HARD/CRITICAL. Arbiter runs on opus at `high` for
+      TRIVIAL/NORMAL and `xhigh` for HARD/CRITICAL. `<review_effort>` in the DIFF GATE banner = the
+      arbiter's effort. If no override available, all panelists run at the reviewer default —
+      model tiering is a cost optimization, not a correctness requirement. Record the model the
+      panel actually ran on as `panel_model: <sonnet|opus>` in state.md
       (the reviewer-default value when no override available and all panelists fell back to it) —
       this is step 7f's metric reference, surfaced in the `metrics:` line.
       Collect each panelist's `VERDICT` + `FINDINGS` from its reply; record one
@@ -603,7 +594,7 @@ Quote: pick one line from the stage's pool; vary it across stages.
 
    g. Resolve the gate (CI already passed — a red build short-circuited at 7c-iv and never reaches
       here). Count a `fix_first` as a refute. Arbiter is the reviewer-default quality gate over the
-      panel (runs at `review_model`, effort xhigh) — runs on every outcome EXCEPT a unanimous refute:
+      panel (opus; effort `high` at TRIVIAL/NORMAL, `xhigh` at HARD/CRITICAL) — runs on every outcome EXCEPT a unanimous refute:
         - SPLIT — panel NOT unanimous (mix of ship and fix_first) → arbiter runs to resolve
           contested findings. Set `arbiter_trigger: split` in state.md.
         - UNANIMOUS SHIP — all panelists ship → arbiter ALWAYS runs as final sign-off over
@@ -615,8 +606,8 @@ Quote: pick one line from the stage's pool; vary it across stages.
           → set `arbiter_trigger: none` and go to rework (7h).
       (`arbiter_trigger` is step 7g's metric reference — records WHY the arbiter ran, surfaced in
       the `metrics:` line — distinct from `arbiter`, which records its verdict.)
-      When arbiter runs: invoke ONE **reviewer** subagent as the ARBITER (read-only; model override
-      = state.md `review_model`, effort xhigh), given the diff + `plan.md` + task + ALL panel review
+      When arbiter runs: invoke ONE **reviewer** subagent as the ARBITER (read-only; opus, effort
+      override per MODEL TIERING above), given the diff + `plan.md` + task + ALL panel review
       files. Frame it:
         "You are the ARBITER. Either the panel split, this is a critical task, or the panel
          unanimously shipped and you are the final sign-off. Read every review file and the diff.
@@ -783,11 +774,11 @@ Quote: pick one line from the stage's pool; vary it across stages.
       task_id:      <task-id>
       pr_url:       <url or "see printed PR body above">
       branch:       <branch>
-      tier:         <trivial|normal|hard|critical>   panel_model: <sonnet|fable|opus>
+      tier:         <trivial|normal|hard|critical>   panel_model: <sonnet|opus>
       reviewers:    <n>   arbiter: <ship|fix_first|none> (trigger: <split|unanimous-ship|critical|none>)
       override:     <comma-joined relaxations applied (low-confidence,scope,runaway,sensitive-paths), or none>
       rework_rounds: <n>   replan_bounced: <yes|no>
-      plan_gate:    <clear | skipped-trivial | rejected>
+      plan_gate:    <clear | rejected>
       diff_panel:   <pass>  (votes: correctness/regressions+security/plan-match)
       ci:           <ci_status> <ci_conclusion>
       red_reason:   <genuine | green>
