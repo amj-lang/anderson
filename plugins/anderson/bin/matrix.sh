@@ -56,12 +56,12 @@ montage(){
         grn; printf ' %s\n' "$desc"; rst;;
     esac
     sleep "$d"; }
-  step "PLAN"        "THE ARCHITECT · opus/high"
+  step "PLAN"        "THE ARCHITECT · opus/medium"
   step "GRILL"       "THE INTERROGATOR · you"
-  step "PLAN_REVIEW" "THE ORACLE · fable/xhigh       ■ GATE 1"
+  step "PLAN_REVIEW" "THE ORACLE · opus/high        ■ GATE 1"
   step "IMPLEMENT"   "NEO · sonnet/medium"
   step "REPAIR"      "TRINITY · opus/high            (only when tests go red)"
-  step "DIFF_REVIEW" "AGENT SMITH · fable/high       ■ GATE 2"
+  step "DIFF_REVIEW" "AGENT SMITH · opus/high       ■ GATE 2"
   step "SHIP ✓"      "THE ONE · commit + PR"
   printf '\n'; sleep 1.2
 }

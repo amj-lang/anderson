@@ -37,15 +37,16 @@ st="$(ls -t feature-research/*/state.md 2>/dev/null | head -1 || true)"
 if [ -n "$st" ] && [ -f "$st" ]; then
   stage="$(field stage "$st")"
   task="$(field task "$st")"
-  rmodel="$(field review_model "$st")"
-  rmodel="${rmodel:-fable}"
+  tier="$(field tier "$st")"
+  pre=high; dre=high                       # review effort by tier (docs/tiering.md)
+  case "$tier" in critical) pre=xhigh; dre=xhigh ;; hard) dre=xhigh ;; esac
   case "$stage" in
-    plan)        who="THE ARCHITECT · opus/high" ;;
+    plan)        who="THE ARCHITECT · opus/medium" ;;
     grill)       who="THE INTERROGATOR · you" ;;
-    plan_review) who="THE ORACLE · $rmodel/xhigh" ;;
+    plan_review) who="THE ORACLE · opus/$pre" ;;
     implement)   who="NEO · sonnet/medium" ;;
     repair)      who="TRINITY · opus/high" ;;
-    diff_review) who="AGENT SMITH · $rmodel/high" ;;
+    diff_review) who="AGENT SMITH · opus/$dre" ;;
     done)        who="shipped" ;;
     *)           who="${stage:-?}" ;;
   esac

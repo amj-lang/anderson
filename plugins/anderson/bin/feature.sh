@@ -5,17 +5,16 @@
 # /anderson:* slash commands instead. Requires the anderson plugin installed and the
 # `claude` CLI on PATH. Run from your repo root.
 #
-#   ./feature.sh start <task> "<goal>" [--opus]   # plan -> plan_review, halt
-#   ./feature.sh seed [--opus] <task> ...   # only write state.md (idempotent); /anderson:start runs it
+#   ./feature.sh start <task> "<goal>"      # plan -> plan_review, halt
+#   ./feature.sh seed <task> ...            # only write state.md (idempotent); /anderson:start runs it
 #                                           # first so the fleet monitor shows the row before the planner
 #   ./feature.sh --approve-plan <task>      # implement -> diff_review, halt
 #   ./feature.sh --approve-diff <task>      # ship: branch + commit + push + PR (guarded)
 #   ./feature.sh --rework <task>            # loop implement on checker findings
-# --opus (on `start`, at the end) runs the two review gates on Opus instead of the default Fable;
-# the choice persists in state.md, so the review model carries across the resumed sub-commands.
+# Models are fixed per stage (docs/tiering.md); the review agents size effort from state.md `tier`.
 set -euo pipefail
 ROOT="feature-research"; slug="${2:-}"
-if [ "${1:-}" = "seed" ]; then           # seed [--opus] <slug> [goal words…]: slug = first non-flag word
+if [ "${1:-}" = "seed" ]; then           # seed <slug> [goal words…]: slug = first non-flag word
   slug=""; for _a in "${@:2}"; do case "$_a" in --*) ;; *) slug="$_a"; break ;; esac; done
 fi
 # Task key = last `/`-segment: a pasted branch name (Linear: user/ar-123-title) keeps the state
@@ -24,7 +23,6 @@ fi
 task="${slug##*/}"; dir="$ROOT/$task"; state="$dir/state.md"
 BRANCH_SEED=""; case "$slug" in */*) BRANCH_SEED="$slug" ;; esac
 ORIG_TASK="$task"; ADOPTED=""   # adopt_existing may point task/dir/state at an existing task dir
-RM_SEED=fable; for _a in "$@"; do [ "$_a" = "--opus" ] && RM_SEED=opus; done
 
 # Same work, richer slug: `/anderson:start ais-showcase-poses` then, once the ticket turns up,
 # `/anderson:start ar-2168-ais-showcase-poses` used to leave two task dirs for one session — and
@@ -57,7 +55,6 @@ gate:            none
 iteration:       0
 max_iterations:  2
 exit_rule:       all tests pass and lint clean, only major issues fixed
-review_model:    $RM_SEED
 tier:            pending
 plan_verdict:    pending
 diff_verdict:    pending
@@ -70,8 +67,6 @@ TPL
 }
 get() { grep -E "^$1:" "$state" | head -1 | sed -E "s/^$1:[[:space:]]*//; s/[[:space:]]*#.*//" || true; }
 set_field() { sed -i.bak -E "s|^($1:[[:space:]]*).*|\1$2|" "$state" && rm -f "$state.bak"; }
-rmodel() { local m; m="$(get review_model)"; echo "${m:-fable}"; }  # review-gate model; fable if unset
-rtier()  { local t; t="$(get tier)"; echo "${t:-pending}"; }        # difficulty tier; drives review effort
 run() { claude -p "$3" --model "$1" --permission-mode "$2" --output-format json | tee -a "$dir/run.log"; }
 
 _tty=1; [ -t 1 ] || _tty=0; case "${TERM:-}" in dumb|"") _tty=0 ;; esac
@@ -80,8 +75,8 @@ grn(){ if [ "$_color" -eq 1 ]; then printf '\033[32m'; fi; }
 red(){ if [ "$_color" -eq 1 ]; then printf '\033[31m'; fi; }
 rst(){ if [ "$_color" -eq 1 ]; then printf '\033[0m';  fi; }
 
-plan()        { run opus   acceptEdits "Use the planner subagent on task '$task'. Goal: $goal. Write feature-research/$task/plan.md."; set_field stage plan_review; }
-plan_review() { run "$(rmodel)" acceptEdits "Use the plan-reviewer subagent on task '$task'. stage=plan_review. Make inline strike-through edits in plan.md, append review under ## 🔭 Review, set plan_verdict."
+plan()        { run opus acceptEdits "Use the planner subagent on task '$task'. Goal: $goal. Write feature-research/$task/plan.md."; set_field stage plan_review; }
+plan_review() { run opus acceptEdits "Use the plan-reviewer subagent on task '$task'. stage=plan_review. Make inline strike-through edits in plan.md, append review under ## 🔭 Review, set plan_verdict."
                 set_field gate human
                 red; printf '>>> PLAN GATE. Read %s/plan.md (## 🔭 Review, verdict %s).\n' "$dir" "$(get plan_verdict)"; rst
                 printf '>>> Approve: ./feature.sh --approve-plan %s\n' "$task"; exit 10; }
@@ -90,7 +85,7 @@ implement()   { it=$(( $(get iteration) + 1 )); set_field iteration "$it"
                 set_field stage implement; set_field gate none
                 run sonnet acceptEdits "Use the implementer subagent on task '$task'. Execute plan.md (iteration $it); on rework fix only 'Still open'. Write audit.md."
                 set_field stage diff_review; }
-diff_review() { run "$(rmodel)" acceptEdits "Use the reviewer subagent on task '$task'. stage=diff_review. Diff-review the union scope; append diff review under ## 🔭 Review in plan.md; set diff_verdict."
+diff_review() { run opus acceptEdits "Use the reviewer subagent on task '$task'. stage=diff_review. Diff-review the union scope; append diff review under ## 🔭 Review in plan.md; set diff_verdict."
                 set_field gate human
                 red; printf '>>> DIFF GATE. Read %s/plan.md (## 🔭 Review, verdict %s) AND the diff.\n' "$dir" "$(get diff_verdict)"; rst
                 printf '>>> Ship: ./feature.sh --approve-diff %s | Loop: ./feature.sh --rework %s\n' "$task" "$task"; exit 20; }
@@ -158,11 +153,11 @@ ship() {
 case "${1:-}" in
   seed)          [ -n "$slug" ] || { echo "seed: no task slug given"; exit 64; }
                  adopt_existing
-                 if [ -f "$state" ]; then echo "state: $state already there (stage $(get stage), review_model $(rmodel))${ADOPTED:+ — ADOPTED for this session, use task key $task, do NOT create $ORIG_TASK}"
-                 else seed_state; echo "state: $state seeded (stage plan, review_model $RM_SEED)${BRANCH_SEED:+, branch $BRANCH_SEED}"; fi;;
+                 if [ -f "$state" ]; then echo "state: $state already there (stage $(get stage))${ADOPTED:+ — ADOPTED for this session, use task key $task, do NOT create $ORIG_TASK}"
+                 else seed_state; echo "state: $state seeded (stage plan)${BRANCH_SEED:+, branch $BRANCH_SEED}"; fi;;
   start)         goal="${3:?need a goal}"; adopt_existing; seed_state; set_field task "$task"; plan; plan_review;;
   --approve-plan) set_field plan_verdict ship; set_field gate none; implement; diff_review;;
   --approve-diff) ship;;
   --rework)      implement; diff_review;;
-  *) echo "usage: feature.sh start <task> \"<goal>\" | seed [--opus] <task> | --approve-plan <task> | --approve-diff <task> | --rework <task>"; exit 64;;
+  *) echo "usage: feature.sh start <task> \"<goal>\" | seed <task> | --approve-plan <task> | --approve-diff <task> | --rework <task>"; exit 64;;
 esac

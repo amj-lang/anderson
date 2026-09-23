@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.52.1-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.53.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -56,12 +56,12 @@ flowchart LR
 
 |     | Stage         | Persona                  | Model · effort              |
 | --- | ------------- | ------------------------ | --------------------------- |
-| 🏛  | `plan`        | THE ARCHITECT            | opus · high                 |
+| 🏛  | `plan`        | THE ARCHITECT            | opus · medium               |
 | 🕶  | `grill`       | THE INTERROGATOR (you)   | human                       |
-| 🔮  | `plan_review` | THE ORACLE               | fable · xhigh, then GATE 1  |
+| 🔮  | `plan_review` | THE ORACLE               | opus · high\*, then GATE 1  |
 | 🟢  | `implement`   | NEO                      | sonnet · medium             |
 | ✨  | `repair`      | TRINITY (only when red)  | opus · high                 |
-| 🕴  | `diff_review` | AGENT SMITH              | fable · high, then GATE 2   |
+| 🕴  | `diff_review` | AGENT SMITH              | opus · high\*, then GATE 2  |
 | 🔑  | `ship`        | THE ONE                  | branch + commit + push + PR |
 
 The grill interrogates the plan one question at a time before any code exists. `regrill` sends the plan reviewer's doubts back to the grill; `fix_first` loops the implementer, capped by `max_iterations`.
@@ -74,7 +74,7 @@ Each gate shows you a TL;DR card: what changes, how many criteria and of which p
 
 `/anderson:auto <task-id> <title> [body|@file]` runs the same pipeline with no human halts and ends at a **draft** PR. Experimental.
 
-The two human gates are replaced by three things, in order. An objective **CI veto** runs first: a red build fails the gate before a single reviewer token is spent. Then a tier-sized **blind reviewer panel** (1, 2 or 3 reviewers in parallel, each on one lens, blind to the implementer's `audit.md` and to each other). Then a **fable arbiter** that resolves on merit, not headcount.
+The two human gates are replaced by three things, in order. An objective **CI veto** runs first: a red build fails the gate before a single reviewer token is spent. Then a tier-sized **blind reviewer panel** (1, 2 or 3 reviewers in parallel, each on one lens, blind to the implementer's `audit.md` and to each other). Then an **opus arbiter** that resolves on merit, not headcount.
 
 Two hard rules never bend: auto never authors or applies a migration, and never force-pushes any branch but its own `anderson/auto/*`.
 
@@ -96,22 +96,22 @@ feature-research/<task>/
 
 **`plan.md`** reads What → Why → ⚠️ Behavior change → 🗺 Design → ✅ Acceptance criteria → How → 📈 Scorecard, heavy sections folded in `<details>`. Its spine is the **✅ Acceptance criteria** table (`# | Criterion | Source | Proof | Evidence`). Criteria come from the ticket verbatim, from the design inventory, or are `derived` (the grill confirms those). Each names its proof: `test` (must fail without the change), `visual` (screenshot vs the design), `e2e` (ephemeral, deleted at ship) or `manual` (last resort). The implementer fills Evidence; the diff reviewer blocks on a blank cell. It also carries 💥 Blast radius, 🧯 Error handling, a 7-dimension 📈 Scorecard, and 🔭 Review, where both reviewers append.
 
-**`state.md`** is machine-only: current stage, gate, iteration vs `max_iterations`, both verdicts, `review_model`, tier. It is what makes a run resumable and what `/anderson:status` and `fleet` read.
+**`state.md`** is machine-only: current stage, gate, iteration vs `max_iterations`, both verdicts, tier. It is what makes a run resumable and what `/anderson:status` and `fleet` read.
 
 ## Difficulty tiers
 
 A tier (trivial / normal / hard / critical) is derived from the plan's Scorecard (Risk, Coupling, Confidence, Testability) and re-derived from the actual diff size at the gate. It only escalates, so a one-line fix never pays for a 3-agent panel. A forbidden or dependency-path hit pins the tier to critical.
 
-| Tier     | Plan gate       | Diff critique (`start`) | auto panel     |
-| -------- | --------------- | ----------------------- | -------------- |
-| trivial  | skipped         | fable · medium          | 1 × sonnet     |
-| normal   | fable · high    | fable · medium          | 2 × sonnet     |
-| hard     | fable · xhigh   | fable · high            | 3 × fable      |
-| critical | fable · xhigh   | fable · xhigh           | 3 × fable      |
+| Tier     | Plan gate     | Diff critique / arbiter | auto panel        |
+| -------- | ------------- | ----------------------- | ----------------- |
+| trivial  | opus · high   | opus · high             | 1 × sonnet · high |
+| normal   | opus · high   | opus · high             | 2 × sonnet · high |
+| hard     | opus · high   | opus · xhigh            | 3 × opus · high   |
+| critical | opus · xhigh  | opus · xhigh            | 3 × opus · high   |
 
-In auto, a fable arbiter backstops every panel outcome except a unanimous refute.
+\* Effort by tier, per the table above. The plan critique always runs a rung above the opus/medium planner. In auto, the arbiter backstops every panel outcome except a unanimous refute; repair stays opus · high on every tier.
 
-Fable is the default critic on both review gates. `--opus` on `start` or `auto` puts them back on Opus; the generative stages (planner on opus, implementer on sonnet) are never touched by the flag.
+No stage runs on Fable and there is no model flag: Opus 5.5 beats Fable 5.1 on every published benchmark at a fraction of the per-token price. The numbers are in [docs/tiering.md](plugins/anderson/docs/tiering.md).
 
 ## Fleet: every Claude session on one screen
 

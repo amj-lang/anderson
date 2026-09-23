@@ -12,14 +12,14 @@ at random from each stage's pool (vary the pick). Then the SHIP banner. Format:
 
 Print in exactly this order (sub-bullet = quote pool to pick from):
 
-╭─ ⌐■-■  PLAN · 1/5 · THE ARCHITECT · opus/high
+╭─ ⌐■-■  PLAN · 1/5 · THE ARCHITECT · opus/medium
   Pool: "Design twice, so reality only has to happen once." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it."
 
 ╭─ ⌐■-■  GRILL · 2/5 · THE INTERROGATOR · you
   Pool: "Every unanswered question is a bug with a delay." / "The plan you cannot defend out loud is not yet a plan." / "Pin every fork before the code picks one for you."
   (opens with a one-line manifest — `grill · N questions · a🔴 b🟡 c🟢` + a rule — then asks 🔴 → 🟡 one/few at a time, each as a 3-line card `🔴 n/N ▰▰▱▱▱▱▱▱▱▱` / question / → recommendation, batches 🟢 at the end; questions are triaged from the plan's own decision tree, ✅ acceptance criteria (`derived` rows are 🔴 — confirm/edit/drop), 💥 blast radius, 📈 scorecard, and 🧯 error-handling `needs-context` rows — the blast-radius walk is where completeness gets challenged; each row you defer is recorded under state.md `## ❓ Open questions`)
 
-╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · fable/high · tier HARD
+╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · opus/high · tier NORMAL
   Pool: "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system."
   Then the gate marker (live runs print a TL;DR card — what · criteria/proof counts ·
   scorecard · verdict — so plan.md only needs opening when a line raises doubt):
@@ -28,7 +28,7 @@ Print in exactly this order (sub-bullet = quote pool to pick from):
         criteria 5 (2 ticket · 2 design · 1 derived) · proof: 3 test · 1 visual · 1 e2e
         assumptions: 2 load-bearing · all confirmed ✓   (each criterion has its own proof)
         scorecard: Risk 4 · Confidence 8 · Coupling 3 · Reversibility 9
-        tier NORMAL · plan_review fable/high · implement sonnet/medium · diff_review fable/medium
+        tier NORMAL · plan_review opus/high · implement sonnet/medium · diff_review opus/high
         verdict ship → /anderson:approve-plan demo-task — or "approved, go"
 
 ╭─ ⌐■-■  IMPLEMENT · 4/5 · NEO · sonnet/medium
@@ -39,7 +39,7 @@ Print in exactly this order (sub-bullet = quote pool to pick from):
   The implementer gets ONE try at a failing test; a suite still red after it goes to TRINITY,
   who root-causes it on opus/high and hands back a green tree (or says the plan is the problem).
 
-╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · fable/medium
+╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · opus/high
   Pool: "Your green tests are a comfort, not a verdict." / "Untested is unknown, and unknown is unsafe." / "Every assumption is a door you left unlocked."
   Then the gate marker:
   ﾊﾐﾐ 0ｺ1  🔴 G A T E  2 · AWAITING YOU  1ｺ0 ﾐﾐﾊ

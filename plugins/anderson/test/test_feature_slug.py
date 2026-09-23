@@ -66,10 +66,10 @@ class TestSeed(TestSlugWithSlash):
         self.assertIn("already there (stage grill", r.stdout)
         self.assertIn("stage:           grill", state.read_text())
 
-    def test_seed_opus_flag_anywhere_in_the_first_words(self):
+    def test_seed_skips_flags_and_writes_no_review_model(self):
         r = self.run_feature("seed", "--opus", "t2")
-        self.assertIn("review_model opus", r.stdout)
-        self.assertIn("review_model:    opus", (self.repo / "feature-research" / "t2" / "state.md").read_text())
+        self.assertIn("seeded (stage plan)", r.stdout)
+        self.assertNotIn("review_model", (self.repo / "feature-research" / "t2" / "state.md").read_text())
         self.assertEqual(self.run_feature("seed", "--opus").returncode, 64)
 
 

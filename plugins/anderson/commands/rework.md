@@ -10,20 +10,18 @@ incrementing iteration and stopping if it exceeds max_iterations. A round that l
 RED goes to TRINITY (step 1b), never back to the implementer: the implementer gets one try at a
 failing test, and looping it on a red suite is the failure mode this stage exists to stop.
 
-REVIEW MODEL: the diff-review gate runs on the model in state.md `review_model:` (`fable` default,
-`opus` if the pipeline was started with `--opus`; missing field → treat as `fable`). Read it
-fresh; the implementer is unaffected.
+REVIEW MODEL: the diff reviewer always runs on opus (agent frontmatter); no flag, no state field.
 
-REVIEW EFFORT: derived from state.md `tier`, never from a flag.
+REVIEW EFFORT: derived from state.md `tier`.
 RE-TIER FIRST — before reading the effort, re-tier against the ACTUAL diff and take the MAX (tier
 only ever escalates, never drops). `git diff --stat` showing ≥150 lines OR ≥8 files → at least
 HARD; a diff touching security, auth, memory/resource management, concurrency, or
 OS/filesystem/process boundaries → at least HARD. Write the resulting `tier:` back to state.md.
 Then read the effort off it:
   | tier     | DIFF_REVIEW effort |
-  | trivial  | medium             |
-  | normal   | medium             |
-  | hard     | high               |
+  | trivial  | high               |
+  | normal   | high               |
+  | hard     | xhigh              |
   | critical | xhigh              |
 Missing or `pending` tier (a pipeline started before tiering existed) → treat as `hard`. Never
 `max`, never `low`. Pass the resolved value as the per-invocation effort override and print it as
@@ -59,18 +57,17 @@ run in parallel and the reviewer judges files that don't exist yet.
      ╰─
    ```
    Pool (14): "A red test is a witness — interrogate it, never silence it." / "Dodge this." / "The failing line is the symptom; find the organ." / "Name the cause in one line, or you have not found it." / "A test bent until it passes is a bug with paperwork." / "Flakes do not get fixed; they get named." / "Fix the function every caller shares, not the caller that complained." / "Two reds traded is not one red solved." / "Nobody has ever done this before — that is why it is going to work." / "Green earned by deletion is red in disguise." / "The suite is the one witness that cannot be charmed." / "Patch the cause; the symptom was never the enemy." / "If the approach cannot pass, say so — do not keep patching." / "One try, then the specialist. Flailing is not debugging."
-   Then invoke the **test-fixer** subagent (ALWAYS opus/high — `review_model` and `--opus` do not
-   apply to it), seeded with the failing test name(s), the command, its output, and the plan's
+   Then invoke the **test-fixer** subagent (ALWAYS opus/high, never tiered), seeded with the failing test name(s), the command, its output, and the plan's
    "Files touched" list. It writes `feature-research/<task>/repair.md` and sets `repair_verdict:`.
    Route on that verdict: `fixed` → re-run the full suite; green → step 2, still red → another
    repair round. `flake` → note it and go to step 2. `replan` or `needs-human` → print the
    fixer's report and STOP for you (the approach, not the code, is the problem).
-2. (BANNER RULE) Print this DIFF-REVIEW banner as the LAST line before invoking the reviewer (substitute `<review_model>` with the state.md value):
+2. (BANNER RULE) Print this DIFF-REVIEW banner as the LAST line before invoking the reviewer:
    ```
-     ╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · <review_model>/<review_effort>
+     ╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · opus/<review_effort>
      │  "[one quote from the pool]"
      ╰─
    ```
    Pool: same as approve-plan.md step 2.
-   Then invoke the reviewer subagent (model override = state.md `review_model`, effort = `<review_effort>` per REVIEW EFFORT) → appends diff review under `## 🔭 Review` in plan.md; sets diff_verdict.
+   Then invoke the reviewer subagent (effort override = `<review_effort>` per REVIEW EFFORT) → appends diff review under `## 🔭 Review` in plan.md; sets diff_verdict.
 3. Print the GATE 2 line exactly as approve-plan.md step 3 does, then STOP.
