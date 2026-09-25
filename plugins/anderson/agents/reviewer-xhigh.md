@@ -1,9 +1,9 @@
 ---
-name: reviewer
-description: "Independent diff reviewer. Did not write the code. Use at pipeline stage `diff_review`."
+name: reviewer-xhigh
+description: "xhigh-effort twin of reviewer, identical instructions. Use at pipeline stage `diff_review` (and as the auto-mode arbiter) when the tier calls for xhigh (HARD, CRITICAL)."
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: opus
-effort: high
+effort: xhigh
 color: orange
 ---
 

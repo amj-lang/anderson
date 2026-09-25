@@ -63,6 +63,10 @@ INGEST, BASELINE, RED, SHIP and REPORT are orchestrator steps: no subagent, no t
   in auto it is the arbiter, the final diff verdict there. Auto panelists run one rung under the
   arbiter (sonnet/high at TRIVIAL/NORMAL, opus/high at HARD/CRITICAL), and the arbiter backstops
   every panel outcome except a unanimous refute.
+- **Effort is set by picking the agent.** `effort` lives only in agent frontmatter; the Agent tool
+  takes a `model` override but no effort. So each xhigh seat has a twin agent, `plan-reviewer-xhigh`
+  and `reviewer-xhigh`, with the same instructions (`test/test_agent_variants.py` fails if they
+  drift) and `effort: xhigh`. Edit the base file, then copy its body into the twin.
 - **Never `max`, never `low`.** `max` is uncapped thinking for a marginal gain; below medium,
   critique quality drops faster than the tokens it saves.
 

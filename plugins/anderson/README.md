@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.53.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.54.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -351,13 +351,14 @@ blank cell, a test that passes without the diff, or a visual mismatch. Both gate
 TL;DR card (what · criteria/proof counts · scorecard · verdict), so the plan file only needs
 opening when a line raises doubt.
 
-`plan.md` carries further mandatory sections beyond the How narrative: a **`## 💥 Blast radius`** table (planner traces all dependents/callers/siblings/tests/docs before finalizing; reviewer hard-checks it, blocking on blank cells or missed in-scope sites), a **`## 🧯 Error handling`** table (each failure path the change touches, classed `deduced` = handle now or `needs-context` = a business call mirrored into `## ✅ Decisions`; reviewer blocks on a missing path, the diff-review correctness lens checks each `deduced` row is handled), a **`## 📈 Scorecard`** (7 dimensions — Risk, Horizontality, Testability, Reversibility, Confidence, Coupling, Observability — with Planner and Reviewer columns in one table; gaps ≥ 3 reconciled inline; Risk ≥ 8 or Confidence ≤ 3 blocks `ship`), and a **`## 🔭 Review`** section (last, reserved — the plan-reviewer appends its structured report here after making inline edits, and the diff-reviewer appends its diff review here; replaces the former separate `diff-review.md` and `## Diverged because` block). The scorecard is echoed verbatim into `audit.md` by the implementer.
+`plan.md` carries further mandatory sections beyond the How narrative: a **`## 💥 Blast radius`** table (planner traces all dependents/callers/siblings/tests/docs before finalizing; reviewer hard-checks it, blocking on blank cells or missed in-scope sites), a **`## 🧯 Error handling`** table (each failure path the change touches, classed `deduced` = handle now or `needs-context` = a business call mirrored into `## ✅ Decisions`; reviewer blocks on a missing path, the diff-review correctness lens checks each `deduced` row is handled), a **`## 📈 Scorecard`** (6 dimensions — Risk, Horizontality, Testability, Reversibility, Confidence, Coupling — with Planner and Reviewer columns in one table; gaps ≥ 3 reconciled inline; Risk ≥ 8 or Confidence ≤ 3 blocks `ship`), and a **`## 🔭 Review`** section (last, reserved — the plan-reviewer appends its structured report here after making inline edits, and the diff-reviewer appends its diff review here; replaces the former separate `diff-review.md` and `## Diverged because` block). The scorecard is echoed verbatim into `audit.md` by the implementer.
 
 ## Models & effort — what runs where, and how to verify
 
 Each agent declares its own `model` + `effort` in frontmatter, and these switch
 automatically per stage (planner opus/medium, plan-reviewer opus/high, implementer
-sonnet/medium, test-fixer opus/high, reviewer opus/high; the tier raises review effort to xhigh). Resolution order is: `CLAUDE_CODE_SUBAGENT_MODEL`
+sonnet/medium, test-fixer opus/high, reviewer opus/high; the tier raises review effort to xhigh by switching to the `plan-reviewer-xhigh` /
+`reviewer-xhigh` twins, since effort is frontmatter-only and the Agent tool has no per-call effort). Resolution order is: `CLAUDE_CODE_SUBAGENT_MODEL`
 env var → per-invocation override → **agent frontmatter** → main session. The rank of
 the first two against each other is unverified — if you set the env var, the transcript
 grep below is ground truth for what actually ran.
@@ -630,6 +631,8 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.54.0** — **Agent audit against Claude's prompt-audit guide; xhigh review seats are real.** Effort is frontmatter-only (the Agent tool has no per-call effort), so the tiered "effort override" never ran: CRITICAL plan review and HARD+ diff review ran at high. New `plan-reviewer-xhigh` / `reviewer-xhigh` twins (same body, `effort: xhigh`, kept identical by `test/test_agent_variants.py`) and the commands pick the agent by tier. Per agent: planner gets Edit + a rework pass (auto re-runs no longer wipe the review) and a split outlet for oversized tasks; the unread Observability score is gone. Plan-reviewer drops Bash/Write, judges the approach first, and its `fix_first`/`regrill` now match auto routing. Implementer learns the frozen test is hash-checked. Reviewer's panelist/arbiter seats stop contradicting its prompt, and test-fixer fixes outside the plan are now reviewed. Test-fixer treats a flake in touched code as a race. Fable 5.1-era prompt lines removed.
 
 - **0.53.1** — **Root README explains the Opus 5.5 switch.** New "Why Opus 5.5" section: the
 Opus 5.5 vs Fable 5.1 launch benchmark table, what moved per stage in 0.53.0, and the caveat.
