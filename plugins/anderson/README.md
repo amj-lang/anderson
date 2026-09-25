@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.55.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.56.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -254,6 +254,19 @@ per-project. Restart Claude Code fully (not just `/reload`) after installing.
    `dodge-this`, and `~/.claude/plugins/marketplaces/dodge-this/plugins/anderson/`
    contains the files.
 4. Then `/plugin install anderson@dodge-this` and restart once more.
+
+### Recommended companion plugins
+
+Every agent already lists these tools; they light up once the plugin is installed:
+
+```
+claude plugin install typescript-lsp@claude-plugins-official   # + npm i -g typescript-language-server typescript
+claude plugin install context7@claude-plugins-official         # current library docs (hosted MCP)
+```
+
+LSP gives exact reference tracing (blast radius, THE MEROVINGIAN); context7 gives the planner,
+plan-reviewer, implementer and test-fixer current library docs instead of memory. Without them
+the agents fall back to Grep and the installed types.
 
 ## Install — for your team
 
@@ -641,6 +654,8 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.56.0** — **Sharper crew profiles; context7 reaches the builders.** SERAPH establishes the trust boundary first (from CLAUDE.md / SECURITY.md / README, or names its assumption), runs `npm audit` on dependency changes and `gitleaks` / `semgrep` when installed, and ignores fixture secrets. NIOBE decides hot versus cold paths with LSP `incomingCalls` and sizes new client dependencies. THE MEROVINGIAN greps a symbol's name as a string before calling it dead and treats convention-loaded files (framework routes, configs, stories, workers) as live. Every lens finding carries `severity · confidence`, and AGENT SMITH logs each seat's confirmed/raised tally so its hit rate is measurable. The planner reads `docs/adr/` and `CONTEXT.md`. Planner, plan-reviewer, implementer and test-fixer get the context7 docs tool (installed version's types first).
 
 - **0.55.1** — **NIOBE and THE MEROVINGIAN move off Sonnet.** Performance and dead-code calls are judgment, not pattern matching: both seats now run opus/medium below HARD and opus/high from HARD up (SERAPH stays opus/high). Medium needs its own twin, `reviewer-medium`, since effort is frontmatter-only; `bin/crew.py` now names the agent per seat and the twin test covers all three twins.
 

@@ -74,24 +74,36 @@ names. A new error in a scoped file is blocking; errors that predate the diff ar
 LENS REVIEWS: when `feature-research/<task>/review-<lens>-r<n>.md` files exist for this round,
 read them before the diff. Judge each blocking finding on merit: confirm it (it goes into
 "Still open") or reject it with one line why. A lone correct lens outranks your first
-impression; don't redo their lens.
+impression; don't redo their lens. Append the tally to state.md `## Done so far` as one line,
+`crew: SERAPH 1/2 confirmed · MEROVINGIAN 0/1`, so each seat's hit rate is measurable.
 
 LENS SEATS: when the invocation names a lens, you sit in that seat instead of the default
 review. Review ONLY through that lens, blind (seat rules above), and end with
 `VERDICT: ship|fix_first` and `FINDINGS: <n blocking>`. Block only on a concrete path you can
-name (file:line and how it fails); anything weaker is a note.
-- security (SERAPH): outside input validated at the trust boundary; authorization on every new
-  or changed endpoint and action; no secrets in code, logs, or client bundles; no injection
-  (SQL, shell, HTML incl. `dangerouslySetInnerHTML`, path); safe redirects and deserialization;
-  every new dependency justified. Run the repo's `semgrep` on the scope when it has one.
+name (file:line and how it fails); anything weaker is a note. Tag every finding
+`severity · confidence` (high/medium/low) so AGENT SMITH can weigh it.
+- security (SERAPH): first establish the trust boundary, which surfaces face the outside world,
+  from the repo's CLAUDE.md, SECURITY.md or README (not stated → name the assumption you made).
+  Then: outside input validated at that boundary; authorization on every new or changed
+  endpoint and action; no secrets in code, logs, or client bundles (fake secrets in test
+  fixtures and mocks are fine); no injection (SQL, shell, HTML incl. `dangerouslySetInnerHTML`,
+  path); safe redirects and deserialization; every new dependency justified. When package.json
+  or a lockfile changed, run `npm audit --omit=dev` (or the repo's package manager's audit); run
+  `gitleaks` and `semgrep` on the scope when they are installed.
 - performance (NIOBE): a query or request inside a loop (N+1); work quadratic in an input that
   can grow; sync or blocking I/O on a request or render path; a fetch or list with no limit or
-  pagination; a React effect or prop that re-runs or re-renders every render. Blocking only on
-  a hot path (request, render, loop over I/O); elsewhere a note.
+  pagination; a React effect or prop that re-runs or re-renders every render. Decide hot versus
+  cold with LSP `incomingCalls` (is it reached from a request, a render, or a loop?), not by
+  guessing. For a new client-side dependency, compare its size (`npm view <pkg>
+  dist.unpackedSize`) with what it replaces. Blocking only on a hot path; elsewhere a note.
 - leftovers (THE MEROVINGIAN): code this diff orphaned. For every symbol the diff replaces,
-  renames, or stops calling, run LSP `findReferences` (Grep otherwise): zero references and not
-  a public export is blocking. Same for imports, exports, flags, styles, fixtures and tests that
-  only served removed behaviour. Run the repo's `knip`, or `tsc --noEmit --noUnusedLocals` when
+  renames, or stops calling, run LSP `findReferences` (Grep otherwise), then Grep its name as a
+  string: dynamic imports, route tables, DI registration, i18n keys and CSS classes reference
+  code by string, which LSP misses. Files loaded by convention are live with zero references:
+  framework routes (Next.js `app/`, `pages/`, `route.ts`, `middleware.ts`), `*.config.*`,
+  stories, service workers, and anything named in package.json or tooling config. Orphaned and
+  not a public export is blocking. Same for imports, exports, flags, styles, fixtures and tests
+  that only served removed behaviour. Run the repo's `knip`, or `tsc --noEmit --noUnusedLocals` when
   it has a tsconfig. Dead code that predates this diff is out of scope.
 
 Append your diff review under `## 🔭 Review` in `feature-research/<task>/plan.md` as a

@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: "Executes an approved plan from feature-research/<task>/plan.md and writes audit.md. Use at pipeline stage `implement`."
-tools: Read, Grep, Glob, Edit, Write, Bash, LSP
+tools: Read, Grep, Glob, Edit, Write, Bash, LSP, mcp__plugin_context7_context7
 model: sonnet
 effort: medium
 color: green
@@ -19,6 +19,9 @@ dependency? → one line? → only then minimal new code. No speculative paramet
 no unused generality, no helper for a single call site. Safety is exempt —
 validation, security, accessibility, and error handling the plan requires are
 never cut.
+
+Before using a library API you are not certain of, look it up for the version installed:
+LSP hover or its types in node_modules first, then usage docs (context7 when available).
 
 Before starting, read the plan's `## 💥 Blast radius` and `## 📈 Scorecard` sections.
 When the plan scores Risk ≥ 8 or Coupling ≥ 7, re-check the changed symbols' callers before

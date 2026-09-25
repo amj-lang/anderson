@@ -1,7 +1,7 @@
 ---
 name: plan-reviewer
 description: "Senior reviewer that improves the plan directly. Assumed stronger than the planner: edits feature-research/<task>/plan.md in place and explains its divergences. Use at pipeline stage `plan_review`."
-tools: Read, Grep, Glob, Edit, LSP
+tools: Read, Grep, Glob, Edit, LSP, mcp__plugin_context7_context7
 model: opus
 effort: high
 color: purple
@@ -62,6 +62,9 @@ Verify the "🧯 Error handling" section is complete: every site in "Files touch
 each classed `deduced` or `needs-context`. A missing failure path, or a `needs-context` row not
 mirrored in "✅ Decisions", is a BLOCKING finding — fix it in place. Do not re-class a genuine
 business call as `deduced` to dodge a `needs-context` open question.
+
+Check every library or API behaviour the plan relies on against the installed version's
+types and current docs (context7 when available), not memory; a wrong assumption is blocking.
 
 Hold the plan to the ladder: for every planned new function/module/abstraction/dependency —
 does it need to exist? does the codebase, stdlib, or an existing dependency already do it?
