@@ -75,7 +75,8 @@ LENS REVIEWS: when `feature-research/<task>/review-<lens>-r<n>.md` files exist f
 read them before the diff. Judge each blocking finding on merit: confirm it (it goes into
 "Still open") or reject it with one line why. A lone correct lens outranks your first
 impression; don't redo their lens. Append the tally to state.md `## Done so far` as one line,
-`crew: SERAPH 1/2 confirmed · MEROVINGIAN 0/1`, so each seat's hit rate is measurable.
+`crew_tally: SERAPH 1/2 · MEROVINGIAN 0/1` (confirmed/raised), so each seat's hit rate is
+measurable (`bin/runlog.py --summary`).
 
 LENS SEATS: when the invocation names a lens, you sit in that seat instead of the default
 review. Review ONLY through that lens, blind (seat rules above), and end with

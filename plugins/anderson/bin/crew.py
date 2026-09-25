@@ -2,13 +2,14 @@
 """Pick the diff-review crew (the lens seats that join AGENT SMITH) from what the diff touches.
 
 Deterministic on purpose: routing is pattern matching, not a model call.
-usage: crew.py <tier> <file>...   (run from the repo root; files = the review scope)
+usage: crew.py <tier> [--hint lens,lens] <file>...   (run from the repo root; files = the scope)
 prints one line per summoned lens: `<lens> <PERSONA> <agent> <model/effort> <reason>`, or `none`.
 Every seat runs on opus; effort is frontmatter-only, so the effort picks the agent.
 
 ponytail: regex over paths + changed lines; over-summons on a name match (cheap: one extra
 seat), under-summons security only below HARD (the tier forces SERAPH from HARD up).
 """
+import argparse
 import re
 import subprocess
 import sys
@@ -51,7 +52,7 @@ def changed(path):
     return added, removed
 
 
-def crew(tier, files):
+def crew(tier, files, hints=()):
     hard = tier in ("hard", "critical")
     picks = {}
     for path in files:
@@ -66,13 +67,22 @@ def crew(tier, files):
             picks.setdefault("leftovers", f"removed code in {path}")
     if hard:
         picks.setdefault("security", f"tier {tier}")
+    for lens in hints:  # the plan's Crew hint: add-only, never removes a rule's pick
+        picks.setdefault(lens, "hint from plan")
     seat = {"security": ("reviewer", "opus/high")}
     below = ("reviewer", "opus/high") if hard else ("reviewer-medium", "opus/medium")
     return [(lens, PERSONA[lens], *seat.get(lens, below), why) for lens, why in picks.items()]
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        sys.exit("usage: crew.py <tier> <file>...")
-    seats = crew(sys.argv[1].lower(), sys.argv[2:])
+    ap = argparse.ArgumentParser(description="Pick the diff-review crew from what the diff touches.")
+    ap.add_argument("tier")
+    ap.add_argument("files", nargs="*")
+    ap.add_argument("--hint", default="", help="comma-separated lenses from the plan's Crew hint")
+    args = ap.parse_args()
+    hints = [h.strip().lower() for h in args.hint.split(",") if h.strip().lower() not in ("", "none")]
+    for h in hints:
+        if h not in PERSONA:
+            print(f"crew.py: ignoring unknown hint lens '{h}' (use {', '.join(PERSONA)})", file=sys.stderr)
+    seats = crew(args.tier.lower(), args.files, [h for h in hints if h in PERSONA])
     print("\n".join(" ".join(s) for s in seats) or "none")

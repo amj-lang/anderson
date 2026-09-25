@@ -66,6 +66,9 @@ business call as `deduced` to dodge a `needs-context` open question.
 Check every library or API behaviour the plan relies on against the installed version's
 types and current docs (context7 when available), not memory; a wrong assumption is blocking.
 
+Check the `**Crew hint:**` line: add a lens the diff will need that its paths and keywords
+won't reveal; never remove one the planner asked for.
+
 Hold the plan to the ladder: for every planned new function/module/abstraction/dependency —
 does it need to exist? does the codebase, stdlib, or an existing dependency already do it?
 could it be one line? Edit down in place what rungs 1–5 already provide (safety —

@@ -28,9 +28,9 @@ class TestCrew(unittest.TestCase):
         with open(os.path.join(self.repo, rel), "w") as f:
             f.write(text)
 
-    def run_crew(self, tier, *files):
-        out = subprocess.run([sys.executable, CREW, tier, *files], cwd=self.repo,
-                             capture_output=True, text=True, check=True).stdout
+    def run_crew(self, tier, *files, hint=None):
+        cmd = [sys.executable, CREW, tier, *files] + (["--hint", hint] if hint else [])
+        out = subprocess.run(cmd, cwd=self.repo, capture_output=True, text=True, check=True).stdout
         return {line.split()[0]: line.split()[2] for line in out.splitlines() if line != "none"}
 
     def test_docs_only_trivial_summons_nobody(self):
@@ -52,6 +52,15 @@ class TestCrew(unittest.TestCase):
                                    "setInterval(tick, 10);\n")
         self.assertEqual(self.run_crew("hard", "src/list.tsx"),
                          {"security": "reviewer", "performance": "reviewer"})
+
+    def test_hint_adds_a_seat_the_rules_missed_and_ignores_unknown_lenses(self):
+        self.write("README.md", "refunds are computed client-side now\n")
+        self.assertEqual(self.run_crew("trivial", "README.md", hint="security,bogus"),
+                         {"security": "reviewer"})
+
+    def test_hint_none_changes_nothing(self):
+        self.write("README.md", "hello again\n")
+        self.assertEqual(self.run_crew("trivial", "README.md", hint="none"), {})
 
 
 if __name__ == "__main__":

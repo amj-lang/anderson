@@ -53,6 +53,9 @@ budget goes inside a collapse, never above the fold. Use this shape:
 # <task> — plan
 **Tier:** `pending` — routing computes it from the 📈 Scorecard below and rewrites this line with
 the crew it summons (never guess it yourself; the tier is not yours to set).
+**Crew hint:** <`none`, or `lens (why) · lens (why)`: diff-review seats this task needs that file
+names won't reveal, e.g. an auth check inside business logic, a hot path behind a helper, code
+this plan retires. Lenses: security · performance · leftovers. Add-only: routing seats the rest.>
 
 ## 🎯 What
 <≤3 lines: what "done" means>

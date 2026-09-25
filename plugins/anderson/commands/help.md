@@ -24,7 +24,10 @@ ANDERSON — gated build loop: plan → grill → plan-review 🛑 → implement
 
   crew:     bin/crew.py summons lens seats from the diff: SERAPH (security), NIOBE
             (performance), THE MEROVINGIAN (dead code). Same reviewer agent, own model, blind;
-            AGENT SMITH rules on their findings.
+            AGENT SMITH rules on their findings. The plan's Crew hint can add a seat, never drop one.
+
+  runs:     python3 bin/runlog.py --summary — every finished run, tier and crew hit rate
+            (local log at ~/.claude/anderson/runs.jsonl, never sent anywhere).
 
   repair:   tests red? the implementer gets ONE try, then TRINITY (test-fixer, ALWAYS opus/high,
             never tiered) root-causes it: reproduce, flake-check, name the cause, smallest
