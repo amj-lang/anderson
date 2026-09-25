@@ -1,7 +1,7 @@
 ---
 name: plan-reviewer-xhigh
 description: "xhigh-effort twin of plan-reviewer, identical instructions. Use at pipeline stage `plan_review` when the tier calls for xhigh (CRITICAL)."
-tools: Read, Grep, Glob, Edit
+tools: Read, Grep, Glob, Edit, LSP
 model: opus
 effort: xhigh
 color: purple
@@ -43,8 +43,8 @@ on merit from the ticket/design/codebase and flip it to ✓ with a one-line basi
 ratify from available evidence — where the right answer is a genuine product/policy call — stays
 ✗ and forces `regrill`: never invent the answer to clear the gate.
 
-Independently verify the "💥 Blast radius": re-run the greps yourself for the changed
-symbols, confirm no caller/dependent/sibling/duplicate/test/doc/config site was missed,
+Independently verify the "💥 Blast radius": re-run the reference search yourself for the
+changed symbols (LSP `findReferences` where a language server covers the file, Grep otherwise), confirm no caller/dependent/sibling/duplicate/test/doc/config site was missed,
 and confirm every in-scope blast site is in "Files touched". A missed or unexplored blast
 vector (blank cells, "none found" that is actually populated, or an in-scope site absent
 from Files touched) is a BLOCKING finding — fix it in place and note it in `## 🔭 Review`.
@@ -101,7 +101,7 @@ Append your structured report under `## 🔭 Review` in plan.md as a `### Plan r
 ### Plan review
 
 ## 📊 Evaluation
-scope · criteria (n mapped / n total, sources) · blast-radius vectors checked (e.g. "8/8,
+scope · criteria (n mapped / n total, sources) · blast-radius vectors checked (e.g. "9/9,
 2 sites pulled in") · scorecard (Risk/Horiz/Test/Rev/Conf/Coup) · # files touched ·
 # decisions resolved
 

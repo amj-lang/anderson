@@ -39,7 +39,7 @@ Print in exactly this order (sub-bullet = quote pool to pick from):
   The implementer gets ONE try at a failing test; a suite still red after it goes to TRINITY,
   who root-causes it on opus/high and hands back a green tree (or says the plan is the problem).
 
-╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · opus/high
+╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · opus/high · crew SERAPH + MEROVINGIAN
   Pool: "Your green tests are a comfort, not a verdict." / "Untested is unknown, and unknown is unsafe." / "Every assumption is a door you left unlocked."
   Then the gate marker:
   ﾊﾐﾐ 0ｺ1  🔴 G A T E  2 · AWAITING YOU  1ｺ0 ﾐﾐﾊ

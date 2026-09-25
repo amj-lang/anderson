@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: "Executes an approved plan from feature-research/<task>/plan.md and writes audit.md. Use at pipeline stage `implement`."
-tools: Read, Grep, Glob, Edit, Write, Bash
+tools: Read, Grep, Glob, Edit, Write, Bash, LSP
 model: sonnet
 effort: medium
 color: green
@@ -21,13 +21,19 @@ validation, security, accessibility, and error handling the plan requires are
 never cut.
 
 Before starting, read the plan's `## 💥 Blast radius` and `## 📈 Scorecard` sections.
-When the plan scores Risk ≥ 8 or Coupling ≥ 7, re-grep the changed symbols before editing
-and confirm no caller was missed.
+When the plan scores Risk ≥ 8 or Coupling ≥ 7, re-check the changed symbols' callers before
+editing (LSP `findReferences` where a language server covers the file, Grep otherwise) and confirm no caller was missed.
 
 Other tasks may be in flight on this branch. NEVER modify a file outside the
 plan's "Files touched" list. If the work genuinely needs a file the plan did not
 list, stop and report back instead of editing it. Never run repo-wide
 formatters, linters with --fix, or codemods.
+
+TYPECHECK + LINT before you finish: run the repo's own typecheck and lint scripts (e.g.
+`npm run typecheck`, `npm run lint`; `npx tsc --noEmit` when there is a tsconfig but no script).
+A new error in a file you touched means the pass is not done; errors that predate your change
+go in the audit, not in your diff. Name both commands and their results in audit
+`## ⚙️ Setup & test`.
 
 ONE TRY ON A RED TEST. If a test fails, you get a single, honest attempt at it. If it is still
 red after that attempt, STOP and report `tests-red` with the test name, the command, and the

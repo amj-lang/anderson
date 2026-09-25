@@ -44,6 +44,20 @@ Deliberately biased toward escalation: over-reviewing costs tokens, under-review
 
 INGEST, BASELINE, RED, SHIP and REPORT are orchestrator steps: no subagent, no tiering.
 
+## The crew (both modes)
+
+Lens seats that join the diff review, summoned by `bin/crew.py` from the diff itself. Same
+`reviewer` agent (effort `high`, one rung under the final verdict), model per seat:
+
+| Persona | Lens | Summoned when | trivial | normal | hard | critical |
+|---|---|---|---|---|---|---|
+| SERAPH | security | auth/session/API/input/SQL/shell/HTML/secrets/deps touched | opus* | opus* | opus | opus |
+| NIOBE | performance | queries, loops over I/O, React effects, caching touched | sonnet* | sonnet* | opus* | opus* |
+| THE MEROVINGIAN | leftovers | the diff changes or removes existing code | sonnet* | sonnet* | sonnet* | sonnet* |
+
+`*` = only when the pattern matches. SERAPH is always seated from HARD up. In auto mode, when
+SERAPH sits, the `regressions+security` panel lens narrows to `regressions`.
+
 ## The rules behind the tables
 
 - **The plan critique always runs at least one rung above the planner.** The planner is opus/medium,

@@ -22,6 +22,10 @@ ANDERSON — gated build loop: plan → grill → plan-review 🛑 → implement
   models:   planner opus/medium · plan-review opus (a rung above the planner) · implementer
             sonnet/medium · repair opus/high · diff-review/arbiter opus. No flags, no Fable.
 
+  crew:     bin/crew.py summons lens seats from the diff: SERAPH (security), NIOBE
+            (performance), THE MEROVINGIAN (dead code). Same reviewer agent, own model, blind;
+            AGENT SMITH rules on their findings.
+
   repair:   tests red? the implementer gets ONE try, then TRINITY (test-fixer, ALWAYS opus/high,
             never tiered) root-causes it: reproduce, flake-check, name the cause, smallest
             fix, full suite green. It may never weaken, skip or delete a test. Verdicts: fixed ·
