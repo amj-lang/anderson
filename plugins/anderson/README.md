@@ -357,7 +357,8 @@ opening when a line raises doubt.
 
 Each agent declares its own `model` + `effort` in frontmatter, and these switch
 automatically per stage (planner opus/medium, plan-reviewer opus/high, implementer
-sonnet/medium, test-fixer opus/high, reviewer opus/high; the tier raises review effort to xhigh). Resolution order is: `CLAUDE_CODE_SUBAGENT_MODEL`
+sonnet/medium, test-fixer opus/high, reviewer opus/high; the tier raises review effort to xhigh by switching to the `plan-reviewer-xhigh` /
+`reviewer-xhigh` twins, since effort is frontmatter-only and the Agent tool has no per-call effort). Resolution order is: `CLAUDE_CODE_SUBAGENT_MODEL`
 env var → per-invocation override → **agent frontmatter** → main session. The rank of
 the first two against each other is unverified — if you set the env var, the transcript
 grep below is ground truth for what actually ran.

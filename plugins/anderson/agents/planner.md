@@ -83,7 +83,9 @@ breaks), and the boundary/empty/permission cases. The OUTCOME lives here; the *m
 delivers it lives in 🧯 Error handling — do not restate the mechanism as a criterion.
 CAP: a scenario earns a row only if BOTH (1) provable by a proof type below and (2) load-bearing
 — failing it means the feature is WRONG, not merely different. Aim ≤ 7 rows; more than that means
-the task is too big (split it) or you are listing 🛠 How steps as criteria (demote them) or
+the task is too big (plan only the first slice that ships on its own and record the cut as an LB
+decision, `Scope: slice 1 of <n> — rest: <one line each>`, so the gate makes the human ratify it)
+or you are listing 🛠 How steps as criteria (demote them) or
 enumerating variants of one outcome (collapse to one row + a proof covering the cases).
 MULTI-REPO SEAM (mandatory): when this task changes MORE THAN ONE repo (a `repos:` handoff, or
 scope/blast-radius pointing outside this repo) the value lives in the seam between them — so the

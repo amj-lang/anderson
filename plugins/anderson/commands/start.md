@@ -44,6 +44,9 @@ so a wrong plan is invisible to everything after it. Every tier gets a plan crit
   | critical | xhigh       | xhigh       |
 Never `max` (buys +0.6 points for +20k tokens) and never `low` (quality falls off a cliff below
 medium). The usable band is medium → xhigh.
+Effort is frontmatter-only (the Agent tool has no effort parameter), so the effort picks the
+agent: `high` → **plan-reviewer** / **reviewer**, `xhigh` → **plan-reviewer-xhigh** /
+**reviewer-xhigh** (same instructions, kept identical by test/test_agent_variants.py).
 
 TIER LINE: the tier and the crew it summons are never implicit. Whenever the tier is computed or
 re-computed, rewrite the `**Tier:**` line directly under the plan.md H1 (`# <task> — plan`) to
@@ -214,8 +217,8 @@ run in parallel and the reviewer judges files that don't exist yet.
      ╰─
    ```
    Pool (24): "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does." / "The second pair of eyes sees the assumption the first pair made." / "Improve the plan, not the planner's feelings." / "A good review changes the plan; a great one changes the question." / "Disagree on paper now, or apologize in the incident channel later." / "The cheapest place to be wrong is before the first commit." / "Trust the plan less than the reasons behind it." / "You've already made the choice; now you have to understand it." / "What's really going to bake your noodle is, would you still have broken it if I hadn't said anything?" / "We can never see past the choices we don't understand." / "You have a good soul — and I'm tough on souls." / "I hate giving good people bad news." / "Being the One is like being in love: no one can tell you, you just know it." / "I'd ask you to sit down, but you're not going to anyway." / "Candy?" / "You have the gift, but it looks like you're waiting for something." / "I only ever tell you what you need to hear." / "The assumption nobody stated is the one that breaks." / "Improve the plan, not the planner's mood." / "A second pair of eyes is the cheapest insurance you'll buy." / "I can't make the choice for you; I can make you see it."
-   Then immediately invoke the **plan-reviewer** subagent (effort override = `<review_effort>`
-   per REVIEW EFFORT) → makes inline strike-through
+   Then immediately invoke the **plan-reviewer** subagent (**plan-reviewer-xhigh** when
+   `<review_effort>` is xhigh) → makes inline strike-through
    edits and appends its review under `## 🔭 Review` in plan.md; sets plan_verdict.
 6. Print the GATE 1 TL;DR card and STOP. Fill EVERY value from plan.md/state.md (real slug,
    real verdict, real counts — copy-pasteable, no literal `<task>`); omit zero-count entries

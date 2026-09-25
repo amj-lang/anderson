@@ -345,8 +345,8 @@ Quote: pick one line from the stage's pool; vary it across stages.
 
    d. (BANNER RULE) Print the PLAN GATE banner now, last line before invoking the plan-reviewer.
 
-   e. Invoke ONE **plan-reviewer** subagent (effort override `high`, or `xhigh` when tier is
-      CRITICAL — always a rung above the opus/medium planner)
+   e. Invoke ONE **plan-reviewer** subagent (**plan-reviewer-xhigh** when tier is CRITICAL —
+      always a rung above the opus/medium planner)
       with a refute posture: "Refute this plan — find why it
       fails, misses an acceptance criterion, or under-counts the blast radius; default to reject
       (`fix_first`) if uncertain. Make inline fixes (your normal mode). Append your report under
@@ -583,7 +583,7 @@ Quote: pick one line from the stage's pool; vary it across stages.
       them), run HARD and CRITICAL panelists on the reviewer default (opus), since a missed bug at
       those tiers has real blast radius. Every panelist runs at `high` (reviewer frontmatter
       default) — one rung under the arbiter at HARD/CRITICAL. Arbiter runs on opus at `high` for
-      TRIVIAL/NORMAL and `xhigh` for HARD/CRITICAL. `<review_effort>` in the DIFF GATE banner = the
+      TRIVIAL/NORMAL and `xhigh` (the **reviewer-xhigh** agent) for HARD/CRITICAL. `<review_effort>` in the DIFF GATE banner = the
       arbiter's effort. If no override available, all panelists run at the reviewer default —
       model tiering is a cost optimization, not a correctness requirement. Record the model the
       panel actually ran on as `panel_model: <sonnet|opus>` in state.md
@@ -606,8 +606,8 @@ Quote: pick one line from the stage's pool; vary it across stages.
           → set `arbiter_trigger: none` and go to rework (7h).
       (`arbiter_trigger` is step 7g's metric reference — records WHY the arbiter ran, surfaced in
       the `metrics:` line — distinct from `arbiter`, which records its verdict.)
-      When arbiter runs: invoke ONE **reviewer** subagent as the ARBITER (read-only; opus, effort
-      override per MODEL TIERING above), given the diff + `plan.md` + task + ALL panel review
+      When arbiter runs: invoke ONE **reviewer** subagent as the ARBITER (read-only; opus; **reviewer-xhigh**
+      at HARD/CRITICAL per MODEL TIERING above), given the diff + `plan.md` + task + ALL panel review
       files. Frame it:
         "You are the ARBITER. Either the panel split, this is a critical task, or the panel
          unanimously shipped and you are the final sign-off. Read every review file and the diff.

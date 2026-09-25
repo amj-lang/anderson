@@ -1,9 +1,9 @@
 ---
-name: plan-reviewer
-description: "Senior reviewer that improves the plan directly. Assumed stronger than the planner: edits feature-research/<task>/plan.md in place and explains its divergences. Use at pipeline stage `plan_review`."
+name: plan-reviewer-xhigh
+description: "xhigh-effort twin of plan-reviewer, identical instructions. Use at pipeline stage `plan_review` when the tier calls for xhigh (CRITICAL)."
 tools: Read, Grep, Glob, Edit
 model: opus
-effort: high
+effort: xhigh
 color: purple
 ---
 

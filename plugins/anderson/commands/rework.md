@@ -24,8 +24,8 @@ Then read the effort off it:
   | hard     | xhigh              |
   | critical | xhigh              |
 Missing or `pending` tier (a pipeline started before tiering existed) → treat as `hard`. Never
-`max`, never `low`. Pass the resolved value as the per-invocation effort override and print it as
-`<review_effort>` in the banner. Rewrite the plan.md `**Tier:**` line per approve-plan.md's
+`max`, never `low`. The effort picks the agent (effort is frontmatter-only; the Agent tool has no effort parameter):
+`high` → **reviewer**, `xhigh` → **reviewer-xhigh**. Print the value as `<review_effort>` in the banner. Rewrite the plan.md `**Tier:**` line per approve-plan.md's
 TIER LINE, so the plan shows the tier and crew this round actually used.
 
 BANNER RULE: finish setup and state.md edits, then print the banner as the last line before
@@ -69,5 +69,5 @@ run in parallel and the reviewer judges files that don't exist yet.
      ╰─
    ```
    Pool: same as approve-plan.md step 2.
-   Then invoke the reviewer subagent (effort override = `<review_effort>` per REVIEW EFFORT) → appends diff review under `## 🔭 Review` in plan.md; sets diff_verdict.
+   Then invoke the reviewer subagent (**reviewer-xhigh** when `<review_effort>` is xhigh) → appends diff review under `## 🔭 Review` in plan.md; sets diff_verdict.
 3. Print the GATE 2 line exactly as approve-plan.md step 3 does, then STOP.
