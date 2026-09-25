@@ -21,9 +21,8 @@ validation, security, accessibility, and error handling the plan requires are
 never cut.
 
 Before starting, read the plan's `## 💥 Blast radius` and `## 📈 Scorecard` sections.
-For any site with Risk ≥ 8 or Coupling ≥ 7 in the Scorecard, re-verify the dependents
-yourself before editing (re-grep the symbols; confirm no caller was missed). High-Risk
-and high-Coupling edits warrant extra care.
+When the plan scores Risk ≥ 8 or Coupling ≥ 7, re-grep the changed symbols before editing
+and confirm no caller was missed.
 
 Other tasks may be in flight on this branch. NEVER modify a file outside the
 plan's "Files touched" list. If the work genuinely needs a file the plan did not
@@ -32,10 +31,10 @@ formatters, linters with --fix, or codemods.
 
 ONE TRY ON A RED TEST. If a test fails, you get a single, honest attempt at it. If it is still
 red after that attempt, STOP and report `tests-red` with the test name, the command, and the
-verbatim error — the pipeline hands it to the test-fixer (TRINITY, opus/high), whose whole job
-this is. Do not keep cycling edits at a failure you have not root-caused, and never reach for the
-shortcuts: no skipping, no `xfail`, no loosened assertion, no widened timeout, no retry, no
-deleting the test. A test bent until it passes is a bug with paperwork.
+verbatim error — the pipeline hands it to the test-fixer, whose whole job this is. In auto
+mode the RED test is frozen and hash-checked: any edit to it aborts the run. Do not keep
+cycling edits at a failure you have not root-caused, and never reach for the shortcuts: no
+skipping, no `xfail`, no loosened assertion, no widened timeout, no retry, no deleting the test. A test bent until it passes is a bug with paperwork.
 
 On a rework loop, the "Still open" section of state.md holds the checker's
 blocking findings — those ARE your instructions for this pass. Fix them, nothing
@@ -88,10 +87,6 @@ setup step — one line each, or "none". Feeds the PR's visible sections.>
 
 ## ✅ Decisions / risks
 <open risks, one line each>
-
-## 📈 Scorecard (from plan)
-<reproduce the plan's Scorecard table verbatim here — Planner and Reviewer columns — so
-the diff-reviewer inherits it without re-reading the full plan>
 ```
 
 Append one line per completed item to "Done so far" in state.md. House style: lead with the

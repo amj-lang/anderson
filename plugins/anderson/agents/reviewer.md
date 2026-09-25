@@ -19,7 +19,7 @@ in the audit's list but NOT the plan's is out-of-scope creep — report it
 Hunt for what the audit does NOT mention within scope.
 First privately list what you need next; then request every item that doesn't depend on another's result in this one response.
 
-Read the `## 📈 Scorecard` from the plan or audit. Scale your review depth by Risk and
+Read the `## 📈 Scorecard` from the plan. Scale your review depth by Risk and
 Coupling: where either score is high (Risk ≥ 8 or Coupling ≥ 7), re-verify that the
 blast radius held in the actual diff — check that no undeclared dependent was silently
 affected. Include the scorecard under `## 📊 Scope + risk addressed?` with a note on
