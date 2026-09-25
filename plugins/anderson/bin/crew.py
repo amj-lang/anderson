@@ -3,7 +3,8 @@
 
 Deterministic on purpose: routing is pattern matching, not a model call.
 usage: crew.py <tier> <file>...   (run from the repo root; files = the review scope)
-prints one line per summoned lens: `<lens> <PERSONA> <model> <reason>`, or `none`.
+prints one line per summoned lens: `<lens> <PERSONA> <agent> <model/effort> <reason>`, or `none`.
+Every seat runs on opus; effort is frontmatter-only, so the effort picks the agent.
 
 ponytail: regex over paths + changed lines; over-summons on a name match (cheap: one extra
 seat), under-summons security only below HARD (the tier forces SERAPH from HARD up).
@@ -65,8 +66,9 @@ def crew(tier, files):
             picks.setdefault("leftovers", f"removed code in {path}")
     if hard:
         picks.setdefault("security", f"tier {tier}")
-    model = {"security": "opus", "performance": "opus" if hard else "sonnet", "leftovers": "sonnet"}
-    return [(lens, PERSONA[lens], model[lens], why) for lens, why in picks.items()]
+    seat = {"security": ("reviewer", "opus/high")}
+    below = ("reviewer", "opus/high") if hard else ("reviewer-medium", "opus/medium")
+    return [(lens, PERSONA[lens], *seat.get(lens, below), why) for lens, why in picks.items()]
 
 
 if __name__ == "__main__":

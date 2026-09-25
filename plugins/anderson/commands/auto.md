@@ -573,8 +573,8 @@ Quote: pick one line from the stage's pool; vary it across stages.
                                   less (a missed step)?"
       CREW on top of the tier-sized panel: run
       `python3 "${CLAUDE_PLUGIN_ROOT}/bin/crew.py" <tier> <files-changed from 7d>` and add one
-      panelist per output line (`<lens> <PERSONA> <model> <reason>`; the lens definitions live in
-      the reviewer agent), on that line's model. When the crew includes `security`, the
+      panelist per output line (`<lens> <PERSONA> <agent> <model/effort> <reason>`; the lens
+      definitions live in the reviewer agent), invoking the agent that line names. When the crew includes `security`, the
       `regressions+security` lens narrows to `regressions` (SERAPH owns security). Record
       `crew: <PERSONA + … | none>` in state.md and list the crew on the DIFF GATE banner.
       Record `reviewers: <n>` (crew included). Run panelists IN PARALLEL — emit all N **reviewer** invocations in

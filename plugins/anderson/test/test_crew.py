@@ -40,18 +40,18 @@ class TestCrew(unittest.TestCase):
     def test_new_auth_file_summons_seraph_not_merovingian(self):
         os.makedirs(os.path.join(self.repo, "src/auth"))
         self.write("src/auth/login.ts", "export const login = () => 1;\n")  # untracked
-        self.assertEqual(self.run_crew("normal", "src/auth/login.ts"), {"security": "opus"})
+        self.assertEqual(self.run_crew("normal", "src/auth/login.ts"), {"security": "reviewer"})
 
     def test_modified_component_with_effect_summons_niobe_and_merovingian(self):
         self.write("src/list.tsx", "export const a = 1;\nuseEffect(() => fetchAll(), [a]);\n")
         self.assertEqual(self.run_crew("normal", "src/list.tsx"),
-                         {"performance": "sonnet", "leftovers": "sonnet"})
+                         {"performance": "reviewer-medium", "leftovers": "reviewer-medium"})
 
-    def test_hard_tier_forces_seraph_and_opus_niobe(self):
+    def test_hard_tier_forces_seraph_and_lifts_niobe_to_high(self):
         self.write("src/list.tsx", "export const a = 1;\nexport function old() { return a; }\n"
                                    "setInterval(tick, 10);\n")
         self.assertEqual(self.run_crew("hard", "src/list.tsx"),
-                         {"security": "opus", "performance": "opus"})
+                         {"security": "reviewer", "performance": "reviewer"})
 
 
 if __name__ == "__main__":

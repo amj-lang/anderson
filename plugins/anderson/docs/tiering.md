@@ -47,13 +47,13 @@ INGEST, BASELINE, RED, SHIP and REPORT are orchestrator steps: no subagent, no t
 ## The crew (both modes)
 
 Lens seats that join the diff review, summoned by `bin/crew.py` from the diff itself. Same
-`reviewer` agent (effort `high`, one rung under the final verdict), model per seat:
+`reviewer` prompt, always on opus; the effort picks the agent (`reviewer-medium` or `reviewer`):
 
 | Persona | Lens | Summoned when | trivial | normal | hard | critical |
 |---|---|---|---|---|---|---|
-| SERAPH | security | auth/session/API/input/SQL/shell/HTML/secrets/deps touched | opus* | opus* | opus | opus |
-| NIOBE | performance | queries, loops over I/O, React effects, caching touched | sonnet* | sonnet* | opus* | opus* |
-| THE MEROVINGIAN | leftovers | the diff changes or removes existing code | sonnet* | sonnet* | sonnet* | sonnet* |
+| SERAPH | security | auth/session/API/input/SQL/shell/HTML/secrets/deps touched | opus/high* | opus/high* | opus/high | opus/high |
+| NIOBE | performance | queries, loops over I/O, React effects, caching touched | opus/medium* | opus/medium* | opus/high* | opus/high* |
+| THE MEROVINGIAN | leftovers | the diff changes or removes existing code | opus/medium* | opus/medium* | opus/high* | opus/high* |
 
 `*` = only when the pattern matches. SERAPH is always seated from HARD up. In auto mode, when
 SERAPH sits, the `regressions+security` panel lens narrows to `regressions`.
@@ -78,9 +78,9 @@ SERAPH sits, the `regressions+security` panel lens narrows to `regressions`.
   arbiter (sonnet/high at TRIVIAL/NORMAL, opus/high at HARD/CRITICAL), and the arbiter backstops
   every panel outcome except a unanimous refute.
 - **Effort is set by picking the agent.** `effort` lives only in agent frontmatter; the Agent tool
-  takes a `model` override but no effort. So each xhigh seat has a twin agent, `plan-reviewer-xhigh`
-  and `reviewer-xhigh`, with the same instructions (`test/test_agent_variants.py` fails if they
-  drift) and `effort: xhigh`. Edit the base file, then copy its body into the twin.
+  takes a `model` override but no effort. So each off-default effort has a twin agent
+  (`plan-reviewer-xhigh`, `reviewer-xhigh`, `reviewer-medium`) with the same instructions (`test/test_agent_variants.py` fails if they
+  drift) and its own `effort:`. Edit the base file, then copy its body into every twin.
 - **Never `max`, never `low`.** `max` is uncapped thinking for a marginal gain; below medium,
   critique quality drops faster than the tokens it saves.
 

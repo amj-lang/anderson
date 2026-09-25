@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.55.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.55.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -130,8 +130,8 @@ The fleet terminal boots into the same rain:
 | TRINITY          | `repair`      | root-causes a red suite (only when red)| opus / high    |
 | AGENT SMITH      | `diff_review` | read-only diff review                  | opus / high\*  |
 | SERAPH           | `diff_review` | security lens seat, summoned by the diff | opus / high  |
-| NIOBE            | `diff_review` | performance lens seat, summoned by the diff | sonnet (opus from HARD) / high |
-| THE MEROVINGIAN  | `diff_review` | dead-code lens seat: what this diff orphaned | sonnet / high |
+| NIOBE            | `diff_review` | performance lens seat, summoned by the diff | opus / medium (high from HARD) |
+| THE MEROVINGIAN  | `diff_review` | dead-code lens seat: what this diff orphaned | opus / medium (high from HARD) |
 | THE ONE          | `done`        | shipped — commit + PR                  | — (terminal)   |
 
 SERAPH, NIOBE and THE MEROVINGIAN are not agents of their own: each is the `reviewer` agent in a
@@ -641,6 +641,8 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.55.1** — **NIOBE and THE MEROVINGIAN move off Sonnet.** Performance and dead-code calls are judgment, not pattern matching: both seats now run opus/medium below HARD and opus/high from HARD up (SERAPH stays opus/high). Medium needs its own twin, `reviewer-medium`, since effort is frontmatter-only; `bin/crew.py` now names the agent per seat and the twin test covers all three twins.
 
 - **0.55.0** — **The crew: SERAPH, NIOBE and THE MEROVINGIAN join the diff review; LSP reaches every agent; typecheck and lint are enforced.** Three lens seats of the `reviewer` agent (no new agent files), summoned by `bin/crew.py` from the diff's paths and changed lines: SERAPH (security, always from HARD up), NIOBE (performance), THE MEROVINGIAN (dead code this diff orphaned, traced with LSP `findReferences`). They review blind in parallel into their own files, then AGENT SMITH (gated) or the arbiter (auto) rules on their findings. The planner's blast radius gains a 'code this change makes dead' vector so deletions get planned. Every agent gets the `LSP` tool (exact reference tracing; Grep as fallback). The implementer runs the repo's typecheck and lint before finishing and the reviewer re-runs them: the 'lint clean' exit rule was never enforced. Auto mode: HARD now includes security/auth/concurrency changes (it had drifted from start mode), and the diff guard counts untracked new files.
 

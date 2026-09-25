@@ -67,7 +67,7 @@ the one exception: they all read the same finished diff and each writes only its
 2. CREW — who joins AGENT SMITH on this diff. Scope = the union of plan.md "Files touched",
    audit.md "Files changed", and repair.md "Outside the plan's files" (when it exists). From the
    repo root run `python3 "${CLAUDE_PLUGIN_ROOT}/bin/crew.py" <tier> <scope files>`: one line per
-   summoned lens, `<lens> <PERSONA> <model> <reason>`, or `none` (Smith reviews alone). Routing is
+   summoned lens, `<lens> <PERSONA> <agent> <model/effort> <reason>`, or `none` (Smith reviews alone). Routing is
    pattern matching in the script, never a model call. Record `crew: <PERSONA + PERSONA | none>`
    in state.md.
    (BANNER RULE) Print this DIFF-REVIEW banner as the LAST line before the first reviewer call:
@@ -77,9 +77,10 @@ the one exception: they all read the same finished diff and each writes only its
      ╰─
    ```
    Pool (24): "Your green tests are a comfort, not a verdict." / "The bug you cannot find is the one you decided was not there." / "Untested is unknown, and unknown is unsafe." / "Every assumption is a door you left unlocked." / "Read the diff as if your worst enemy wrote it." / "A passing test proves the test ran, not that the code is right." / "The edge case you skip is the one production will find for you." / "Approve nothing you would not be paged for at midnight." / "Find the failure before the failure finds the user." / "Doubt is the only honest first reaction to working code." / "Mr. Anderson." / "That is the sound of inevitability." / "Never send a human to do a machine's job." / "I'm going to enjoy watching you die, Mr. Anderson." / "We're not here because we're free; we're here because we're not free." / "It is purpose that created us, purpose that connects us, purpose that drives us." / "I'd like to share a revelation I've had during my time here." / "Appalling, isn't it?" / "It's the smell — if there is such a thing." / "You are a plague, and I am the cure." / "Green is not innocence; it is an alibi to check." / "The diff you wave through is the page you write at 3 a.m." / "The case you don't open is the one that reopens you." / "Inevitability, Mr. Anderson — the bug you chose not to see."
-   Then, unless the crew is `none`, invoke one **reviewer** per crew line IN ONE MESSAGE (the one
-   parallel call in this command: each seat writes only its own file), passing the line's model
-   as the `model` override and framing each: "You are <PERSONA>, the <lens> lens seat on the diff
+   Then, unless the crew is `none`, invoke one subagent per crew line IN ONE MESSAGE (the one
+   parallel call in this command: each seat writes only its own file), using the agent the line
+   names (`reviewer` or `reviewer-medium`, both opus; effort lives in their frontmatter) and
+   framing each: "You are <PERSONA>, the <lens> lens seat on the diff
    review of task <task>. Scope: <scope files>. Review through your lens only; do NOT read
    audit.md or any other review. Write ONLY `feature-research/<task>/review-<lens>-r<iteration>.md`;
    do not touch plan.md or state.md." Wait for every seat.
