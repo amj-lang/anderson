@@ -106,7 +106,7 @@ Append your structured report under `## 🔭 Review` in plan.md as a `### Plan r
 
 ## 📊 Evaluation
 scope · criteria (n mapped / n total, sources) · blast-radius vectors checked (e.g. "8/8,
-2 sites pulled in") · scorecard (Risk/Horiz/Test/Rev/Conf/Coup/Obs) · # files touched ·
+2 sites pulled in") · scorecard (Risk/Horiz/Test/Rev/Conf/Coup) · # files touched ·
 # decisions resolved
 
 ## 💬 Feedback
