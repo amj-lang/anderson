@@ -40,6 +40,15 @@ That work does not need an IDE. It needs a terminal.
 
 `/anderson:demo` walks the whole pipeline for free: every banner, both gates, zero tokens.
 
+Recommended companions (every agent already lists their tools; without them the agents fall back to Grep and the installed types):
+
+```
+/plugin install typescript-lsp@claude-plugins-official   # then: npm i -g typescript-language-server typescript
+/plugin install context7@claude-plugins-official         # current library docs for the planner, reviewers, implementer, fixer
+```
+
+LSP makes blast-radius tracing exact and is how THE MEROVINGIAN finds what a diff orphaned. For other languages, install the matching `*-lsp` plugin (`pyright-lsp`, `gopls-lsp`, ...).
+
 For the multi-session monitor, run `/anderson:fleet` once, then type `fleet` in any terminal.
 
 ## How anderson works
@@ -111,6 +120,8 @@ A tier (trivial / normal / hard / critical) is derived from the plan's Scorecard
 | normal   | opus · high   | opus · high             | 2 × sonnet · high |
 | hard     | opus · high   | opus · xhigh            | 3 × opus · high   |
 | critical | opus · xhigh  | opus · xhigh            | 3 × opus · high   |
+
+The crew joins the diff review on any tier when the diff calls for it: SERAPH (security) on opus · high, and always from HARD up; NIOBE (performance) and THE MEROVINGIAN (dead code) on opus · medium, opus · high from HARD up.
 
 \* Effort by tier, per the table above. The plan critique always runs a rung above the opus/medium planner. In auto, the arbiter backstops every panel outcome except a unanimous refute; repair stays opus · high on every tier.
 
@@ -195,6 +206,7 @@ Commands are namespaced `/anderson:<command>` and take positional args (first wo
 
 - Claude Code with plugin support.
 - For ship: `git`, a remote, and an authenticated [`gh`](https://cli.github.com). Degrades gracefully without them.
+- Optional, used when present: the LSP and context7 plugins above; `npm audit`, `gitleaks` and `semgrep` for SERAPH; `knip` for THE MEROVINGIAN.
 
 ## More
 
