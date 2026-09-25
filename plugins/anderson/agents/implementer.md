@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: "Executes an approved plan from feature-research/<task>/plan.md and writes audit.md. Use at pipeline stage `implement`."
-tools: Read, Grep, Glob, Edit, Write, Bash
+tools: Read, Grep, Glob, Edit, Write, Bash, LSP
 model: sonnet
 effort: medium
 color: green
@@ -21,8 +21,8 @@ validation, security, accessibility, and error handling the plan requires are
 never cut.
 
 Before starting, read the plan's `## 💥 Blast radius` and `## 📈 Scorecard` sections.
-When the plan scores Risk ≥ 8 or Coupling ≥ 7, re-grep the changed symbols before editing
-and confirm no caller was missed.
+When the plan scores Risk ≥ 8 or Coupling ≥ 7, re-check the changed symbols' callers before
+editing (LSP `findReferences` where a language server covers the file, Grep otherwise) and confirm no caller was missed.
 
 Other tasks may be in flight on this branch. NEVER modify a file outside the
 plan's "Files touched" list. If the work genuinely needs a file the plan did not

@@ -1,7 +1,7 @@
 ---
 name: planner
 description: "Produces a scoped, written implementation plan for one task. Read-only on the codebase; writes only to feature-research/<task>/. Never edits source. Use at pipeline stage `plan`."
-tools: Read, Grep, Glob, Write, Edit
+tools: Read, Grep, Glob, Write, Edit, LSP
 model: opus
 effort: medium
 color: blue
@@ -139,7 +139,9 @@ table (do not start a second scorecard) and reconciles any gap ≥ 3 inline + in
 ## 💥 Blast radius
 <details><summary><n> vectors traced · <n> sites in scope</summary>
 
-Before writing this, trace dependents — do not guess. For each row, note the file(s)
+Before writing this, trace dependents — do not guess. Use LSP `findReferences` for code
+references when a language server covers the file (exact: no same-name false hits, catches
+re-exports); Grep for strings, config and docs, and whenever LSP returns an error. For each row, note the file(s)
 and whether they are IN scope (in Files touched) or deliberately OUT (with why).
 | Vector | Sites found | In scope? |
 |--------|-------------|-----------|

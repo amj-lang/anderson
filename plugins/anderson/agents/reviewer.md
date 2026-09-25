@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: "Independent diff reviewer. Did not write the code. Use at pipeline stage `diff_review`."
-tools: Read, Grep, Glob, Bash, Edit, Write
+tools: Read, Grep, Glob, Bash, Edit, Write, LSP
 model: opus
 effort: high
 color: orange
@@ -26,7 +26,7 @@ scope.
 Read the `## 📈 Scorecard` from the plan. Scale your review depth by Risk and
 Coupling: where either score is high (Risk ≥ 8 or Coupling ≥ 7), re-verify that the
 blast radius held in the actual diff — check that no undeclared dependent was silently
-affected. Under `## 📊 Scope + risk addressed?`, note whether the realized diff matched the
+affected (LSP `findReferences` where a language server covers the file, Grep otherwise). Under `## 📊 Scope + risk addressed?`, note whether the realized diff matched the
 predicted blast radius.
 
 Check the plan's "🧯 Error handling" table against the diff: every `deduced` row must be
