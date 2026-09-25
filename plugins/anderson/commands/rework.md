@@ -38,7 +38,7 @@ per message, as its last line, and wait for it to finish — two Agent calls in 
 run in parallel and the reviewer judges files that don't exist yet. Step 2's crew seats are
 the one exception: they all read the same finished diff and each writes only its own file.
 
-1. In state.md set iteration += 1 (if iteration > max_iterations, print `■ EXIT · hit max_iterations` and STOP); set stage=implement, then (BANNER RULE) print this IMPLEMENT banner as the LAST line before invoking the implementer:
+1. In state.md set iteration += 1 (if iteration > max_iterations, print `■ EXIT · hit max_iterations`, log the run with `python3 "${CLAUDE_PLUGIN_ROOT}/bin/runlog.py" feature-research/<task> --mode gated --outcome aborted:max_iterations`, and STOP); set stage=implement, then (BANNER RULE) print this IMPLEMENT banner as the LAST line before invoking the implementer:
    ```
      ╭─ ⌐■-■  IMPLEMENT · 4/5 · NEO · sonnet/medium
      │  "[one quote from the pool]"

@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.56.0-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.57.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -108,6 +108,8 @@ feature-research/<task>/
 
 **`plan.md`** reads What → Why → ⚠️ Behavior change → 🗺 Design → ✅ Acceptance criteria → How → 📈 Scorecard, heavy sections folded in `<details>`. Its spine is the **✅ Acceptance criteria** table (`# | Criterion | Source | Proof | Evidence`). Criteria come from the ticket verbatim, from the design inventory, or are `derived` (the grill confirms those). Each names its proof: `test` (must fail without the change), `visual` (screenshot vs the design), `e2e` (ephemeral, deleted at ship) or `manual` (last resort). The implementer fills Evidence; the diff reviewer blocks on a blank cell. It also carries 💥 Blast radius, 🧯 Error handling, a 7-dimension 📈 Scorecard, and 🔭 Review, where both reviewers append.
 
+Every run that ends also appends one line to a local run log (`~/.claude/anderson/runs.jsonl`, never sent anywhere); `bin/runlog.py --summary` shows tiers, rework rounds and how often each crew seat's findings were confirmed.
+
 **`state.md`** is machine-only: current stage, gate, iteration vs `max_iterations`, both verdicts, tier. It is what makes a run resumable and what `/anderson:status` and `fleet` read.
 
 ## Difficulty tiers
@@ -121,7 +123,7 @@ A tier (trivial / normal / hard / critical) is derived from the plan's Scorecard
 | hard     | opus · high   | opus · xhigh            | 3 × opus · high   |
 | critical | opus · xhigh  | opus · xhigh            | 3 × opus · high   |
 
-The crew joins the diff review on any tier when the diff calls for it: SERAPH (security) on opus · high, and always from HARD up; NIOBE (performance) and THE MEROVINGIAN (dead code) on opus · medium, opus · high from HARD up.
+The crew joins the diff review on any tier when the diff calls for it: SERAPH (security) on opus · high, and always from HARD up; NIOBE (performance) and THE MEROVINGIAN (dead code) on opus · medium, opus · high from HARD up. The planner can add a seat the rules would miss with a Crew hint; it can never remove one.
 
 \* Effort by tier, per the table above. The plan critique always runs a rung above the opus/medium planner. In auto, the arbiter backstops every panel outcome except a unanimous refute; repair stays opus · high on every tier.
 

@@ -92,7 +92,9 @@ step. NEVER force-push; never touch an existing branch destructively.
    - Any command here fails → drop it, ship still stands (never fail the ship for a screenshot).
    <!-- ponytail: leaves one orphan gist per ship. Add a cleanup/retention step if they pile up. -->
 
-6. Remove disposable scratch: `rm -rf "feature-research/$ARGUMENTS"`.
+6. Log the run, THEN remove disposable scratch (the log reads state.md, so order matters):
+   `python3 "${CLAUDE_PLUGIN_ROOT}/bin/runlog.py" "feature-research/$ARGUMENTS" --mode gated --outcome shipped --pr <PR url, or none>`
+   (a local file, never sent anywhere), then `rm -rf "feature-research/$ARGUMENTS"`.
    (Git history + PR are the durable record; the plan's durable sections — what & why, criteria,
    design, scorecard, blast radius, error handling — are embedded in the PR body at step 1,
    e2e output at step 1's item 5, visual proof at step 5, and the 🛠 How lives in the diff, so

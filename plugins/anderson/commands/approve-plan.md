@@ -5,7 +5,8 @@ argument-hint: <task-slug>
 Task slug = "$ARGUMENTS"; the task key (state dir name) is its LAST `/`-segment, so a pasted
 branch name like `user/ar-123-title` resolves to `feature-research/ar-123-title/`.
 In state.md set plan_verdict=ship, gate=none, iteration += 1.
-If iteration > max_iterations, print `■ EXIT · hit max_iterations` and STOP.
+If iteration > max_iterations, print `■ EXIT · hit max_iterations`, log the run
+(`python3 "${CLAUDE_PLUGIN_ROOT}/bin/runlog.py" feature-research/<task> --mode gated --outcome aborted:max_iterations`) and STOP.
 
 REVIEW MODEL: the diff reviewer always runs on opus (agent frontmatter); no flag, no state field.
 
@@ -66,10 +67,11 @@ the one exception: they all read the same finished diff and each writes only its
    fixer's report and STOP for you (the approach, not the code, is the problem).
 2. CREW — who joins AGENT SMITH on this diff. Scope = the union of plan.md "Files touched",
    audit.md "Files changed", and repair.md "Outside the plan's files" (when it exists). From the
-   repo root run `python3 "${CLAUDE_PLUGIN_ROOT}/bin/crew.py" <tier> <scope files>`: one line per
+   repo root run `python3 "${CLAUDE_PLUGIN_ROOT}/bin/crew.py" <tier> --hint <lenses> <scope files>`,
+   the lenses taken from plan.md's `**Crew hint:**` line (drop `--hint` when it says `none`): one line per
    summoned lens, `<lens> <PERSONA> <agent> <model/effort> <reason>`, or `none` (Smith reviews alone). Routing is
    pattern matching in the script, never a model call. Record `crew: <PERSONA + PERSONA | none>`
-   in state.md.
+   in the state.md STATE block.
    (BANNER RULE) Print this DIFF-REVIEW banner as the LAST line before the first reviewer call:
    ```
      ╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · opus/<review_effort> · crew <PERSONA + … | none>

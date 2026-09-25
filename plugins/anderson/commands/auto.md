@@ -35,6 +35,11 @@ NON-NEGOTIABLE HARD RULES (no override, ever):
    into one clean commit for tidy release history. Force-pushing default branch, shared
    branch, or human-authored branch requires explicit human consent.
 
+RUN LOG — every run that ends, shipped or aborted, appends one line to the local run log
+BEFORE any scratch cleanup: `python3 "${CLAUDE_PLUGIN_ROOT}/bin/runlog.py" feature-research/<task-id> --mode auto --outcome
+<shipped | aborted:<reason>> --pr <url or none>`. Local only, never sent anywhere; it is the evidence
+for tuning tiers and crew patterns (`runlog.py --summary`).
+
 BANNER POOL — auto stages use these Matrix-flavoured banners in framed `╭─ ⌐■-■` format.
 In the two review banners (PLAN GATE, DIFF GATE) `<review_effort>` is a placeholder: substitute
 the tier's effort (steps 4e and 7f) when printing.
@@ -572,11 +577,12 @@ Quote: pick one line from the stage's pool; vary it across stages.
         · plan-match           — "Does the diff match `plan.md` — nothing more (scope creep), nothing
                                   less (a missed step)?"
       CREW on top of the tier-sized panel: run
-      `python3 "${CLAUDE_PLUGIN_ROOT}/bin/crew.py" <tier> <files-changed from 7d>` and add one
+      `python3 "${CLAUDE_PLUGIN_ROOT}/bin/crew.py" <tier> --hint <plan.md Crew hint lenses> <files-changed from 7d>`
+      (drop `--hint` when the hint says `none`) and add one
       panelist per output line (`<lens> <PERSONA> <agent> <model/effort> <reason>`; the lens
       definitions live in the reviewer agent), invoking the agent that line names. When the crew includes `security`, the
       `regressions+security` lens narrows to `regressions` (SERAPH owns security). Record
-      `crew: <PERSONA + … | none>` in state.md and list the crew on the DIFF GATE banner.
+      `crew: <PERSONA + … | none>` in the state.md STATE block and list the crew on the DIFF GATE banner.
       Record `reviewers: <n>` (crew included). Run panelists IN PARALLEL — emit all N **reviewer** invocations in
       a SINGLE message (one Agent call each). Parallel is safe here ONLY because each panelist writes
       to its OWN file and returns its verdict in its reply — no shared `plan.md` / `diff_verdict`
