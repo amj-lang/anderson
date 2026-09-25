@@ -101,7 +101,7 @@ Append your structured report under `## 🔭 Review` in plan.md as a `### Plan r
 ### Plan review
 
 ## 📊 Evaluation
-scope · criteria (n mapped / n total, sources) · blast-radius vectors checked (e.g. "8/8,
+scope · criteria (n mapped / n total, sources) · blast-radius vectors checked (e.g. "9/9,
 2 sites pulled in") · scorecard (Risk/Horiz/Test/Rev/Conf/Coup) · # files touched ·
 # decisions resolved
 

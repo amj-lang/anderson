@@ -36,7 +36,8 @@ the reviewer.
 SEQUENCING: stages are sequential because each reads the previous stage's file output
 (the reviewer reads the diff + audit.md the implementer just wrote). Invoke one subagent
 per message, as its last line, and wait for it to finish — two Agent calls in one message
-run in parallel and the reviewer judges files that don't exist yet.
+run in parallel and the reviewer judges files that don't exist yet. Step 2's crew seats are
+the one exception: they all read the same finished diff and each writes only its own file.
 
 1. Set stage=implement, then (BANNER RULE) print this IMPLEMENT banner as the LAST line before invoking the implementer:
    ```
@@ -63,21 +64,35 @@ run in parallel and the reviewer judges files that don't exist yet.
    Route on that verdict: `fixed` → re-run the full suite; green → step 2, still red → another
    repair round. `flake` → note it and go to step 2. `replan` or `needs-human` → print the
    fixer's report and STOP for you (the approach, not the code, is the problem).
-2. (BANNER RULE) Print this DIFF-REVIEW banner as the LAST line before invoking the reviewer:
+2. CREW — who joins AGENT SMITH on this diff. Scope = the union of plan.md "Files touched",
+   audit.md "Files changed", and repair.md "Outside the plan's files" (when it exists). From the
+   repo root run `python3 "${CLAUDE_PLUGIN_ROOT}/bin/crew.py" <tier> <scope files>`: one line per
+   summoned lens, `<lens> <PERSONA> <model> <reason>`, or `none` (Smith reviews alone). Routing is
+   pattern matching in the script, never a model call. Record `crew: <PERSONA + PERSONA | none>`
+   in state.md.
+   (BANNER RULE) Print this DIFF-REVIEW banner as the LAST line before the first reviewer call:
    ```
-     ╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · opus/<review_effort>
+     ╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · opus/<review_effort> · crew <PERSONA + … | none>
      │  "[one quote from the pool]"
      ╰─
    ```
    Pool (24): "Your green tests are a comfort, not a verdict." / "The bug you cannot find is the one you decided was not there." / "Untested is unknown, and unknown is unsafe." / "Every assumption is a door you left unlocked." / "Read the diff as if your worst enemy wrote it." / "A passing test proves the test ran, not that the code is right." / "The edge case you skip is the one production will find for you." / "Approve nothing you would not be paged for at midnight." / "Find the failure before the failure finds the user." / "Doubt is the only honest first reaction to working code." / "Mr. Anderson." / "That is the sound of inevitability." / "Never send a human to do a machine's job." / "I'm going to enjoy watching you die, Mr. Anderson." / "We're not here because we're free; we're here because we're not free." / "It is purpose that created us, purpose that connects us, purpose that drives us." / "I'd like to share a revelation I've had during my time here." / "Appalling, isn't it?" / "It's the smell — if there is such a thing." / "You are a plague, and I am the cure." / "Green is not innocence; it is an alibi to check." / "The diff you wave through is the page you write at 3 a.m." / "The case you don't open is the one that reopens you." / "Inevitability, Mr. Anderson — the bug you chose not to see."
-   Then invoke the **reviewer** subagent (**reviewer-xhigh** when `<review_effort>` is xhigh) → appends diff review under `## 🔭 Review` in plan.md; sets diff_verdict.
+   Then, unless the crew is `none`, invoke one **reviewer** per crew line IN ONE MESSAGE (the one
+   parallel call in this command: each seat writes only its own file), passing the line's model
+   as the `model` override and framing each: "You are <PERSONA>, the <lens> lens seat on the diff
+   review of task <task>. Scope: <scope files>. Review through your lens only; do NOT read
+   audit.md or any other review. Write ONLY `feature-research/<task>/review-<lens>-r<iteration>.md`;
+   do not touch plan.md or state.md." Wait for every seat.
+   Then invoke the **reviewer** subagent as AGENT SMITH (**reviewer-xhigh** when
+   `<review_effort>` is xhigh) → reads the lens reviews, appends diff review under `## 🔭 Review`
+   in plan.md; sets diff_verdict.
 3. Print the GATE 2 TL;DR card and STOP. Fill EVERY value for real (slug, verdict, criteria
    counts from the diff review's `criteria:` line — copy-pasteable, no literal `<task>`); when
    criteria failed, list each on its own indented line with the reviewer's one-line why:
    ```
    ﾊﾐﾐ 0ｺ1  🔴 G A T E  2 · AWAITING YOU  1ｺ0 ﾐﾐﾊ
      ⌐■-■  criteria <proven>/<N> proven<, failed: #<n> <one-line why> — or " (all)">
-           tier <TIER><, was <old> — or ""> · reviewed by opus/<review_effort>
+           tier <TIER><, was <old> — or ""> · reviewed by opus/<review_effort> · crew <PERSONA + … | none>
            verdict <diff_verdict> → read the diff + plan.md ## 🔭 Review, then
            /anderson:approve-diff <task> to ship, or /anderson:rework <task>.
    ```

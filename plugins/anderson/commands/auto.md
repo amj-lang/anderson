@@ -327,7 +327,9 @@ Quote: pick one line from the stage's pool; vary it across stages.
       the INITIAL tier (first match wins, top-down):
         - CRITICAL — Risk ≥ 9 OR Testability ≥ 7 (the scorecard anchor "needs a human/manual
                      tester" — cannot be verified autonomously).
-        - HARD     — Risk ≥ 7 OR Coupling ≥ 7 OR Confidence ≤ 4.
+        - HARD     — Risk ≥ 7 OR Coupling ≥ 7 OR Confidence ≤ 4, OR the change touches security,
+                     auth, memory/resource management, concurrency, or OS/filesystem/process
+                     boundaries.
         - TRIVIAL  — Risk ≤ 2 AND Coupling ≤ 3 AND Confidence ≥ 8.
         - NORMAL   — anything else (default).
       Record `tier: <trivial|normal|hard|critical>` in state.md. This tier is PROVISIONAL — step 7d
@@ -521,7 +523,9 @@ Quote: pick one line from the stage's pool; vary it across stages.
           reaches it.
 
    d. Scope / forbidden-path guard + RE-TIER. Measure diff against branch base with
-      `git diff --name-only` and `git diff --stat`; record files-changed and lines-changed
+      `git diff --name-only` and `git diff --stat`, plus the untracked new files
+      (`git ls-files --others --exclude-standard`, which `git diff` never lists); record
+      files-changed and lines-changed
       (added+deleted). Each RELAXED guard below that fires appends its tag to the `override:`
       field in state.md (comma-joined) — that field is this step's metric reference, surfaced in the
       `metrics:` line so a relaxed run is greppable.
@@ -567,7 +571,13 @@ Quote: pick one line from the stage's pool; vary it across stages.
                                   handling, secrets, injection, auth)?"
         · plan-match           — "Does the diff match `plan.md` — nothing more (scope creep), nothing
                                   less (a missed step)?"
-      Record `reviewers: <n>`. Run panelists IN PARALLEL — emit all N **reviewer** invocations in
+      CREW on top of the tier-sized panel: run
+      `python3 "${CLAUDE_PLUGIN_ROOT}/bin/crew.py" <tier> <files-changed from 7d>` and add one
+      panelist per output line (`<lens> <PERSONA> <model> <reason>`; the lens definitions live in
+      the reviewer agent), on that line's model. When the crew includes `security`, the
+      `regressions+security` lens narrows to `regressions` (SERAPH owns security). Record
+      `crew: <PERSONA + … | none>` in state.md and list the crew on the DIFF GATE banner.
+      Record `reviewers: <n>` (crew included). Run panelists IN PARALLEL — emit all N **reviewer** invocations in
       a SINGLE message (one Agent call each). Parallel is safe here ONLY because each panelist writes
       to its OWN file and returns its verdict in its reply — no shared `plan.md` / `diff_verdict`
       writes to collide (why the plan gate stays sequential and this one does not). Frame each:

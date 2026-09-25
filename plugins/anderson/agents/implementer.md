@@ -29,6 +29,12 @@ plan's "Files touched" list. If the work genuinely needs a file the plan did not
 list, stop and report back instead of editing it. Never run repo-wide
 formatters, linters with --fix, or codemods.
 
+TYPECHECK + LINT before you finish: run the repo's own typecheck and lint scripts (e.g.
+`npm run typecheck`, `npm run lint`; `npx tsc --noEmit` when there is a tsconfig but no script).
+A new error in a file you touched means the pass is not done; errors that predate your change
+go in the audit, not in your diff. Name both commands and their results in audit
+`## ⚙️ Setup & test`.
+
 ONE TRY ON A RED TEST. If a test fails, you get a single, honest attempt at it. If it is still
 red after that attempt, STOP and report `tests-red` with the test name, the command, and the
 verbatim error — the pipeline hands it to the test-fixer, whose whole job this is. In auto

@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.54.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.55.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -129,7 +129,17 @@ The fleet terminal boots into the same rain:
 | NEO              | `implement`   | executes the approved plan             | sonnet / medium|
 | TRINITY          | `repair`      | root-causes a red suite (only when red)| opus / high    |
 | AGENT SMITH      | `diff_review` | read-only diff review                  | opus / high\*  |
+| SERAPH           | `diff_review` | security lens seat, summoned by the diff | opus / high  |
+| NIOBE            | `diff_review` | performance lens seat, summoned by the diff | sonnet (opus from HARD) / high |
+| THE MEROVINGIAN  | `diff_review` | dead-code lens seat: what this diff orphaned | sonnet / high |
 | THE ONE          | `done`        | shipped — commit + PR                  | — (terminal)   |
+
+SERAPH, NIOBE and THE MEROVINGIAN are not agents of their own: each is the `reviewer` agent in a
+lens seat. `bin/crew.py` summons them from what the diff touches (paths and changed lines, no
+model call): SERAPH for auth, sessions, API routes, input parsing, SQL/shell/HTML building,
+secrets, dependencies, and always from HARD up; NIOBE for queries, loops over I/O, React effects,
+caching; THE MEROVINGIAN whenever the diff changes or removes existing code. They review blind
+into their own files first, then AGENT SMITH (or the auto arbiter) rules on their findings.
 
 ## Pipeline
 
@@ -631,6 +641,8 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 [`hooks/ping.py`](hooks/ping.py) — about forty lines.
 
 ## Changelog
+
+- **0.55.0** — **The crew: SERAPH, NIOBE and THE MEROVINGIAN join the diff review; LSP reaches every agent; typecheck and lint are enforced.** Three lens seats of the `reviewer` agent (no new agent files), summoned by `bin/crew.py` from the diff's paths and changed lines: SERAPH (security, always from HARD up), NIOBE (performance), THE MEROVINGIAN (dead code this diff orphaned, traced with LSP `findReferences`). They review blind in parallel into their own files, then AGENT SMITH (gated) or the arbiter (auto) rules on their findings. The planner's blast radius gains a 'code this change makes dead' vector so deletions get planned. Every agent gets the `LSP` tool (exact reference tracing; Grep as fallback). The implementer runs the repo's typecheck and lint before finishing and the reviewer re-runs them: the 'lint clean' exit rule was never enforced. Auto mode: HARD now includes security/auth/concurrency changes (it had drifted from start mode), and the diff guard counts untracked new files.
 
 - **0.54.0** — **Agent audit against Claude's prompt-audit guide; xhigh review seats are real.** Effort is frontmatter-only (the Agent tool has no per-call effort), so the tiered "effort override" never ran: CRITICAL plan review and HARD+ diff review ran at high. New `plan-reviewer-xhigh` / `reviewer-xhigh` twins (same body, `effort: xhigh`, kept identical by `test/test_agent_variants.py`) and the commands pick the agent by tier. Per agent: planner gets Edit + a rework pass (auto re-runs no longer wipe the review) and a split outlet for oversized tasks; the unread Observability score is gone. Plan-reviewer drops Bash/Write, judges the approach first, and its `fix_first`/`regrill` now match auto routing. Implementer learns the frozen test is hash-checked. Reviewer's panelist/arbiter seats stop contradicting its prompt, and test-fixer fixes outside the plan are now reviewed. Test-fixer treats a flake in touched code as a race. Fable 5.1-era prompt lines removed.
 

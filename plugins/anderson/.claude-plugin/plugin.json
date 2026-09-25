@@ -1,6 +1,6 @@
 {
   "name": "anderson",
-  "version": "0.54.0",
+  "version": "0.55.0",
   "description": "Gated maker/checker pipeline: plan (opus/medium) -> grill (you harden it) -> plan-review (a rung above the planner) -> [human] -> implement (sonnet/medium) -> diff-review (read-only) -> [human], then ship (commit + PR). Review effort is tiered off the plan Scorecard: critical runs both gates at xhigh, hard runs diff-review at xhigh. Self-contained agents; no external skills required.",
   "author": {
     "name": "Alexander McLean-Janet"

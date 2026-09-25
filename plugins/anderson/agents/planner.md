@@ -150,6 +150,7 @@ and whether they are IN scope (in Files touched) or deliberately OUT (with why).
 | Shared types / contracts / interfaces | | |
 | Parallel / sibling implementations | | |
 | Duplicated or copy-pasted logic | | |
+| Code this change makes dead (replaced functions, now-unused exports/imports, flags, styles, tests/fixtures of removed behaviour) — in scope means deleted by this plan | | |
 | Tests (unit + integration) covering the above | | |
 | Docs / README / comments stating the old behaviour | | |
 | Config / env / migrations / fixtures | | |
