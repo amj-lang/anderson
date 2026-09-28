@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.57.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.58.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -568,13 +568,13 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
   rows say for how long (`☎ ring 12m`); the ctx cell turns red past 80%.
 
   Keys: `↑↓` tune · `1`..`9` / `⏎` **jack in** on a session row (switches tmux to that session's
-  pane; without tmux, on macOS it focuses the iTerm2 / Terminal.app tab that owns the session, or
-  brings the owning IDE forward for integrated terminals, so tmux is optional: `fleet install
-  --with-tmux` adds it via brew / apt / dnf if you want panes) — or **spawn an agent** on a
-  repo/group row: `⏎` opens a prompt box, then `p`/`a`/`A` launches a claude agent (bare /
-  `/anderson:start` / `/anderson:auto`) into that repo — or the workspace root, on a group — in a
-  terminal of its own, so the monitor keeps the window it is in. Drilled into a repo that has no agents
-in it there is no row to select, and `⏎` spawns into that repo anyway. If that repo is already parked on a
+  pane; without tmux, on macOS it focuses the Ghostty / iTerm2 / Terminal.app tab that owns the
+  session, or brings the owning IDE forward for integrated terminals, so tmux is optional: `fleet install
+  --with-tmux` adds it via brew / apt / dnf if you want panes); on a repo/group row `⏎` goes in, like `→`.
+  `N` **spawns an agent**: a prompt box, then `p`/`a`/`A` launches a claude agent (bare /
+  `/anderson:start` / `/anderson:auto`) into the selected repo — the workspace root on a group, the
+  session's own repo on a session row — in a terminal of its own, so the monitor keeps the window it
+  is in. Drilled into a repo that has no agents in it, `N` spawns into that repo. If that repo is already parked on a
   feature branch, the agent does not land in it: it gets a worktree (`.worktrees/<task>` on branch
   `anderson/<task>`, cut from the default branch), and its row still nests under the repo. `J`/`K` reorder a repo/group among its siblings, `space` (`←`/`→` too)
   collapses/expands it; both persist per workspace. `D` pops a session's tmux window out into its
@@ -676,6 +676,7 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 
 ## Changelog
 
+- **0.58.0** — **Fleet: ⏎ lands on Ghostty tabs, `N` spawns.** Jack in never found a session running in Ghostty: its AppleScript dictionary has no tty, so fleet fell back to "app focused, tab not selectable". It now finds the tab by working directory (a claude title beats a bare shell sharing the directory) and focuses it; spawned Ghostty tabs start in their repo so they are found from the first frame. `⏎` only moves you now: on a repo/group row it goes in, like `→`, instead of opening the spawn prompt. Spawning moved to `N` (new agent), which also works on a session row (into its repo) and in an empty repo you drilled into.
 - **0.57.1** — **Fleet: spawns open a tab in the terminal you run it in.** `⏎` spawn, sentinel revive and `D` pop-out always went to Terminal.app unless fleet ran in iTerm2, so from Ghostty (and from any terminal once fleet sat inside tmux, where `TERM_PROGRAM` reads `tmux`) the agent landed in the wrong app or failed. fleet now reads the host app from `__CFBundleIdentifier`, which survives tmux, and opens a new **tab** there: Ghostty 1.3+ through its AppleScript dictionary, iTerm2 in its current window. Terminal.app keeps its new window (a tab there needs Accessibility keystrokes).
 - **0.57.0** — **Crew hint and the run log.** The planner can add a diff-review seat the routing rules would miss (`**Crew hint:**` in plan.md; the plan-reviewer may add to it, never remove), and `bin/crew.py --hint` takes the union: judgment can only add a reviewer, never drop one. Every finished run, shipped or aborted, appends one JSON line to a local run log (`~/.claude/anderson/runs.jsonl`, never sent anywhere) and `bin/runlog.py --summary` reports tiers, rework rounds and each crew seat's confirmed/raised hit rate, the evidence for tuning tiers and crew patterns. Smith's tally line is now `crew_tally:` so it can't collide with the `crew:` state field.
 
