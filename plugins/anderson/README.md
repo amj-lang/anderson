@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.57.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.57.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -676,6 +676,7 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 
 ## Changelog
 
+- **0.57.1** — **Fleet: spawns open a tab in the terminal you run it in.** `⏎` spawn, sentinel revive and `D` pop-out always went to Terminal.app unless fleet ran in iTerm2, so from Ghostty (and from any terminal once fleet sat inside tmux, where `TERM_PROGRAM` reads `tmux`) the agent landed in the wrong app or failed. fleet now reads the host app from `__CFBundleIdentifier`, which survives tmux, and opens a new **tab** there: Ghostty 1.3+ through its AppleScript dictionary, iTerm2 in its current window. Terminal.app keeps its new window (a tab there needs Accessibility keystrokes).
 - **0.57.0** — **Crew hint and the run log.** The planner can add a diff-review seat the routing rules would miss (`**Crew hint:**` in plan.md; the plan-reviewer may add to it, never remove), and `bin/crew.py --hint` takes the union: judgment can only add a reviewer, never drop one. Every finished run, shipped or aborted, appends one JSON line to a local run log (`~/.claude/anderson/runs.jsonl`, never sent anywhere) and `bin/runlog.py --summary` reports tiers, rework rounds and each crew seat's confirmed/raised hit rate, the evidence for tuning tiers and crew patterns. Smith's tally line is now `crew_tally:` so it can't collide with the `crew:` state field.
 
 - **0.56.0** — **Sharper crew profiles; context7 reaches the builders.** SERAPH establishes the trust boundary first (from CLAUDE.md / SECURITY.md / README, or names its assumption), runs `npm audit` on dependency changes and `gitleaks` / `semgrep` when installed, and ignores fixture secrets. NIOBE decides hot versus cold paths with LSP `incomingCalls` and sizes new client dependencies. THE MEROVINGIAN greps a symbol's name as a string before calling it dead and treats convention-loaded files (framework routes, configs, stories, workers) as live. Every lens finding carries `severity · confidence`, and AGENT SMITH logs each seat's confirmed/raised tally so its hit rate is measurable. The planner reads `docs/adr/` and `CONTEXT.md`. Planner, plan-reviewer, implementer and test-fixer get the context7 docs tool (installed version's types first).
@@ -812,7 +813,7 @@ before you approve it. Also fixes a stale README footnote that still claimed dif
 a fixed `high`/`xhigh` off Risk ≥ 8, which tiering replaced in 0.40.0.
 - **0.41.0** — **Fleet: ⏎ revives a sentinel.** A dead row had nothing to jack into, so 0.40.2 told
 you to press `c` and paste the command yourself. Now `⏎` gives that session a terminal: a new tmux
-window when fleet runs under tmux, else a new iTerm2 / Terminal.app window (AppleScript), already
+window when fleet runs under tmux, else a new iTerm2 / Terminal.app window (AppleScript; a Ghostty / iTerm2 tab since 0.57.1), already
 running `cd <cwd> && claude --resume <sid>`. `c` still copies, and off macOS/tmux — or when
 AppleScript is refused — revive falls back to that copy with the reason.
 - **0.40.4** — **Fleet: the AXRaise fallback goes.** 0.40.2 retried a failed raise through System

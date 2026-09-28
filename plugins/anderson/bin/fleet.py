@@ -1681,7 +1681,7 @@ MANUAL = """
                            the tools it called, a line of each result); running ones first. The card
                            lists running subagents live (↳ type "task" · ▶ tool · age) on tall terminals
   c         resume         copy `cd <cwd> && claude --resume <sid>` (⏎ on a sentinel runs it for
-                           you: a new tmux window, else a new iTerm2 / Terminal.app window)
+                           you: a new tmux window, else a new Ghostty / iTerm2 tab or Terminal.app window)
   m         sound          on/off (saved): the picked sound plays when a session starts waiting
   s         ring sound     next sound, previewed and saved: phone (the Matrix call) · snare ·
                            hitech · freeze · blip · rift · jump. --ring NAME picks, --rings lists.
@@ -1909,10 +1909,26 @@ def copy_resume(r):
     return copy_cmd(cmd)
 
 
-NEW_WINDOW_ITERM = """tell application "iTerm2"
+NEW_TAB_ITERM = """tell application "iTerm2"
 	activate
-	set w to (create window with default profile)
-	tell current session of w to write text "{cmd}"
+	if (count of windows) > 0 then
+		tell current window to create tab with default profile
+	else
+		create window with default profile
+	end if
+	tell current session of current window to write text "{cmd}"
+end tell"""
+
+# Ghostty 1.3+ ships an AppleScript dictionary; initial input runs cmd in your login shell, like iTerm's write text
+NEW_TAB_GHOSTTY = """tell application "Ghostty"
+	activate
+	set cfg to new surface configuration
+	set initial input of cfg to "{cmd}" & return
+	if (count of windows) > 0 then
+		new tab in front window with configuration cfg
+	else
+		new window with configuration cfg
+	end if
 end tell"""
 
 NEW_WINDOW_TERMINAL = """tell application "Terminal"
@@ -1921,9 +1937,18 @@ NEW_WINDOW_TERMINAL = """tell application "Terminal"
 end tell"""
 
 
+def _host_terminal():
+    """The macOS terminal app fleet runs in: "Ghostty", "iTerm2", else "Terminal". __CFBundleIdentifier
+    first: macOS sets it for a GUI app's children and it survives tmux (where TERM_PROGRAM says "tmux")."""
+    # ponytail: under tmux this is whichever terminal started the tmux server, not the attached client
+    b = os.environ.get("__CFBundleIdentifier") or _terminal_bundle()
+    return {"com.mitchellh.ghostty": "Ghostty", "com.googlecode.iterm2": "iTerm2"}.get(b, "Terminal")
+
+
 def new_terminal(cmd, name=None, cwd=None, use_tmux=True, verb=None, detach=False):
     """A new terminal already running `cmd`: tmux window first (`-c cwd`/`-n name` when given),
-    else AppleScript on the terminal that can take a command (`cd cwd && cmd`), else the command
+    else AppleScript on the terminal fleet runs in (a new Ghostty / iTerm2 tab, a Terminal.app window;
+    `cd cwd && cmd`), else the command
     lands on the clipboard. Shared by revive() (no name/cwd: byte-identical to before) and the
     spawn flow (both). use_tmux=False forces the OS-window branch: pop_out()'s `cmd` is itself
     a `tmux attach`, and a tmux new-window running that nests (tmux refuses, no window appears)
@@ -1949,14 +1974,14 @@ def new_terminal(cmd, name=None, cwd=None, use_tmux=True, verb=None, detach=Fals
         except Exception as e:
             return f"launch failed: {e}  ·  {copy_cmd(full)}"
     if sys.platform == "darwin":
-        app = "iTerm2" if os.environ.get("TERM_PROGRAM") == "iTerm.app" else "Terminal"
-        tmpl = NEW_WINDOW_ITERM if app == "iTerm2" else NEW_WINDOW_TERMINAL
+        app = _host_terminal()
+        tmpl = {"Ghostty": NEW_TAB_GHOSTTY, "iTerm2": NEW_TAB_ITERM}.get(app, NEW_WINDOW_TERMINAL)
         # the shell sees cmd verbatim; only the AppleScript string literal needs escaping
         script = tmpl.replace("{cmd}", full.replace("\\", "\\\\").replace('"', '\\"'))
         try:
             rc = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=15)
             if rc.returncode == 0:
-                return f"Operator. {verb} in a new {app} window."
+                return f"Operator. {verb} in a new {app} {'window' if app == 'Terminal' else 'tab'}."
             return f"launch failed: {rc.stderr.strip() or 'osascript'}  ·  {copy_cmd(full)}"
         except Exception as e:
             return f"launch failed: {e}  ·  {copy_cmd(full)}"

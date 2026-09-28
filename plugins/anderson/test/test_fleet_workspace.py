@@ -450,6 +450,24 @@ class TestSpawn(unittest.TestCase):
             else:
                 os.environ["TMUX"] = old_tmux
 
+    def test_new_terminal_opens_a_tab_in_the_host_terminal(self):
+        """Spawned from Ghostty (even under tmux, where TERM_PROGRAM=tmux) -> a new Ghostty tab, not
+        Terminal.app. iTerm2 -> an iTerm2 tab. Anything else keeps the Terminal.app window."""
+        cases = [({"__CFBundleIdentifier": "com.mitchellh.ghostty", "TERM_PROGRAM": "tmux"}, 'application "Ghostty"', "Ghostty tab"),
+                 ({"TERM_PROGRAM": "ghostty"}, 'application "Ghostty"', "Ghostty tab"),
+                 ({"__CFBundleIdentifier": "com.googlecode.iterm2"}, "create tab", "iTerm2 tab"),
+                 ({"TERM_PROGRAM": "Apple_Terminal"}, 'application "Terminal"', "Terminal window")]
+        for env, want, msg in cases:
+            seen = []
+            clean = {k: v for k, v in os.environ.items() if k not in ("TMUX", "TERM_PROGRAM", "__CFBundleIdentifier")}
+            with mock.patch.dict(os.environ, {**clean, **env}, clear=True), \
+                 mock.patch.object(fleet.subprocess, "run", side_effect=lambda a, *x, **k: seen.append(a) or mock.Mock(returncode=0)), \
+                 mock.patch.object(fleet.sys, "platform", "darwin"):
+                out = fleet.new_terminal("claude", name="r:t", cwd="/tmp/a b")
+            self.assertIn(want, seen[0][2], env)
+            self.assertIn("cd '/tmp/a b' && claude", seen[0][2])
+            self.assertIn(msg, out)
+
     def test_new_terminal_tmux_failure_says_so_and_copies_to_clipboard(self):
         """criterion 5's failure half: tmux (or the launch) fails -> fleet says what failed AND
         the exact command still lands on the clipboard. mock.patch.object, not a manual
