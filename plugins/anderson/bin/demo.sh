@@ -37,7 +37,8 @@ bash "$banner" diff_review
 printf '        · reviewer diffs the scope and appends its diff review under plan.md ## 🔭 Review\n\n'; pause
 
 rule
-red; printf '  ■ GATE 2 · awaiting you. Read plan.md ## 🔭 Review AND the diff (verdict=ship).\n'; rst
+red; printf '  ■ GATE 2 · awaiting you. Read plan.md ## 🔭 Review AND the diff (verdict=ship):\n'; rst
+printf '    ! git diff HEAD  (new files: ! git status -s)  · or fleet o\n'
 printf '    Ship: /anderson:approve-diff demo-task    Rework: /anderson:rework demo-task\n'
 rule; pause
 

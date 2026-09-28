@@ -103,6 +103,27 @@ class TestReadHere(unittest.TestCase):
             finally:
                 fleet.FLEET_DIR, fleet.shutil.which = old
 
+    def test_gate_diff_shows_tracked_and_untracked_but_not_scratch(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as fd:
+            old = fleet.FLEET_DIR; fleet.FLEET_DIR = fd
+            try:
+                git = lambda *a: subprocess.run(["git", "-C", repo, *a], check=True, capture_output=True)
+                git("init", "-q"); open(os.path.join(repo, "a.py"), "w").write("old\n")
+                git("add", "."); git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "init")
+                row = {"root": repo, "task": "t", "stage": "diff_review"}
+                self.assertIsNone(fleet.gate_diff(row))                       # clean tree: no diff page
+                open(os.path.join(repo, "a.py"), "w").write("new\n")
+                open(os.path.join(repo, "b.py"), "w").write("added\n")
+                os.makedirs(os.path.join(repo, "feature-research", "t"))
+                open(os.path.join(repo, "feature-research", "t", "plan.md"), "w").write("scratch\n")
+                text = open(fleet.gate_diff(row)).read()
+                self.assertIn("new", text); self.assertIn("added", text); self.assertNotIn("scratch", text)
+                self.assertIsNone(fleet.gate_diff({**row, "stage": "plan_review"}))
+                self.assertIsNone(fleet.gate_diff({**row, "root": os.path.join(fd, "nope")}))
+            finally:
+                fleet.FLEET_DIR = old
+
     def test_view_gate_without_files_says_so(self):
         self.assertIn("nothing to read", fleet.view_gate({"root": "/nonexistent", "task": "x", "stage": "grill", "pid": None}))
 

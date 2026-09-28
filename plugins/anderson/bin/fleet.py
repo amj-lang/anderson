@@ -1335,7 +1335,7 @@ def next_step(r):
         return f"read plan.md (o) → /anderson:approve-plan {task}  · or say what to change"
     if st == "diff_review" and gate == "human":
         v = r.get("diff_verdict") or ""
-        return f"read plan.md + audit.md (o) → /anderson:approve-diff {task}" + (f"  · verdict {v}: /anderson:rework {task}" if v == "fix_first" else "")
+        return f"read plan.md + audit.md + diff (o) → /anderson:approve-diff {task}" + (f"  · verdict {v}: /anderson:rework {task}" if v == "fix_first" else "")
     if st == "implement":
         return "NEO is writing code; nothing to do until diff review"
     if st == "repair":
@@ -1672,8 +1672,9 @@ MANUAL = """
 
   ↑↓ / j k  tune           select a session · 1-9 jack straight into row N
   o         read           read the gate artifact right here: plan.md (grill, plan review),
-                           plan.md + audit.md (diff review). glow when installed, else less with
-                           a light markdown colouring; q comes back to fleet, :n = next file
+                           plan.md + audit.md then the code diff (diff review). glow when
+                           installed, else less with a light markdown colouring; q comes back to
+                           fleet (at diff review: q moves on to the diff), :n = next file
   O         open in IDE    same files in your IDE: --editor code (saved), else a GUI
                            $VISUAL/$EDITOR, else the IDE that owns the session. ⏎ / 1-9 on a row
                            parked at a human gate does this automatically when an IDE applies
@@ -2315,17 +2316,49 @@ def view_cmd(files):
     return ["less", "-R", "-P", f"{names}  (q back to fleet, :n next file)"] + tmp, [t for t in tmp if t.startswith(FLEET_DIR)]
 
 
+def gate_diff(r):
+    """Gate 2's code diff, uncommitted until approve-diff ships it: tracked changes vs HEAD plus
+    untracked files, coloured, into a temp file for less. Read-only (no `git add -N`), scratch dir
+    left out. None when not diff review, not a git repo, or nothing changed."""
+    root = r.get("root") or r.get("cwd") or ""
+    if r.get("stage") != "diff_review" or not root:
+        return None
+    git, skip = ["git", "-C", root], ["--", ".", ":(exclude)feature-research"]
+    try:
+        out = subprocess.run(git + ["diff", "--color=always", "HEAD"] + skip, capture_output=True, text=True).stdout
+        new = subprocess.run(git + ["ls-files", "--others", "--exclude-standard", "-z"] + skip,
+                             capture_output=True, text=True).stdout
+        for f in filter(None, new.split("\0")):   # --no-index exits 1 on a difference: never check=True
+            out += subprocess.run(git + ["diff", "--no-index", "--color=always", "/dev/null", f],
+                                  capture_output=True, text=True, cwd=root).stdout
+        if not out.strip():
+            return None
+        os.makedirs(FLEET_DIR, exist_ok=True)
+        path = os.path.join(FLEET_DIR, "view-code.diff")
+        with open(path, "w") as fh:
+            fh.write(out)
+        return path
+    except Exception:
+        return None
+
+
 def view_gate(r, scr=None):
-    """`o`: read plan.md / audit.md right here, in the fleet terminal; the TUI resumes on q."""
+    """`o`: read plan.md / audit.md right here, in the fleet terminal, then the code diff at diff
+    review; the TUI resumes on q."""
     import curses
     files = gate_files(r)
     if not files:
         return "nothing to read: no plan.md / audit.md for that row."
     cmd, tmp = view_cmd(files)
+    diff = gate_diff(r)
+    if diff:
+        tmp.append(diff)
     try:
         if scr is not None:
             curses.endwin()
         subprocess.run(cmd)
+        if diff:   # its own pager: glow would flatten the colours
+            subprocess.run(["less", "-R", "-P", "code diff  (q back to fleet)", diff])
     except Exception as e:
         return f"viewer failed: {e}"
     finally:
@@ -2337,7 +2370,7 @@ def view_gate(r, scr=None):
         if scr is not None:
             scr.refresh()
     hint = "" if shutil.which("glow") else "   (brew install glow for rendered markdown)"
-    return f"read {', '.join(os.path.basename(f) for f in files)}{hint}"
+    return f"read {', '.join(os.path.basename(f) for f in files)}{' + code diff' if diff else ''}{hint}"
 
 
 def open_gate(r):
