@@ -939,7 +939,7 @@ def focus_rows(rows, focus):
 
 def focus_target(ws, focus):
     """The repo/group row `focus` is drilled into, rebuilt from the scan. Drilled into a repo with
-    no agents there is nothing to select, so `⏎` has no row to spawn from: this gives it one.
+    no agents there is nothing to select, so `N` has no row to spawn from: this gives it one.
     None when the path no longer scans (renamed, deleted)."""
     entries = scan_workspace(ws) if ws else []
     row = None
@@ -1325,7 +1325,7 @@ def header_tail(frame):
 def next_step(r):
     """What the human does next for this row, in one line."""
     if r.get("kind") in ("repo", "group"):
-        return "⏎ spawns an agent here" + (" (workspace root)" if r["kind"] == "group" else "")
+        return "N spawns an agent here" + (" (workspace root)" if r["kind"] == "group" else "") + " · ⏎ goes in"
     st, gate, task = r.get("stage") or "", r.get("gate") or "", r.get("task") or ""
     if r["status"] == "sentinel":
         return "⏎ revives it in a new terminal · c copies the command · b dismisses the row"
@@ -1485,7 +1485,7 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
     lines.append(("colhdr", fit(hdr, W)))
     if not rows:
         lines.append(("empty", fit("", W)))
-        empty = (f"nothing running in {' / '.join(focus)}.   {G['cur']} {'⏎' if G is not ASCII else 'enter'} spawn an agent here · ← back out"
+        empty = (f"nothing running in {' / '.join(focus)}.   {G['cur']} N spawn an agent here · ← back out"
                  if focus else words("empty"))
         lines.append(("empty", fit("   " + empty, W)))
     for i, r in enumerate(view):
@@ -1542,10 +1542,10 @@ def footer(rows, W, filt="", all_rows=None):
     d = G["det"]
     fleet = sum(r["cost"] or 0 for r in (all_rows if all_rows is not None else rows))
     lim = usage_limits()
-    keys = ("↑↓ tune · ←→ out/in · 1-9/⏎ jack in or spawn · J/K reorder · space collapse · D pop out · o read plan · O in IDE · a agent log · w rabbit · "
+    keys = ("↑↓ tune · ←→ out/in · 1-9/⏎ jack in · N new agent · J/K reorder · space collapse · D pop out · o read plan · O in IDE · a agent log · w rabbit · "
             "🔴 r kill · ⤴ R rebase · 🔵 b hide · 👻 h hidden · c resume · "
             "🔔 n notify · 🔊 m sound · 🎵 s ring · $ cost · +/- zoom · 🔍 / filter · 🎨 t theme · p wording · ? manual · q quit") \
-        if G is not ASCII else ("jk tune · left/right out/in · 1-9/enter jack in or spawn · J/K reorder · space collapse · D pop out · o read plan · O in IDE · a agent log · w rabbit · "
+        if G is not ASCII else ("jk tune · left/right out/in · 1-9/enter jack in · N new agent · J/K reorder · space collapse · D pop out · o read plan · O in IDE · a agent log · w rabbit · "
                                 "r kill · R rebase · b hide · h hidden · c resume · "
                                 "n notify · m sound · s ring · $ cost · +/- zoom · / filter · t theme · p wording · ? manual · q quit")
     if filt:
@@ -1691,15 +1691,16 @@ MANUAL = """
                            80% context (saved). macOS: brew install terminal-notifier for
                            reliable banners; clicking one brings this terminal forward
   ⏎         jack in        tmux: switch to that pane · macOS without tmux: focus the
-                           iTerm2 / Terminal.app tab that owns the session, else bring the
-                           owning app forward (WebStorm / VS Code / Cursor integrated terminals).
+                           Ghostty / iTerm2 / Terminal.app tab that owns the session (Ghostty by
+                           the tab's directory), else bring the owning app forward (WebStorm /
+                           VS Code / Cursor integrated terminals).
                            On a sentinel: revive it in a new window already running its resume.
-                           On a repo/group row: opens a prompt box, then p/a/A spawns a claude
-                           agent in that repo (or the workspace root, on a group) in a terminal of
-                           its own -- fleet stays on screen, it is never replaced by the agent.
-                           Drilled into a repo with no agents in it, there is no row to select:
-                           ⏎ spawns into that repo anyway, so an empty repo is a starting point
-                           rather than a dead end.
+                           On a repo/group row: go into it, like →. ⏎ only moves you.
+  N         new agent      opens a prompt box, then p/a/A spawns a claude agent in the selected
+                           repo (or the workspace root, on a group; the session's own repo, on a
+                           session row) in a terminal of its own -- fleet stays on screen, it is
+                           never replaced by the agent. Drilled into a repo with no agents in it,
+                           N spawns into that repo, so an empty repo is a starting point.
                            A repo already on a feature branch is someone's work in progress, so the
                            agent gets a worktree there instead: .worktrees/<task> on branch
                            anderson/<task>, cut from the default branch. On the default branch the
@@ -1924,7 +1925,7 @@ NEW_TAB_GHOSTTY = """tell application "Ghostty"
 	activate
 	set cfg to new surface configuration
 	set initial input of cfg to "{cmd}" & return
-	if (count of windows) > 0 then
+{wd}	if (count of windows) > 0 then
 		new tab in front window with configuration cfg
 	else
 		new window with configuration cfg
@@ -1977,7 +1978,11 @@ def new_terminal(cmd, name=None, cwd=None, use_tmux=True, verb=None, detach=Fals
         app = _host_terminal()
         tmpl = {"Ghostty": NEW_TAB_GHOSTTY, "iTerm2": NEW_TAB_ITERM}.get(app, NEW_WINDOW_TERMINAL)
         # the shell sees cmd verbatim; only the AppleScript string literal needs escaping
-        script = tmpl.replace("{cmd}", full.replace("\\", "\\\\").replace('"', '\\"'))
+        esc = lambda t: t.replace("\\", "\\\\").replace('"', '\\"')
+        # Ghostty: start the tab in cwd too, so its `working directory` names the repo from the
+        # first frame (jack in finds the tab by it; `cd x && claude` alone never reports x)
+        wd = f'\tset initial working directory of cfg to "{esc(cwd)}"\n' if cwd else ""
+        script = tmpl.replace("{wd}", wd).replace("{cmd}", esc(full))
         try:
             rc = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=15)
             if rc.returncode == 0:
@@ -1998,7 +2003,7 @@ def revive(r):
     return new_terminal(cmd)
 
 
-# ──────────────────────────────────────────────────────────────────── spawn: ⏎ on a repo/group row
+# ──────────────────────────────────────────────────────────────────── spawn: N on a repo/group row
 def slug(prompt):
     """The window name / phase-3 task-dir key: an issue id (LIN-482) lowercased, else the first
     words slugified to <=32 chars, else task-<HHMM>. [^a-z0-9-] stripped: no `:` and no `.`,
@@ -2143,7 +2148,7 @@ def rebase_row(path):
 
 
 def spawn_cmd(row, prompt, mode):
-    """(cwd, shell_cmd, window_name) for `⏎` on a repo/group row. Pure — phase-3's worktree swap
+    """(cwd, shell_cmd, window_name) for `N` on a repo/group row. Pure — phase-3's worktree swap
     is only the `cwd` line. cwd = the repo path, or the workspace root for a group row (router
     mode). mode: p = bare `claude <prompt>`, a/A = /anderson:start|auto <slug> <prompt> (both
     commands take the FIRST WORD as the task key, so the slug has to lead)."""
@@ -2162,7 +2167,7 @@ def spawn_cmd(row, prompt, mode):
 
 
 def launch_agent(row, prompt, mode):
-    """`⏎` → prompt box → p/a/A: spawn a claude agent into a repo/group row, in a terminal of its
+    """`N` → prompt box → p/a/A: spawn a claude agent into a repo/group row, in a terminal of its
     own. Stateless: no registry of launched sessions, spawn just fires new_terminal() and forgets.
     The monitor never gets replaced by the agent: where a real OS window is available (macOS) the
     agent gets one, and the tmux fallback creates its window detached."""
@@ -2456,13 +2461,34 @@ def run_tui(args):
         focus = ()             # ponytail: in-memory, never saved -- fleet always opens on the overview
 
         def activate(row):
-            """`⏎` / `1`-`9`: a session row jacks in (unchanged); a repo/group row opens the
-            prompt box."""
-            nonlocal prompt_mode, prompt_row, prompt_buf
+            """`⏎` / `1`-`9`: a session row jacks in; a repo/group row drills in, like `→`
+            (⏎ only ever moves you, it never starts anything: `N` spawns)."""
+            nonlocal focus, sel, last_scan
             if row.get("kind") in ("repo", "group"):
-                prompt_mode, prompt_row, prompt_buf = True, row, ""
+                focus = focus + (row["repo"],)
+                sel = 0; last_scan = 0
                 return ""
             return jack_in(row) + gate_auto_open(row)
+
+        def spawn_here():
+            """`N`: open the spawn prompt box for the selected repo/group row, the repo a selected
+            session belongs to, or the repo you are drilled into when it has no rows."""
+            nonlocal prompt_mode, prompt_row, prompt_buf
+            if rows and rows[sel].get("kind") in ("repo", "group"):
+                tgt = rows[sel]
+            elif rows:
+                path = tuple(x for x in entry_for(ws, session_root(rows[sel])) if x)
+                tgt = focus_target(ws, path) if path else None
+                if tgt is None:
+                    return "that session is outside the workspace: pick a repo row to spawn into."
+            elif focus:
+                tgt = focus_target(ws, focus)
+                if tgt is None:
+                    return f"{' / '.join(focus)} is gone from the workspace — ← backs out."
+            else:
+                return "nothing to spawn into: pick a repo row."
+            prompt_mode, prompt_row, prompt_buf = True, tgt, ""
+            return ""
 
         def say(msg, secs=3):
             nonlocal toast, toast_until
@@ -2655,8 +2681,9 @@ def run_tui(args):
                 if rows:
                     say(activate(rows[sel]))
                 elif focus:
-                    tgt = focus_target(ws, focus)      # drilled into an empty repo: spawn into it
-                    say(activate(tgt) if tgt else f"{' / '.join(focus)} is gone from the workspace — ← backs out.")
+                    say("nothing to jack into here. N spawns an agent.")
+            elif k == ord("N"):
+                say(spawn_here())
             elif k == ord("o"):
                 if rows:
                     say(view_gate(rows[sel], scr), 4); prev = None; last_full = now
@@ -3019,6 +3046,54 @@ def looking_at(r):
         return False
 
 
+# `tab` inside Ghostty's tell block is its tab class, not a tab character: hence `character id 9`
+FOCUS_GHOSTTY_LIST = """tell application "Ghostty"
+	set out to ""
+	set sep to character id 9
+	repeat with t in terminals
+		set out to out & (id of t) & sep & (working directory of t) & sep & (name of t) & linefeed
+	end repeat
+	return out
+end tell"""
+
+
+def ghostty_pick(listing, cwd):
+    """The Ghostty terminal id to focus for a session in `cwd`, from FOCUS_GHOSTTY_LIST's output,
+    or (None, why). Ghostty has no tty in its dictionary, so the tab is found by working directory;
+    two tabs in one directory are told apart by the claude title (a spinner glyph, or
+    "Claude Code"), which a bare shell prompt does not carry.
+    ponytail: two claude tabs in one checkout stay ambiguous. Spawns with a task get their own
+    worktree, so it takes two bare sessions in one repo; a per-spawn env token would split them."""
+    want = os.path.realpath(cwd or "")
+    hits = []
+    for ln in (listing or "").splitlines():
+        parts = ln.split("\t", 2)
+        if len(parts) == 3 and parts[1] and os.path.realpath(parts[1]) == want:
+            hits.append(parts)
+    if len(hits) > 1:
+        claude = [h for h in hits if h[2].strip() == "Claude Code" or re.match(r"^[^\w\s~/]", h[2])]
+        hits = claude or hits
+    if len(hits) == 1:
+        return hits[0][0], None
+    return None, (f"{len(hits)} tabs in {cwd}, can't tell which" if hits else "no tab in that directory")
+
+
+def _focus_ghostty(cwd):
+    """macOS Ghostty 1.3+: focus the terminal a session runs in. "ok", else why not."""
+    if not cwd:
+        return "no cwd for that session"
+    try:
+        out = subprocess.run(["osascript", "-e", FOCUS_GHOSTTY_LIST], capture_output=True, text=True, timeout=5).stdout
+        tid, why = ghostty_pick(out, cwd)
+        if not tid:
+            return why
+        r = subprocess.run(["osascript", "-e", f'tell application "Ghostty"\n\tactivate\n\tfocus (first terminal whose id is "{tid}")\nend tell'],
+                           capture_output=True, text=True, timeout=5)
+        return "ok" if r.returncode == 0 else (r.stderr.strip() or "focus failed")
+    except Exception as e:
+        return f"focus failed: {e}"
+
+
 def _owner_app(pid):
     """macOS: the .app that owns this process (WebStorm, VS Code, Cursor, Warp...), via the ppid chain."""
     try:
@@ -3081,6 +3156,12 @@ def jack_in(r):
                 "defaults write com.apple.dock workspaces-auto-swoosh -bool YES; killall Dock")
     if sys.platform == "darwin":
         app = _owner_app(r.get("pid")) if r.get("pid") else None
+        if app and app[0] == "Ghostty":
+            hit = _focus_ghostty(r.get("cwd"))
+            if hit == "ok":
+                return "Operator."
+            if hit:
+                return f"Ghostty: {hit}"
         if app:
             name, path = app
             try:

@@ -467,6 +467,21 @@ class TestSpawn(unittest.TestCase):
             self.assertIn(want, seen[0][2], env)
             self.assertIn("cd '/tmp/a b' && claude", seen[0][2])
             self.assertIn(msg, out)
+            # a Ghostty tab starts in cwd, so ghostty_pick() can find it by directory later
+            self.assertEqual('initial working directory of cfg to "/tmp/a b"' in seen[0][2], "Ghostty" in msg, env)
+
+    def test_ghostty_pick_finds_the_session_tab_by_directory(self):
+        """Ghostty has no tty to match on: jack in picks the tab by working directory, and a
+        claude title beats a bare shell prompt sharing that directory."""
+        ls = ("A\t/ws/web\talex@mac:~/ws/web\n"
+              "B\t/ws/web\t◐ Image targeting refactor\n"
+              "C\t/ws/api\t✳ Claude Code\n"
+              "D\t/ws/two\t✳ one\nE\t/ws/two\t◐ other\n")
+        self.assertEqual(fleet.ghostty_pick(ls, "/ws/web"), ("B", None))
+        self.assertEqual(fleet.ghostty_pick(ls, "/ws/api"), ("C", None))
+        self.assertIsNone(fleet.ghostty_pick(ls, "/ws/two")[0])        # two claude tabs: say so, don't guess
+        self.assertIsNone(fleet.ghostty_pick(ls, "/ws/none")[0])
+        self.assertIsNone(fleet.ghostty_pick("", "/ws/web")[0])
 
     def test_new_terminal_tmux_failure_says_so_and_copies_to_clipboard(self):
         """criterion 5's failure half: tmux (or the launch) fails -> fleet says what failed AND
