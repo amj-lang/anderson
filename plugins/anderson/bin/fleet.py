@@ -3094,9 +3094,8 @@ def ghostty_pick(listing, cwd):
     """The Ghostty terminal id to focus for a session in `cwd`, from FOCUS_GHOSTTY_LIST's output,
     or (None, why). Ghostty has no tty in its dictionary, so the tab is found by working directory;
     two tabs in one directory are told apart by the claude title (a spinner glyph, or
-    "Claude Code"), which a bare shell prompt does not carry.
-    ponytail: two claude tabs in one checkout stay ambiguous. Spawns with a task get their own
-    worktree, so it takes two bare sessions in one repo; a per-spawn env token would split them."""
+    "Claude Code"), which a bare shell prompt does not carry. Two claude tabs in one checkout stay
+    ambiguous here: _ghostty_mark() splits those by tty, this is its fallback."""
     want = os.path.realpath(cwd or "")
     hits = []
     for ln in (listing or "").splitlines():
@@ -3111,13 +3110,50 @@ def ghostty_pick(listing, cwd):
     return None, (f"{len(hits)} tabs in {cwd}, can't tell which" if hits else "no tab in that directory")
 
 
-def _focus_ghostty(cwd):
-    """macOS Ghostty 1.3+: focus the terminal a session runs in. "ok", else why not."""
-    if not cwd:
+def _ghostty_list():
+    return subprocess.run(["osascript", "-e", FOCUS_GHOSTTY_LIST], capture_output=True, text=True, timeout=5).stdout
+
+
+def _tty_title(tty, title):
+    """Set the title of the terminal showing `tty` (OSC 2), as if the program on it had."""
+    title = re.sub(r"[\x00-\x1f\x7f]", "", title)
+    fd = os.open(tty, os.O_WRONLY | os.O_NOCTTY)
+    try:
+        os.write(fd, f"\033]2;{title}\007".encode())
+    finally:
+        os.close(fd)
+
+
+def _ghostty_mark(tty, before):
+    """The Ghostty terminal id showing `tty`, or None. Ghostty's dictionary has no tty, but a title
+    written to the tty shows up as that terminal's `name`: write a unique one, find it, then put
+    the old title back. Exact however many tabs share a directory."""
+    names = {p[0]: p[2] for p in (ln.split("\t", 2) for ln in (before or "").splitlines()) if len(p) == 3}
+    mark = f"fleet-{os.getpid()}-{time.time_ns()}"
+    try:
+        _tty_title(tty, mark)
+    except OSError:
+        return None
+    for _ in range(10):                                   # Ghostty applies it in ~0.1s
+        for ln in _ghostty_list().splitlines():
+            p = ln.split("\t", 2)
+            if len(p) == 3 and p[2].strip() == mark:
+                _tty_title(tty, names.get(p[0], "Claude Code"))
+                return p[0]
+        time.sleep(0.1)
+    _tty_title(tty, "")                                   # not a Ghostty tty: an empty title resets it
+    return None
+
+
+def _focus_ghostty(cwd, tty=None):
+    """macOS Ghostty 1.3+: focus the terminal a session runs in. "ok", else why not.
+    By tty when known (exact), else by working directory."""
+    if not cwd and not tty:
         return "no cwd for that session"
     try:
-        out = subprocess.run(["osascript", "-e", FOCUS_GHOSTTY_LIST], capture_output=True, text=True, timeout=5).stdout
-        tid, why = ghostty_pick(out, cwd)
+        out = _ghostty_list()
+        tid = _ghostty_mark(tty, out) if tty else None
+        tid, why = (tid, None) if tid else ghostty_pick(out, cwd)
         if not tid:
             return why
         r = subprocess.run(["osascript", "-e", f'tell application "Ghostty"\n\tactivate\n\tfocus (first terminal whose id is "{tid}")\nend tell'],
@@ -3190,7 +3226,7 @@ def jack_in(r):
     if sys.platform == "darwin":
         app = _owner_app(r.get("pid")) if r.get("pid") else None
         if app and app[0] == "Ghostty":
-            hit = _focus_ghostty(r.get("cwd"))
+            hit = _focus_ghostty(r.get("cwd"), tty)
             if hit == "ok":
                 return "Operator."
             if hit:

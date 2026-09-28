@@ -483,6 +483,25 @@ class TestSpawn(unittest.TestCase):
         self.assertIsNone(fleet.ghostty_pick(ls, "/ws/none")[0])
         self.assertIsNone(fleet.ghostty_pick("", "/ws/web")[0])
 
+    def test_focus_ghostty_splits_same_repo_tabs_by_tty(self):
+        """Three claude tabs in one checkout: the cwd pick can't choose, so jack in titles the
+        session's tty, focuses the tab showing that title, and puts the old title back."""
+        tabs = {"A": "◐ one", "B": "✳ two", "C": "✳ Claude Code"}
+        titles = []
+        listing = lambda: "".join(f"{i}\t/ws/web\t{n}\n" for i, n in tabs.items())
+        def title(tty, t):
+            titles.append(t)
+            if tty == "/dev/ttys004":
+                tabs["B"] = t
+        ran = []
+        with mock.patch.object(fleet, "_ghostty_list", side_effect=listing), \
+             mock.patch.object(fleet, "_tty_title", side_effect=title), \
+             mock.patch.object(fleet.subprocess, "run", side_effect=lambda a, *x, **k: ran.append(a) or mock.Mock(returncode=0)):
+            self.assertEqual(fleet._focus_ghostty("/ws/web", "/dev/ttys004"), "ok")
+            self.assertIn('id is "B"', ran[-1][2])
+            self.assertEqual(tabs["B"], "✳ two")                     # old title restored
+            self.assertIn("can't tell", fleet._focus_ghostty("/ws/web"))  # no tty: cwd fallback, says so
+
     def test_new_terminal_tmux_failure_says_so_and_copies_to_clipboard(self):
         """criterion 5's failure half: tmux (or the launch) fails -> fleet says what failed AND
         the exact command still lands on the clipboard. mock.patch.object, not a manual
