@@ -44,7 +44,8 @@ Print in exactly this order (sub-bullet = quote pool to pick from):
   Then the gate marker:
   ﾊﾐﾐ 0ｺ1  🔴 G A T E  2 · AWAITING YOU  1ｺ0 ﾐﾐﾊ
   ⌐■-■  criteria 5/5 proven (all)
-        verdict ship → read the diff + plan.md ## 🔭 Review, then
+        verdict ship → read the diff (`! git diff HEAD` · new files `! git status -s` ·
+        fleet `o`) + plan.md ## 🔭 Review, then
         /anderson:approve-diff demo-task to ship, or /anderson:rework demo-task
   (ship builds the PR from the plan minus the how — What & why · criteria with evidence · design · how-to-test + config, with scorecard / blast radius / error handling in collapses; Open-questions only when non-empty — then deletes the gitignored scratch; the PR is the durable record)
 

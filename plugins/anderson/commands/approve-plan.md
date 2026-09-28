@@ -96,7 +96,8 @@ the one exception: they all read the same finished diff and each writes only its
    ﾊﾐﾐ 0ｺ1  🔴 G A T E  2 · AWAITING YOU  1ｺ0 ﾐﾐﾊ
      ⌐■-■  criteria <proven>/<N> proven<, failed: #<n> <one-line why> — or " (all)">
            tier <TIER><, was <old> — or ""> · reviewed by opus/<review_effort> · crew <PERSONA + … | none>
-           verdict <diff_verdict> → read the diff + plan.md ## 🔭 Review, then
+           verdict <diff_verdict> → read the diff (`! git diff HEAD` · new files `! git status -s` ·
+           fleet `o`) + plan.md ## 🔭 Review, then
            /anderson:approve-diff <task> to ship, or /anderson:rework <task>.
    ```
    Halt is unconditional even on a ship verdict.

@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.58.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.59.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -676,6 +676,7 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 
 ## Changelog
 
+- **0.59.0** — **Gate 2 shows the code diff.** The card said "read the diff" but nothing showed it: fleet's `o` only paged plan.md + audit.md. At diff review `o` now pages the code diff after them (tracked changes vs HEAD plus new files, scratch left out, read-only), and the Gate 2 card names the in-session commands (`! git diff HEAD`, `! git status -s`). The PR body is unchanged: still the plan minus the how, no diff in it.
 - **0.58.0** — **Fleet: ⏎ lands on Ghostty tabs, `N` spawns.** Jack in never found a session running in Ghostty: its AppleScript dictionary has no tty, so fleet fell back to "app focused, tab not selectable". It now finds the tab by working directory (a claude title beats a bare shell sharing the directory) and focuses it; spawned Ghostty tabs start in their repo so they are found from the first frame. `⏎` only moves you now: on a repo/group row it goes in, like `→`, instead of opening the spawn prompt. Spawning moved to `N` (new agent), which also works on a session row (into its repo) and in an empty repo you drilled into.
 - **0.57.1** — **Fleet: spawns open a tab in the terminal you run it in.** `⏎` spawn, sentinel revive and `D` pop-out always went to Terminal.app unless fleet ran in iTerm2, so from Ghostty (and from any terminal once fleet sat inside tmux, where `TERM_PROGRAM` reads `tmux`) the agent landed in the wrong app or failed. fleet now reads the host app from `__CFBundleIdentifier`, which survives tmux, and opens a new **tab** there: Ghostty 1.3+ through its AppleScript dictionary, iTerm2 in its current window. Terminal.app keeps its new window (a tab there needs Accessibility keystrokes).
 - **0.57.0** — **Crew hint and the run log.** The planner can add a diff-review seat the routing rules would miss (`**Crew hint:**` in plan.md; the plan-reviewer may add to it, never remove), and `bin/crew.py --hint` takes the union: judgment can only add a reviewer, never drop one. Every finished run, shipped or aborted, appends one JSON line to a local run log (`~/.claude/anderson/runs.jsonl`, never sent anywhere) and `bin/runlog.py --summary` reports tiers, rework rounds and each crew seat's confirmed/raised hit rate, the evidence for tuning tiers and crew patterns. Smith's tally line is now `crew_tally:` so it can't collide with the `crew:` state field.
