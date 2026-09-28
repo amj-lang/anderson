@@ -22,16 +22,21 @@ LOG = os.path.expanduser(os.environ.get("ANDERSON_RUNLOG", "~/.claude/anderson/r
 PERSONAS = ("SERAPH", "NIOBE", "MEROVINGIAN")
 
 
+def tally(text, key):
+    """Sum `<key>: SERAPH 1/2 · …` lines (one per review round) into {persona: [confirmed, raised]}."""
+    out = {p: [0, 0] for p in PERSONAS}
+    for line in re.findall(rf"\b{key}:(.*)", text):
+        for who, ok, raised in re.findall(r"(SERAPH|NIOBE|MEROVINGIAN)\s+(\d+)/(\d+)", line):
+            out[who][0] += int(ok)
+            out[who][1] += int(raised)
+    return {p: v for p, v in out.items() if v[1]}
+
+
 def record(task_dir, mode, outcome, pr):
     with open(os.path.join(task_dir, "state.md"), encoding="utf-8") as f:
         text = f.read()
     block = text.split("<!-- STATE:START -->", 1)[-1].split("<!-- STATE:END -->", 1)[0]
     state = dict(m.groups() for m in re.finditer(r"^([a-z_]+):[ \t]*(.*?)[ \t]*$", block, re.M))
-    tally = {p: [0, 0] for p in PERSONAS}
-    for line in re.findall(r"crew_tally:(.*)", text):  # one line per review round
-        for who, ok, raised in re.findall(r"(SERAPH|NIOBE|MEROVINGIAN)\s+(\d+)/(\d+)", line):
-            tally[who][0] += int(ok)
-            tally[who][1] += int(raised)
     top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
     return {
         "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -40,7 +45,8 @@ def record(task_dir, mode, outcome, pr):
         "outcome": outcome,
         "pr": pr,
         "state": state,
-        "crew_tally": {p: v for p, v in tally.items() if v[1]},
+        "crew_tally": tally(text, "crew_tally"),
+        "plan_tally": tally(text, "plan_tally"),
         "diff_votes": re.findall(r"diff_vote_\S+:.*", text),
     }
 
@@ -68,6 +74,13 @@ def summary(runs):
     ]
     lines += [f"{p:<12} seated {seated[p]:>3} · confirmed {ok[p]}/{raised[p]} raised"
               for p in PERSONAS]
+    plan = Counter()  # runs logged before the plan crew have no plan_tally
+    for r in runs:
+        for p, (c, n) in r.get("plan_tally", {}).items():
+            plan[p, 0] += c
+            plan[p, 1] += n
+    lines += [f"{p:<12} plan review · confirmed {plan[p, 0]}/{plan[p, 1]} raised"
+              for p in PERSONAS if plan[p, 1]]
     return "\n".join(lines)
 
 

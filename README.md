@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.59.1-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.60.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -67,6 +67,7 @@ flowchart LR
 | --- | ------------- | ------------------------ | --------------------------- |
 | 🏛  | `plan`        | THE ARCHITECT            | opus · medium               |
 | 🕶  | `grill`       | THE INTERROGATOR (you)   | human                       |
+| 🛡  | `plan_review` | SERAPH · NIOBE (crew, when the plan calls them) | security · performance design seats |
 | 🔮  | `plan_review` | THE ORACLE               | opus · high\*, then GATE 1  |
 | 🟢  | `implement`   | NEO                      | sonnet · medium             |
 | ✨  | `repair`      | TRINITY (only when red)  | opus · high                 |
@@ -76,7 +77,7 @@ flowchart LR
 
 The grill interrogates the plan one question at a time before any code exists. `regrill` sends the plan reviewer's doubts back to the grill; `fix_first` loops the implementer, capped by `max_iterations`.
 
-The crew is summoned by what the diff touches, not by a model: `bin/crew.py` seats SERAPH for auth, API, input handling, secrets and dependencies (always from HARD up), NIOBE for queries, loops over I/O and React effects, and THE MEROVINGIAN whenever the diff changes existing code, to catch what it orphaned. They review blind into their own files; AGENT SMITH rules on their findings.
+The crew is summoned by what the diff touches, not by a model: `bin/crew.py` seats SERAPH for auth, API, input handling, secrets and dependencies (always from HARD up), NIOBE for queries, loops over I/O and React effects, and THE MEROVINGIAN whenever the diff changes existing code, to catch what it orphaned. They review blind into their own files; AGENT SMITH rules on their findings. SERAPH and NIOBE also sit at plan review, routed from the plan, so THE ORACLE folds security and performance fixes into the plan before any code exists.
 
 A red test suite does not loop the implementer. It gets one try; if the tests are still red, `repair` hands them to TRINITY on opus/high, which root-causes the failure and may never weaken, skip or delete a test to get green.
 
@@ -123,7 +124,7 @@ A tier (trivial / normal / hard / critical) is derived from the plan's Scorecard
 | hard     | opus · high   | opus · xhigh            | 3 × opus · high   |
 | critical | opus · xhigh  | opus · xhigh            | 3 × opus · high   |
 
-The crew joins the diff review on any tier when the diff calls for it: SERAPH (security) on opus · high, and always from HARD up; NIOBE (performance) and THE MEROVINGIAN (dead code) on opus · medium, opus · high from HARD up. The planner can add a seat the rules would miss with a Crew hint; it can never remove one.
+The crew joins both reviews on any tier when the plan or the diff calls for it (THE MEROVINGIAN only the diff): SERAPH (security) on opus · high, and always from HARD up; NIOBE (performance) and THE MEROVINGIAN (dead code) on opus · medium, opus · high from HARD up. The planner can add a seat the rules would miss with a Crew hint; it can never remove one.
 
 \* Effort by tier, per the table above. The plan critique always runs a rung above the opus/medium planner. In auto, the arbiter backstops every panel outcome except a unanimous refute; repair stays opus · high on every tier.
 

@@ -46,7 +46,14 @@ INGEST, BASELINE, RED, SHIP and REPORT are orchestrator steps: no subagent, no t
 
 ## The crew (both modes)
 
-Lens seats that join the diff review, summoned by `bin/crew.py` from the diff itself. Same
+Lens seats summoned by `bin/crew.py` at both reviews. At plan review (`--plan`) SERAPH and NIOBE
+judge the design before THE ORACLE, which confirms or rejects each finding and folds it into
+plan.md: a missing authorization check or an N+1 query is one plan edit there, a rework round
+after the code exists. Routing reads the plan's "Files touched" paths and its text (no diff yet);
+THE MEROVINGIAN sits only at diff review, since orphans need a diff and the plan-reviewer's
+blast-radius check covers planned dead code. Same tiers and efforts as below.
+
+At diff review the crew is summoned from the diff itself. Same
 `reviewer` prompt, always on opus; the effort picks the agent (`reviewer-medium` or `reviewer`):
 
 | Persona | Lens | Summoned when | trivial | normal | hard | critical |

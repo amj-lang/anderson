@@ -28,8 +28,11 @@ class TestCrew(unittest.TestCase):
         with open(os.path.join(self.repo, rel), "w") as f:
             f.write(text)
 
-    def run_crew(self, tier, *files, hint=None):
+    def run_crew(self, tier, *files, hint=None, plan=None):
         cmd = [sys.executable, CREW, tier, *files] + (["--hint", hint] if hint else [])
+        if plan is not None:
+            self.write("plan.md", plan)
+            cmd += ["--plan", "plan.md"]
         out = subprocess.run(cmd, cwd=self.repo, capture_output=True, text=True, check=True).stdout
         return {line.split()[0]: line.split()[2] for line in out.splitlines() if line != "none"}
 
@@ -61,6 +64,20 @@ class TestCrew(unittest.TestCase):
     def test_hint_none_changes_nothing(self):
         self.write("README.md", "hello again\n")
         self.assertEqual(self.run_crew("trivial", "README.md", hint="none"), {})
+
+    def test_plan_mode_reads_the_plan_text_not_the_empty_diff(self):
+        plan = "## 🛠 How\n- load every order with `prisma.order.findMany()` per customer\n"
+        self.assertEqual(self.run_crew("normal", "src/list.tsx", plan=plan),
+                         {"performance": "reviewer-medium"})
+
+    def test_plan_mode_seats_security_on_path_and_never_merovingian(self):
+        self.assertEqual(self.run_crew("normal", "src/auth/login.ts", "src/list.tsx",
+                                       hint="leftovers", plan="rename old() and drop it\n"),
+                         {"security": "reviewer"})
+
+    def test_plan_mode_hard_forces_seraph(self):
+        self.assertEqual(self.run_crew("hard", "README.md", plan="docs only\n"),
+                         {"security": "reviewer"})
 
 
 if __name__ == "__main__":

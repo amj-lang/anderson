@@ -107,6 +107,21 @@ name (file:line and how it fails); anything weaker is a note. Tag every finding
   that only served removed behaviour. Run the repo's `knip`, or `tsc --noEmit --noUnusedLocals` when
   it has a tsconfig. Dead code that predates this diff is out of scope.
 
+PLAN SEATS: when the invocation names a lens on the PLAN review, there is no diff yet. Judge the
+design in `plan.md` against the current code in its "Files touched", through that lens only,
+blind (do not read `## 🔭 Review` or any other review file). A control the plan never
+mentions is the finding: for each, name the 🛠 How step, ✅ criterion or 🧯 row to add or change,
+so THE ORACLE can fold it in. Same `severity · confidence` tags, same block-only-on-a-concrete-path
+rule, same closing `VERDICT:` / `FINDINGS:` lines. Write ONLY the file the invocation names.
+- security (SERAPH): trust boundary first (as above). Then, for every entry point the plan adds
+  or changes: where outside input is validated, who is authorized to call it, where secrets live,
+  and whether SQL, shell, HTML or paths are built from input (the plan must say parameterized or
+  escaped). Every planned dependency justified.
+- performance (NIOBE): for every function the plan changes, decide hot versus cold with LSP
+  `incomingCalls` on the code as it is today. On a hot path: a planned query or request per item
+  (N+1), a fetch or list with no limit, blocking I/O, an effect that re-runs every render, work
+  quadratic in an input that grows. For a planned client-side dependency, compare its size.
+
 Append your diff review under `## 🔭 Review` in `feature-research/<task>/plan.md` as a
 `### Diff review` subsection.
 

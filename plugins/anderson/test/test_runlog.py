@@ -21,6 +21,7 @@ diff_verdict:    ship
 ## Done so far
 - crew_tally: SERAPH 1/2 · MEROVINGIAN 0/1
 - crew_tally: SERAPH 1/1
+- plan_tally: NIOBE 1/1
 """
 
 
@@ -44,12 +45,15 @@ class TestRunlog(unittest.TestCase):
         self.assertEqual(rec["state"]["tier"], "hard")
         self.assertEqual(rec["state"]["crew"], "SERAPH + MEROVINGIAN")
         self.assertEqual(rec["crew_tally"], {"SERAPH": [2, 3], "MEROVINGIAN": [0, 1]})
+        self.assertEqual(rec["plan_tally"], {"NIOBE": [1, 1]})
         self.assertEqual(rec["outcome"], "shipped")
         out = self.run_log("--summary")
         self.assertIn("runs 1 · shipped 1", out)
         self.assertIn("rework rounds avg 2.0", out)
         self.assertRegex(out, r"SERAPH\s+seated\s+1 · confirmed 2/3 raised")
         self.assertRegex(out, r"NIOBE\s+seated\s+0 · confirmed 0/0 raised")
+        self.assertRegex(out, r"NIOBE\s+plan review · confirmed 1/1 raised")
+        self.assertNotIn("SERAPH       plan review", out)
 
     def test_summary_with_no_log(self):
         self.assertIn("no runs logged yet", self.run_log("--summary"))

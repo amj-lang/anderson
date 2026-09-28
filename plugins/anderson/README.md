@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.59.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.60.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -129,8 +129,8 @@ The fleet terminal boots into the same rain:
 | NEO              | `implement`   | executes the approved plan             | sonnet / medium|
 | TRINITY          | `repair`      | root-causes a red suite (only when red)| opus / high    |
 | AGENT SMITH      | `diff_review` | read-only diff review                  | opus / high\*  |
-| SERAPH           | `diff_review` | security lens seat, summoned by the diff | opus / high  |
-| NIOBE            | `diff_review` | performance lens seat, summoned by the diff | opus / medium (high from HARD) |
+| SERAPH           | `plan_review` + `diff_review` | security lens seat, summoned by the plan and the diff | opus / high  |
+| NIOBE            | `plan_review` + `diff_review` | performance lens seat, summoned by the plan and the diff | opus / medium (high from HARD) |
 | THE MEROVINGIAN  | `diff_review` | dead-code lens seat: what this diff orphaned | opus / medium (high from HARD) |
 | THE ONE          | `done`        | shipped — commit + PR                  | — (terminal)   |
 
@@ -140,6 +140,9 @@ model call): SERAPH for auth, sessions, API routes, input parsing, SQL/shell/HTM
 secrets, dependencies, and always from HARD up; NIOBE for queries, loops over I/O, React effects,
 caching; THE MEROVINGIAN whenever the diff changes or removes existing code. They review blind
 into their own files first, then AGENT SMITH (or the auto arbiter) rules on their findings.
+SERAPH and NIOBE also sit at plan review (`crew.py --plan`, routed from the plan's Files touched and
+text), before THE ORACLE, which folds each confirmed finding into plan.md: a design flaw costs one
+plan edit there instead of a rework round after the code exists. THE MEROVINGIAN waits for the diff.
 The planner can add a seat the rules would miss with a `**Crew hint:**` line in plan.md (an auth check
 inside business logic, a hot path behind a helper); hints only add, they never remove a rule's pick.
 
@@ -676,6 +679,7 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 
 ## Changelog
 
+- **0.60.0** — **The crew sits at plan review too.** SERAPH and NIOBE now judge the design before THE ORACLE, not only the finished code: a missing authorization check, unvalidated input, an N+1 query or an unbounded fetch is one plan edit at plan review and a full rework round at diff review. `bin/crew.py --plan plan.md` routes from the plan's Files touched and text (no diff exists yet); THE ORACLE reads the seats' `plan-review-<lens>.md` files, confirms or rejects each finding on merit, folds the confirmed ones into plan.md and logs `plan_tally:`, which `bin/runlog.py --summary` reports per seat. THE MEROVINGIAN stays diff-only: orphaned code needs a diff, and the blast-radius check already covers planned dead code. The diff crew is unchanged, so it verifies the code against a plan that was already security- and performance-reviewed.
 - **0.59.1** — **Fleet: ⏎ finds the right Ghostty tab when several agents share a repo.** Ghostty's AppleScript has no tty, so jack in matched tabs by working directory and gave up with "N tabs in <repo>, can't tell which" once two claude sessions ran in one checkout. It now writes a one-off title to the session's own tty, focuses the tab showing it, and puts the old title back: exact for any number of tabs. The directory match stays as the fallback.
 - **0.59.0** — **Gate 2 shows the code diff.** The card said "read the diff" but nothing showed it: fleet's `o` only paged plan.md + audit.md. At diff review `o` now pages the code diff after them (tracked changes vs HEAD plus new files, scratch left out, read-only), and the Gate 2 card names the in-session commands (`! git diff HEAD`, `! git status -s`). The PR body is unchanged: still the plan minus the how, no diff in it.
 - **0.58.0** — **Fleet: ⏎ lands on Ghostty tabs, `N` spawns.** Jack in never found a session running in Ghostty: its AppleScript dictionary has no tty, so fleet fell back to "app focused, tab not selectable". It now finds the tab by working directory (a claude title beats a bare shell sharing the directory) and focuses it; spawned Ghostty tabs start in their repo so they are found from the first frame. `⏎` only moves you now: on a repo/group row it goes in, like `→`, instead of opening the spawn prompt. Spawning moved to `N` (new agent), which also works on a session row (into its repo) and in an empty repo you drilled into.

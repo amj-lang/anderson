@@ -70,7 +70,7 @@ PLAN pool (14): "Design twice, so reality only has to happen once." / "The most 
 
 PLAN GATE banner (stage offset 4):
 ```
-  ╭─ ⌐■-■  PLAN GATE · 4/9 · THE ORACLE · opus/<review_effort>
+  ╭─ ⌐■-■  PLAN GATE · 4/9 · THE ORACLE · opus/<review_effort> · crew <PERSONA + … | none>
   │  "[quote from PLAN GATE pool]"
   ╰─
 ```
@@ -340,9 +340,9 @@ Quote: pick one line from the stage's pool; vary it across stages.
       Record `tier: <trivial|normal|hard|critical>` in state.md. This tier is PROVISIONAL — step 7d
       re-tiers against actual diff size and takes the MAX (tier can only escalate, never drop).
 
-4. PLAN GATE — criteria-coverage check + ONE plan-reviewer (every tier). Plan errors
-   are cheap to fix (rework; nothing ships), so this side stays light — rigor budget is
-   spent at the diff gate.
+4. PLAN GATE — criteria-coverage check + the plan crew + ONE plan-reviewer (every tier). Plan
+   errors are cheap to fix (rework; nothing ships), so this side stays light — rigor budget is
+   spent at the diff gate — but security and performance design calls are cheapest here.
 
    a. Update state.md: set `stage: plan_gate`, `plan_panel: pending`.
 
@@ -350,14 +350,26 @@ Quote: pick one line from the stage's pool; vary it across stages.
       verify at least one `## 🛠 How` step in `plan.md` maps to it. Collect unmapped criteria as
       blocking findings.
 
-   d. (BANNER RULE) Print the PLAN GATE banner now, last line before invoking the plan-reviewer.
+   c. PLAN CREW: run
+      `python3 "${CLAUDE_PLUGIN_ROOT}/bin/crew.py" <tier> --plan feature-research/<task-id>/plan.md --hint <plan.md Crew hint lenses> <plan.md "Files touched">`
+      (drop `--hint` when the hint says `none`). Only SERAPH and NIOBE sit at the plan gate; THE
+      MEROVINGIAN needs a diff. Record `plan_crew: <PERSONA + … | none>` in the state.md STATE block.
+
+   d. (BANNER RULE) Print the PLAN GATE banner now, last line before the first seat or plan-reviewer call.
+      Unless the plan crew is `none`, invoke one subagent per crew line IN ONE MESSAGE (safe in
+      parallel: each reads the same plan and writes only its own file), using the agent the line
+      names: "You are <PERSONA>, the <lens> lens seat on the PLAN review of task <task-id>. Scope:
+      <Files touched>. Review plan.md through your lens only; do NOT read any other review. Write
+      ONLY `feature-research/<task-id>/plan-review-<lens>.md`; do not touch plan.md or state.md."
+      Wait for every seat.
 
    e. Invoke ONE **plan-reviewer** subagent (**plan-reviewer-xhigh** when tier is CRITICAL —
       always a rung above the opus/medium planner)
       with a refute posture: "Refute this plan — find why it
       fails, misses an acceptance criterion, or under-counts the blast radius; default to reject
       (`fix_first`) if uncertain. Make inline fixes (your normal mode). Append your report under
-      `## 🔭 Review`. Set `plan_verdict` in state.md." Seed it with the unmapped criteria from 4b.
+      `## 🔭 Review`. Set `plan_verdict` in state.md." Seed it with the unmapped criteria from 4b;
+      it reads the plan crew's files itself (PLAN CREW in the agent).
 
    f. Read `plan_verdict`:
       - `ship` AND no unmapped criteria → set `plan_panel: clear` and continue to step 5.
