@@ -64,7 +64,8 @@ QUOTE: pick one line from the stage's pool; vary it across stages.
 SEQUENCING: stages are sequential because each reads the previous stage's file output
 (the reviewer reads the diff + audit.md the implementer just wrote). Invoke one subagent
 per message, as its last line, and wait for it to finish — two Agent calls in one message
-run in parallel and the reviewer judges files that don't exist yet.
+run in parallel and the reviewer judges files that don't exist yet. Step 5's plan crew seats are
+the one exception: they all read the same finished plan and each writes only its own file.
 
 1. The seed line at the top already did the setup: `.gitignore` has `feature-research/` and
    `feature-research/<task>/state.md` exists (`state: … seeded` or `… already there`). Do NOT
@@ -209,16 +210,29 @@ run in parallel and the reviewer judges files that don't exist yet.
    PLAN_REVIEW row of the REVIEW EFFORT table for `<review_effort>`. Rewrite the plan.md
    `**Tier:**` line per TIER LINE (one Edit).
 
-   Print this PLAN-REVIEW banner as the LAST line before invoking the plan-reviewer
+   PLAN CREW — who sits before THE ORACLE, so security and performance calls land in the plan,
+   not in a rework after the code exists. From the repo root run
+   `python3 "${CLAUDE_PLUGIN_ROOT}/bin/crew.py" <tier> --plan feature-research/<task>/plan.md --hint <lenses> <plan.md "Files touched">`
+   (lenses from plan.md's `**Crew hint:**` line; drop `--hint` when it says `none`): one line per
+   seat, `<lens> <PERSONA> <agent> <model/effort> <reason>`, or `none`. Only SERAPH and NIOBE sit
+   here; THE MEROVINGIAN needs a diff. Record `plan_crew: <PERSONA + … | none>` in the state.md
+   STATE block.
+
+   Print this PLAN-REVIEW banner as the LAST line before the first seat or plan-reviewer call
    (substitute `<review_effort>` with the table value):
    ```
-     ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · opus/<review_effort> · tier <TIER>
+     ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · opus/<review_effort> · tier <TIER> · crew <PERSONA + … | none>
      │  "[one quote from the pool]"
      ╰─
    ```
    Pool (24): "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does." / "The second pair of eyes sees the assumption the first pair made." / "Improve the plan, not the planner's feelings." / "A good review changes the plan; a great one changes the question." / "Disagree on paper now, or apologize in the incident channel later." / "The cheapest place to be wrong is before the first commit." / "Trust the plan less than the reasons behind it." / "You've already made the choice; now you have to understand it." / "What's really going to bake your noodle is, would you still have broken it if I hadn't said anything?" / "We can never see past the choices we don't understand." / "You have a good soul — and I'm tough on souls." / "I hate giving good people bad news." / "Being the One is like being in love: no one can tell you, you just know it." / "I'd ask you to sit down, but you're not going to anyway." / "Candy?" / "You have the gift, but it looks like you're waiting for something." / "I only ever tell you what you need to hear." / "The assumption nobody stated is the one that breaks." / "Improve the plan, not the planner's mood." / "A second pair of eyes is the cheapest insurance you'll buy." / "I can't make the choice for you; I can make you see it."
-   Then immediately invoke the **plan-reviewer** subagent (**plan-reviewer-xhigh** when
-   `<review_effort>` is xhigh) → makes inline strike-through
+   Then, unless the plan crew is `none`, invoke one subagent per crew line IN ONE MESSAGE, using
+   the agent the line names, framing each: "You are <PERSONA>, the <lens> lens seat on the PLAN
+   review of task <task>. Scope: <Files touched>. Review plan.md through your lens only; do NOT
+   read any other review. Write ONLY `feature-research/<task>/plan-review-<lens>.md`; do not touch
+   plan.md or state.md." Wait for every seat.
+   Then invoke the **plan-reviewer** subagent (**plan-reviewer-xhigh** when
+   `<review_effort>` is xhigh) → reads the crew's files, makes inline strike-through
    edits and appends its review under `## 🔭 Review` in plan.md; sets plan_verdict.
 6. Print the GATE 1 TL;DR card and STOP. Fill EVERY value from plan.md/state.md (real slug,
    real verdict, real counts — copy-pasteable, no literal `<task>`); omit zero-count entries
@@ -230,6 +244,7 @@ run in parallel and the reviewer judges files that don't exist yet.
            assumptions: <n> load-bearing · all confirmed ✓   (each criterion has its own proof)
            scorecard: Risk <r> · Confidence <c> · Coupling <k> · Reversibility <v>
            tier <TIER> · plan_review opus/<effort> · implement sonnet/medium · diff_review opus/<effort>
+           plan crew <PERSONA + … | none><, plan_tally line — or "">
            verdict <plan_verdict> → /anderson:approve-plan <task> — or "approved, go" · full plan: feature-research/<task>/plan.md
    ```
    Halt is unconditional even on a ship verdict. GATE-BLOCK RULE: the gate is not approvable while

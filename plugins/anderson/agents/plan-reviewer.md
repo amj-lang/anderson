@@ -66,6 +66,13 @@ business call as `deduced` to dodge a `needs-context` open question.
 Check every library or API behaviour the plan relies on against the installed version's
 types and current docs (context7 when available), not memory; a wrong assumption is blocking.
 
+PLAN CREW: when `feature-research/<task>/plan-review-<lens>.md` files exist, read them before
+you judge the approach. Judge each blocking finding on merit: confirm it and fold the fix into
+plan.md in place (colored edit convention: a 🛠 How step, a ✅ criterion, a 🧯 row), or reject it
+with one line why in `## 🔭 Review`. A lone correct lens outranks your first impression; don't
+redo their lens. Append the tally to state.md `## Done so far` as one line,
+`plan_tally: SERAPH 1/2 · NIOBE 0/1` (confirmed/raised).
+
 Check the `**Crew hint:**` line: add a lens the diff will need that its paths and keywords
 won't reveal; never remove one the planner asked for.
 
