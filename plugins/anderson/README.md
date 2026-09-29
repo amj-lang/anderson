@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.60.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.61.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -679,6 +679,7 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 
 ## Changelog
 
+- **0.61.0** — **Fleet: one row per session, worktrees under their repo, ⏎ past a stray Ghostty, shipped in red.** Sessions sharing a checkout no longer wear each other's task: a hooked session that touched no task shows its own prompt instead of borrowing the newest state.md (why three unrelated agents all read `ar-1432 · INTERROGATOR · grill`). A session in any linked worktree (`.claude/worktrees/`, `.worktrees/`, a sibling dir) rows under its main checkout, read off the worktree's `.git` file, instead of landing in `elsewhere`; sibling worktrees stop showing as idle repo rows. The branch is read live from the checkout's HEAD, so a session that moved into a worktree shows that worktree's branch, not the one its transcript started on. ⏎ into Ghostty talks to the instance that owns the session (JXA by pid): a second Ghostty an agent started with `ghostty -e` used to answer AppleScript and hide every real tab. A shipped (`done`) row renders red.
 - **0.60.0** — **The crew sits at plan review too.** SERAPH and NIOBE now judge the design before THE ORACLE, not only the finished code: a missing authorization check, unvalidated input, an N+1 query or an unbounded fetch is one plan edit at plan review and a full rework round at diff review. `bin/crew.py --plan plan.md` routes from the plan's Files touched and text (no diff exists yet); THE ORACLE reads the seats' `plan-review-<lens>.md` files, confirms or rejects each finding on merit, folds the confirmed ones into plan.md and logs `plan_tally:`, which `bin/runlog.py --summary` reports per seat. THE MEROVINGIAN stays diff-only: orphaned code needs a diff, and the blast-radius check already covers planned dead code. The diff crew is unchanged, so it verifies the code against a plan that was already security- and performance-reviewed.
 - **0.59.1** — **Fleet: ⏎ finds the right Ghostty tab when several agents share a repo.** Ghostty's AppleScript has no tty, so jack in matched tabs by working directory and gave up with "N tabs in <repo>, can't tell which" once two claude sessions ran in one checkout. It now writes a one-off title to the session's own tty, focuses the tab showing it, and puts the old title back: exact for any number of tabs. The directory match stays as the fallback.
 - **0.59.0** — **Gate 2 shows the code diff.** The card said "read the diff" but nothing showed it: fleet's `o` only paged plan.md + audit.md. At diff review `o` now pages the code diff after them (tracked changes vs HEAD plus new files, scratch left out, read-only), and the Gate 2 card names the in-session commands (`! git diff HEAD`, `! git status -s`). The PR body is unchanged: still the plan minus the how, no diff in it.

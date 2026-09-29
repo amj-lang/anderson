@@ -43,7 +43,7 @@ curses, zero tokens); this command only installs the launcher and tells the huma
 
   row:      flags · repo · task · persona · stage n/max · tier · model · now · ctx · age
             tier is how hard the pipeline decided the task is: triv · normal · HARD · CRITICAL
-            ☎ waits on you   ▶ working   ✝ process gone   ⟲ rework loop
+            ☎ waits on you   ▶ working   ✝ process gone   ⟲ rework loop   red row: shipped (done)
             ▲ ARCHITECT · ◇ INTERROGATOR · ◎ ORACLE · ● NEO · ✚ TRINITY · ▣ AGENT SMITH · ★ THE ONE · ○ no pipeline
 
   keys:     ↑↓ tune · →/← drill into a repo/group or step back out · 1-9 / ⏎ jack in (session row)
