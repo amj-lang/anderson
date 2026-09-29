@@ -64,15 +64,28 @@ class TestWorkspaceScan(unittest.TestCase):
         self.assertIn(("repo", "mpe/watermark"), [(r.get("kind"), r["repo"]) for r in rows])
         self.assertIn("s9", [r["sid"] for r in rows])
 
-    def test_scan_sees_a_worktree_checkout_whose_dot_git_is_a_file(self):
-        """`git worktree add` / a submodule writes `.git` as a file. It is still a repo row."""
-        wt = os.path.join(self.tmp, "ar-core-eval")
-        os.makedirs(wt)
-        with open(os.path.join(wt, ".git"), "w") as fh:
-            fh.write("gitdir: /elsewhere/.git/worktrees/ar-core-eval\n")
+    def test_scan_sees_a_submodule_whose_dot_git_is_a_file(self):
+        """A submodule writes `.git` as a file. It is still a repo row."""
+        sub = os.path.join(self.tmp, "ar-core-eval")
+        os.makedirs(sub)
+        with open(os.path.join(sub, ".git"), "w") as fh:
+            fh.write("gitdir: ../claude-loop/.git/modules/ar-core-eval\n")
         fleet._WS_CACHE.clear()
         self.assertEqual({e["name"]: e for e in fleet.scan_workspace(self.tmp)}["ar-core-eval"]["kind"], "repo")
-        self.assertEqual(fleet.workspace_root(wt), self.tmp)
+        self.assertEqual(fleet.workspace_root(sub), self.tmp)
+
+    def test_a_linked_worktree_is_not_a_repo_row_and_its_session_nests_under_the_main_checkout(self):
+        """A sibling worktree (`git worktree add ../ar-core-x`) is the main repo's, not a repo of its own."""
+        wt = os.path.join(self.tmp, "claude-loop-wt")
+        os.makedirs(wt)
+        with open(os.path.join(wt, ".git"), "w") as fh:
+            fh.write(f"gitdir: {self.tmp}/claude-loop/.git/worktrees/claude-loop-wt\n")
+        fleet._WS_CACHE.clear()
+        self.assertNotIn("claude-loop-wt", [e["name"] for e in fleet.scan_workspace(self.tmp)])
+        rows = fleet.tree_rows([make_session(wt, sid="wt")], self.tmp, "", set())
+        i = next(i for i, r in enumerate(rows) if r.get("kind") == "repo" and r["repo"] == "claude-loop")
+        self.assertEqual(rows[i + 1]["sid"], "wt")
+        self.assertNotIn("elsewhere", [r["repo"] for r in rows])
 
     def test_workspace_root_steps_one_level_up_from_a_repo(self):
         self.assertEqual(fleet.workspace_root(os.path.join(self.tmp, "claude-loop")), self.tmp)
@@ -411,12 +424,17 @@ class TestSpawn(unittest.TestCase):
         ws = tempfile.mkdtemp()
         repo = os.path.join(ws, "claude-loop")
         make_repo(repo)
+        for wt in (os.path.join(repo, ".worktrees", "lin-482"), os.path.join(repo, ".claude", "worktrees", "x+y")):
+            os.makedirs(wt)
+            with open(os.path.join(wt, ".git"), "w") as fh:
+                fh.write(f"gitdir: {repo}/.git/worktrees/{os.path.basename(wt)}\n")
         fleet._WS_CACHE.clear()
-        sess = [make_session(os.path.join(repo, ".worktrees", "lin-482"), sid="wt")]
+        sess = [make_session(os.path.join(repo, ".worktrees", "lin-482"), sid="wt"),
+                make_session(os.path.join(repo, ".claude", "worktrees", "x+y"), sid="cc")]   # Claude Code's own
         rows = fleet.tree_rows(sess, ws, "", set())
         self.assertNotIn("elsewhere", [r["repo"] for r in rows])
         i = next(i for i, r in enumerate(rows) if r.get("kind") == "repo" and r["repo"] == "claude-loop")
-        self.assertEqual(rows[i + 1]["sid"], "wt")            # nested under its repo, not adrift
+        self.assertEqual({rows[i + 1]["sid"], rows[i + 2]["sid"]}, {"wt", "cc"})   # nested under its repo, not adrift
 
     def test_launch_agent_never_replaces_the_fleet_window(self):
         """The monitor has to survive a spawn: on macOS the agent gets its own OS window, and the
@@ -488,7 +506,7 @@ class TestSpawn(unittest.TestCase):
         session's tty, focuses the tab showing that title, and puts the old title back."""
         tabs = {"A": "◐ one", "B": "✳ two", "C": "✳ Claude Code"}
         titles = []
-        listing = lambda: "".join(f"{i}\t/ws/web\t{n}\n" for i, n in tabs.items())
+        listing = lambda *a: "".join(f"{i}\t/ws/web\t{n}\n" for i, n in tabs.items())
         def title(tty, t):
             titles.append(t)
             if tty == "/dev/ttys004":
@@ -498,7 +516,7 @@ class TestSpawn(unittest.TestCase):
              mock.patch.object(fleet, "_tty_title", side_effect=title), \
              mock.patch.object(fleet.subprocess, "run", side_effect=lambda a, *x, **k: ran.append(a) or mock.Mock(returncode=0)):
             self.assertEqual(fleet._focus_ghostty("/ws/web", "/dev/ttys004"), "ok")
-            self.assertIn('id is "B"', ran[-1][2])
+            self.assertIn('byId("B")', ran[-1][-1])
             self.assertEqual(tabs["B"], "✳ two")                     # old title restored
             self.assertIn("can't tell", fleet._focus_ghostty("/ws/web"))  # no tty: cwd fallback, says so
 
@@ -638,6 +656,28 @@ class TestLauncherDefaultMode(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertTrue(r.stdout.strip().startswith("fleet-"))
             self.assertFalse(os.path.exists(os.path.join(home, "prefs.json")))
+
+
+class TestLiveCheckout(unittest.TestCase):
+    def test_git_branch_reads_head_of_a_repo_and_of_a_linked_worktree(self):
+        tmp = tempfile.mkdtemp()
+        repo, wt = os.path.join(tmp, "r"), os.path.join(tmp, "r", ".claude", "worktrees", "w")
+        os.makedirs(os.path.join(repo, ".git", "worktrees", "w")); os.makedirs(wt)
+        pathlib.Path(repo, ".git", "HEAD").write_text("ref: refs/heads/main\n")
+        pathlib.Path(repo, ".git", "worktrees", "w", "HEAD").write_text("ref: refs/heads/me/feature\n")
+        pathlib.Path(wt, ".git").write_text("gitdir: ../../../.git/worktrees/w\n")      # relative, git >= 2.48
+        self.assertEqual(fleet.git_branch(repo), "main")
+        self.assertEqual(fleet.git_branch(wt), "me/feature")              # the worktree's, not the transcript's
+        self.assertEqual(fleet.worktree_main(wt), os.path.realpath(repo))
+        self.assertIsNone(fleet.worktree_main(repo))
+        self.assertIsNone(fleet.git_branch(tmp))
+
+    def test_a_shipped_row_renders_in_its_own_kind(self):
+        rows = [make_session("/ws/a", sid="done"), make_session("/ws/b", sid="live")]
+        rows[0]["shipped"] = True
+        kinds = [k for k, _ in fleet.render(rows, 150, sel=1)]
+        top = kinds.index("colhdr") + 1
+        self.assertEqual(kinds[top:top + 2], ["shipped", "work_sel"])
 
 
 if __name__ == "__main__":

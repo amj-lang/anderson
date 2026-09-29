@@ -209,6 +209,10 @@ class TestEmitters(unittest.TestCase):
             self.assertEqual(fleet.anderson_state(str(repo), a["task"])["stage"], "implement")
             self.assertEqual(fleet.anderson_state(str(repo), b["task"])["stage"], "plan")
             self.assertEqual(fleet.anderson_state(str(repo))["task"], "newer-task")   # no hint: mtime, as before
+            # a third, hooked session in the same checkout that touched no task wears none: no borrowing
+            c = fire("sid-c", "UserPromptSubmit", prompt="check the recent PRs")
+            self.assertIsNone(c["task"])
+            self.assertEqual(fleet.anderson_state(str(repo), c["task"], guess=False), {})
 
     def test_garbage_input_never_raises(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -175,18 +175,20 @@ def repo_root(cwd):
     return cwd
 
 
-def anderson_state(root, task=None):
+def anderson_state(root, task=None, guess=True):
     """The session's OWN state.md, parsed leniently. `task` comes from the hook, which sees which
-    task dir this session writes; without it (no hooks wired, or a session that has not touched one
-    yet) we fall back to the most recently touched state.md under root -- which is why two agents
-    sharing one checkout used to report each other's task."""
+    task dir this session writes. guess=False (the hook is wired but this session has touched no
+    task) means no task: guessing the newest state.md under root is what made every session in a
+    shared checkout wear the same task, persona and stage. Only a hookless session still guesses."""
     if not root:
         return {}
     if task:
         own = os.path.join(root, "feature-research", task, "state.md")
         paths = [own] if os.path.exists(own) else []
-    else:
+    elif guess:
         paths = glob.glob(os.path.join(root, "feature-research", "*", "state.md"))
+    else:
+        paths = []
     if not paths:
         return {}
     p = max(paths, key=lambda x: os.path.getmtime(x))
@@ -628,7 +630,7 @@ def enrich(s, now):
     if now - last_seen > STALE_S and not alive(s.get("pid")):
         return None
     root = repo_root(s.get("cwd"))
-    st = anderson_state(root, ev.get("task"))
+    st = anderson_state(root, ev.get("task"), guess=not ev)
     stage = (st.get("stage") or "").lower()
     if stage in ("ship",):
         stage = "done"
@@ -676,7 +678,7 @@ def enrich(s, now):
         "repo": os.path.basename(root or s.get("cwd") or "") or "?",
         "task": st.get("task") or "", "title": tr.get("title") or "", "stage": stage, "persona": persona, "pglyph": PGLYPH[gk],
         "mood": mood, "model": model_spec, "iteration": it, "max_iter": mx,
-        "plan_verdict": st.get("plan_verdict"), "diff_verdict": st.get("diff_verdict"), "branch": st.get("branch") or tr.get("branch"),
+        "plan_verdict": st.get("plan_verdict"), "diff_verdict": st.get("diff_verdict"), "branch": git_branch(root) or st.get("branch") or tr.get("branch"),
         "gate": (st.get("gate") or "").lower(), "tier": (st.get("tier") or "").lower(),
         "dejavu": bool(it and it.isdigit() and int(it) > 0),
         "status": status, "now": now_txt, "text": tr.get("text") or "",
@@ -725,6 +727,40 @@ def _is_repo_dir(p):
     return os.path.exists(os.path.join(p, ".git"))
 
 
+def _gitdir(p):
+    """The git dir of the checkout at `p`: `.git` itself, or where a `.git` file points. None outside git."""
+    g = os.path.join(p or "", ".git")
+    if os.path.isdir(g):
+        return g
+    try:
+        with open(g) as f:
+            m = re.match(r"gitdir:\s*(.+?)\s*$", f.read())
+    except OSError:
+        return None
+    return os.path.normpath(os.path.join(p, m.group(1))) if m else None
+
+
+def worktree_main(p):
+    """The main checkout a linked worktree belongs to, None when `p` is not one. Any location
+    counts (.worktrees/, .claude/worktrees/, a sibling dir): its git dir is <main>/.git/worktrees/<x>.
+    Submodules also carry a `.git` file (-> .git/modules/), and stay repos of their own."""
+    g = _gitdir(p)
+    m = re.match(r"(.+)/\.git/worktrees/[^/]+$", g or "")
+    return os.path.realpath(m.group(1)) if m else None
+
+
+def git_branch(p):
+    """The branch checked out at `p` right now (HEAD read off disk, no subprocess). The transcript's
+    gitBranch is where the session started, which a worktree or a checkout since has made stale."""
+    g = _gitdir(p)
+    try:
+        with open(os.path.join(g, "HEAD")) as f:
+            head = f.read().strip()
+    except (OSError, TypeError):
+        return None
+    return head[len("ref: refs/heads/"):] if head.startswith("ref: refs/heads/") else None
+
+
 def scan_workspace(ws):
     """Three levels under `ws`, os.scandir only (no git subprocess): a direct repo is a `repo`
     entry, a dir holding repos one level deeper is a `group` entry with its own `repos` list.
@@ -741,7 +777,8 @@ def scan_workspace(ws):
         entries = []
     for e in entries:
         try:
-            if e.name.startswith(".") or not e.is_dir(follow_symlinks=False):
+            # a linked worktree is not a repo row: its sessions nest under the main checkout
+            if e.name.startswith(".") or not e.is_dir(follow_symlinks=False) or worktree_main(e.path):
                 continue
             if _is_repo_dir(e.path):
                 out.append({"name": e.name, "path": e.path, "kind": "repo"})
@@ -749,7 +786,7 @@ def scan_workspace(ws):
             subrepos = []
             try:
                 for e2 in sorted(os.scandir(e.path), key=lambda x: x.name):
-                    if e2.name.startswith(".") or not e2.is_dir(follow_symlinks=False):
+                    if e2.name.startswith(".") or not e2.is_dir(follow_symlinks=False) or worktree_main(e2.path):
                         continue
                     if _is_repo_dir(e2.path):
                         subrepos.append({"name": e2.name, "path": e2.path, "kind": "repo"})
@@ -758,7 +795,7 @@ def scan_workspace(ws):
                     # drop its siblings, so its scan gets its own try. Depth 4 stays invisible.
                     try:
                         for e3 in sorted(os.scandir(e2.path), key=lambda x: x.name):
-                            if not e3.name.startswith(".") and e3.is_dir(follow_symlinks=False) and _is_repo_dir(e3.path):
+                            if not e3.name.startswith(".") and e3.is_dir(follow_symlinks=False) and _is_repo_dir(e3.path) and not worktree_main(e3.path):
                                 subrepos.append({"name": f"{e2.name}/{e3.name}", "path": e3.path, "kind": "repo"})
                     except Exception:
                         pass
@@ -814,10 +851,10 @@ def _apply_order(names, order):
 
 
 def session_root(s):
-    """The repo a session belongs to. An agent spawned onto a busy repo runs in a worktree under
-    `.worktrees/`, which is a git root of its own -- it still rows under the repo it came from."""
+    """The repo a session belongs to. A session in a linked worktree (fleet's `.worktrees/`, Claude
+    Code's `.claude/worktrees/`, a sibling dir) rows under the repo it came from."""
     rp = os.path.realpath(s.get("root") or s.get("cwd") or "")
-    return re.sub(r"/\.worktrees/[^/]+(/.*)?$", "", rp)
+    return worktree_main(rp) or rp
 
 
 def tree_rows(sessions, ws, filt, collapsed, order=(), hidden=(), show_hidden=False):
@@ -1497,7 +1534,7 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
             kind = "burst"
         else:
             body = "  ".join(fit(cell(r, k, frame), w, a) for k, _, w, a in cols)
-            kind = ("hidden" if r.get("hidden") else "idle" if r.get("idle") else r["status"]) + ("_sel" if idx == sel else "")
+            kind = ("hidden" if r.get("hidden") else "shipped" if r.get("shipped") else "idle" if r.get("idle") else r["status"]) + ("_sel" if idx == sel else "")
         lines.append((kind, fit(f"{num}{cur} {body}", W)))
     sp()
     lines.append(("rule", rule(W)))
@@ -2461,6 +2498,7 @@ def run_tui(args):
                 "idle": col("white"), "idle_sel": col("white") | REV,
                 "sentinel": col(T["dead"]) | DIM, "sentinel_sel": DIM | REV,
                 "hidden": DIM, "hidden_sel": DIM | REV,
+                "shipped": col("red") | BOLD, "shipped_sel": col("red") | BOLD | REV,   # final state: done, stands out
                 "burst": col(T["accent"]) | BOLD, "det": 0, "quote": col(T["quote"]) | DIM, "foot": DIM,
                 "foot_hot": col("red") | BOLD,
             }
@@ -3079,19 +3117,19 @@ def looking_at(r):
         return False
 
 
-# `tab` inside Ghostty's tell block is its tab class, not a tab character: hence `character id 9`
-FOCUS_GHOSTTY_LIST = """tell application "Ghostty"
-	set out to ""
-	set sep to character id 9
-	repeat with t in terminals
-		set out to out & (id of t) & sep & (working directory of t) & sep & (name of t) & linefeed
-	end repeat
-	return out
-end tell"""
+# JXA, not AppleScript: `tell application "Ghostty"` talks to whichever instance macOS picks, and a
+# second one (a stray `ghostty -e ...` an agent launched) then hides every tab of the real one.
+# Application(<pid>) addresses the instance that owns the session.
+def _ghostty_app(app_pid):
+    return f"Application({int(app_pid)})" if app_pid else 'Application("Ghostty")'
+
+
+def _jxa(script):
+    return subprocess.run(["osascript", "-l", "JavaScript", "-e", script], capture_output=True, text=True, timeout=5)
 
 
 def ghostty_pick(listing, cwd):
-    """The Ghostty terminal id to focus for a session in `cwd`, from FOCUS_GHOSTTY_LIST's output,
+    """The Ghostty terminal id to focus for a session in `cwd`, from _ghostty_list()'s output,
     or (None, why). Ghostty has no tty in its dictionary, so the tab is found by working directory;
     two tabs in one directory are told apart by the claude title (a spinner glyph, or
     "Claude Code"), which a bare shell prompt does not carry. Two claude tabs in one checkout stay
@@ -3110,8 +3148,9 @@ def ghostty_pick(listing, cwd):
     return None, (f"{len(hits)} tabs in {cwd}, can't tell which" if hits else "no tab in that directory")
 
 
-def _ghostty_list():
-    return subprocess.run(["osascript", "-e", FOCUS_GHOSTTY_LIST], capture_output=True, text=True, timeout=5).stdout
+def _ghostty_list(app_pid=None):
+    """One `id<TAB>working directory<TAB>name` line per Ghostty terminal."""
+    return _jxa(f'var a = {_ghostty_app(app_pid)}; a.terminals().map(t => [t.id(), t.workingDirectory(), t.name()].join("\\t")).join("\\n")').stdout
 
 
 def _tty_title(tty, title):
@@ -3124,7 +3163,7 @@ def _tty_title(tty, title):
         os.close(fd)
 
 
-def _ghostty_mark(tty, before):
+def _ghostty_mark(tty, before, app_pid=None):
     """The Ghostty terminal id showing `tty`, or None. Ghostty's dictionary has no tty, but a title
     written to the tty shows up as that terminal's `name`: write a unique one, find it, then put
     the old title back. Exact however many tabs share a directory."""
@@ -3135,7 +3174,7 @@ def _ghostty_mark(tty, before):
     except OSError:
         return None
     for _ in range(10):                                   # Ghostty applies it in ~0.1s
-        for ln in _ghostty_list().splitlines():
+        for ln in _ghostty_list(app_pid).splitlines():
             p = ln.split("\t", 2)
             if len(p) == 3 and p[2].strip() == mark:
                 _tty_title(tty, names.get(p[0], "Claude Code"))
@@ -3145,26 +3184,26 @@ def _ghostty_mark(tty, before):
     return None
 
 
-def _focus_ghostty(cwd, tty=None):
+def _focus_ghostty(cwd, tty=None, app_pid=None):
     """macOS Ghostty 1.3+: focus the terminal a session runs in. "ok", else why not.
-    By tty when known (exact), else by working directory."""
+    By tty when known (exact), else by working directory. app_pid: the Ghostty instance to ask."""
     if not cwd and not tty:
         return "no cwd for that session"
     try:
-        out = _ghostty_list()
-        tid = _ghostty_mark(tty, out) if tty else None
+        out = _ghostty_list(app_pid)
+        tid = _ghostty_mark(tty, out, app_pid) if tty else None
         tid, why = (tid, None) if tid else ghostty_pick(out, cwd)
         if not tid:
             return why
-        r = subprocess.run(["osascript", "-e", f'tell application "Ghostty"\n\tactivate\n\tfocus (first terminal whose id is "{tid}")\nend tell'],
-                           capture_output=True, text=True, timeout=5)
+        r = _jxa(f'var a = {_ghostty_app(app_pid)}; a.activate(); a.focus(a.terminals.byId({json.dumps(tid)})); "ok"')
         return "ok" if r.returncode == 0 else (r.stderr.strip() or "focus failed")
     except Exception as e:
         return f"focus failed: {e}"
 
 
 def _owner_app(pid):
-    """macOS: the .app that owns this process (WebStorm, VS Code, Cursor, Warp...), via the ppid chain."""
+    """macOS: (name, .app path, pid) of the app that owns this process (WebStorm, VS Code, Ghostty...),
+    via the ppid chain. The pid tells two running instances of one app apart."""
     try:
         seen = 0
         while pid and int(pid) > 1 and seen < 32:
@@ -3174,7 +3213,7 @@ def _owner_app(pid):
                 return None
             m = re.search(r"(/[^\0]*?/([^/]+)\.app)/Contents/MacOS/", parts[1])
             if m:
-                return m.group(2), m.group(1)
+                return m.group(2), m.group(1), int(pid)
             pid = parts[0]; seen += 1
     except Exception:
         pass
@@ -3226,13 +3265,13 @@ def jack_in(r):
     if sys.platform == "darwin":
         app = _owner_app(r.get("pid")) if r.get("pid") else None
         if app and app[0] == "Ghostty":
-            hit = _focus_ghostty(r.get("cwd"), tty)
+            hit = _focus_ghostty(r.get("cwd"), tty, app[2])
             if hit == "ok":
                 return "Operator."
             if hit:
                 return f"Ghostty: {hit}"
         if app:
-            name, path = app
+            name, path = app[:2]
             try:
                 subprocess.run(["open", "-a", path], timeout=5)
                 return f"Operator. ({name} integrated terminal: app focused, tab not selectable)"
