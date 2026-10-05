@@ -16,14 +16,8 @@ Operator watching the screens.
     python3 bin/fleet.py --theme zion  # matrix · construct · zion · nebuchadnezzar · agent (saved)
     python3 bin/fleet.py --plain       # plain wording instead of Matrix lingo (saved; --lingo reverts)
     python3 bin/fleet.py --calm        # no motion in any theme (saved; --motion reverts)
-    python3 bin/fleet.py --zoom 16     # Terminal.app: font size while fleet runs (saved; --no-zoom clears)
-    python3 bin/fleet.py --cost        # show the api$ column on a subscription (saved; --no-cost hides)
-    python3 bin/fleet.py --notify      # desktop notification when a session starts ringing (saved)
-    python3 bin/fleet.py --sound       # the ring plays when a session starts waiting (saved; --no-sound)
-    python3 bin/fleet.py --ring snare  # pick the ring sound (--rings lists them; `s` cycles in the TUI)
-    python3 bin/fleet.py --play all    # audition every bundled sound in a row (--play NAME for one)
-    python3 bin/fleet.py --ping        # test the desktop banner through every channel, with where to look if none shows
-    python3 bin/fleet.py --editor code # what opens plan.md / audit.md on `o` or at a gate (saved)
+    python3 bin/fleet.py --jack SID    # bring that session's terminal tab to the front (banner clicks run this)
+    python3 bin/fleet.py --focus       # bring the running fleet's own tab back to the front
 
 Data, richest first, each optional (the view degrades, never breaks):
   ~/.claude/fleet/<sid>.status.json   heartbeat from bin/heartbeat.py (statusline): $, ctx, model
@@ -32,9 +26,9 @@ Data, richest first, each optional (the view degrades, never breaks):
   <repo>/feature-research/<task>/state.md  that session's stage/verdicts/iteration/tier -> persona
   ps + lsof + tmux                    sessions with no hooks at all, and the pane to jack into
 
-Keys: ↑↓/jk tune · →/← in/out of a repo · ⏎ jack in (revive, if dead) · w white rabbit · r kill
-      b hide the row (process untouched) · h show hidden · / filter · t theme · p wording · ? manual · q
-Prefs (theme, wording, motion) persist in ~/.claude/fleet/prefs.json.
+Keys: ↑↓/jk tune · ⏎/1-9 jack in (revive, if dead; spawn, on a repo) · N new agent · w next ringing
+      o read plan · r kill · b hide · h show hidden · space fold repos · m sound · / filter · ? manual · q
+Prefs (theme, wording, motion, sound) persist in ~/.claude/fleet/prefs.json.
 """
 import glob, json, os, random, re, shutil, signal, subprocess, sys, time, unicodedata
 
@@ -74,6 +68,10 @@ PGLYPH = dict(PGLYPH_UNI)
 
 def use_ascii():
     G.clear(); G.update(ASCII); PGLYPH.clear(); PGLYPH.update(PGLYPH_ASCII)
+
+
+def is_ascii():
+    return G["eyes"] == ASCII["eyes"]      # G is mutated in place, so `G is ASCII` never holds
 
 
 # ─────────────────────────────────────────────────────────── display-width text
@@ -149,7 +147,7 @@ def enc_cwd(cwd):
 
 def age_str(ts):
     if not ts:
-        return "—" if G is not ASCII else "-"
+        return "—" if not is_ascii() else "-"
     s = max(0, int(time.time() - ts))
     if s < 60:
         return f"{s}s"
@@ -240,106 +238,10 @@ def subagents(transcript_path, now=None):
     return (len(files), running, last.strip())
 
 
-def _agent_dir(transcript_path):
-    return os.path.join(os.path.dirname(transcript_path), os.path.basename(transcript_path)[:-6], "subagents")
-
-
-def agent_rows(transcript_path, now=None, limit=3, running_only=True):
-    """What the subagents are doing: [{type, desc, model, now, age, path}], newest first. Each subagent
-    has its own transcript, same format as the session's, so the same tail-parser reads it."""
-    if not transcript_path:
-        return []
-    now = now or time.time()
-    files = sorted(glob.glob(os.path.join(_agent_dir(transcript_path), "agent-*.jsonl")), key=os.path.getmtime, reverse=True)
-    out = []
-    for f in files:
-        touched = now - os.path.getmtime(f)
-        if running_only and touched >= 20:
-            continue
-        meta = jload(f[:-6] + ".meta.json") or {}
-        tr = read_transcript(f)
-        if tr.get("tool"):
-            doing = f"{G['run']} {tr['tool']} {tr.get('tool_arg') or ''}".rstrip()
-        elif touched < 20:
-            doing = f"{G['run']} thinking"
-        else:
-            doing = "done" + (f": {tr['text']}" if tr.get("text") else "")
-        out.append({"type": meta.get("agentType") or "agent", "desc": meta.get("description") or "",
-                    "model": meta.get("model") or "", "now": doing,
-                    "age": age_str(tr["start"]) if tr.get("start") else age_str(os.path.getmtime(f)), "path": f})
-        if len(out) >= limit:
-            break
-    return out
-
-
-def agent_log(path):
-    """A subagent transcript as a readable ANSI log: its words, the tools it called, a line of each result."""
-    B, D, G_, R = "\033[1m", "\033[2m", "\033[32m", "\033[0m"
-    meta = jload(path[:-6] + ".meta.json") or {}
-    out = [B + G_ + f"{meta.get('agentType') or 'agent'}  {meta.get('description') or ''}  ({meta.get('model') or '?'})" + R, ""]
-    try:
-        lines = open(path, errors="replace").read().split("\n")
-    except Exception as e:
-        return f"cannot read {path}: {e}"
-    for ln in lines:
-        try:
-            d = json.loads(ln)
-        except Exception:
-            continue
-        msg = d.get("message") or {}
-        content = msg.get("content")
-        if d.get("type") == "assistant" and isinstance(content, list):
-            for b in content:
-                if not isinstance(b, dict):
-                    continue
-                if b.get("type") == "text" and b.get("text", "").strip():
-                    out.append(b["text"].strip()); out.append("")
-                elif b.get("type") == "tool_use":
-                    out.append(G_ + f"{G['run']} {b.get('name')} " + R + D + _tool_summary(b.get("name"), b.get("input"))[:160] + R)
-        elif d.get("type") == "user" and isinstance(content, list):
-            for b in content:
-                if isinstance(b, dict) and b.get("type") == "tool_result":
-                    c = b.get("content")
-                    txt = c if isinstance(c, str) else " ".join(x.get("text", "") for x in c if isinstance(x, dict)) if isinstance(c, list) else ""
-                    first = txt.strip().split("\n")[0][:160]
-                    if first:
-                        out.append(D + "   ← " + first + R)
-        elif d.get("type") == "user" and isinstance(content, str) and content.strip() and len(out) == 2:
-            out.append(D + "prompt: " + content.strip()[:600] + R); out.append("")
-    return "\n".join(out)
-
-
-def view_agent(r, scr=None):
-    """`a`: page the newest (running first) subagent's transcript as a log; the TUI resumes on q."""
-    import curses
-    agents = agent_rows(r.get("transcript_path"), running_only=True, limit=1) or agent_rows(r.get("transcript_path"), running_only=False, limit=1)
-    if not agents:
-        return "no subagent transcripts for that session yet."
-    a = agents[0]
-    tmp = os.path.join(FLEET_DIR, "view-agent.log")
-    try:
-        os.makedirs(FLEET_DIR, exist_ok=True)
-        with open(tmp, "w") as f:
-            f.write(agent_log(a["path"]))
-        if scr is not None:
-            curses.endwin()
-        subprocess.run(["less", "-R", "-P", f"{a['type']} {a['desc'][:40]}  (q back to fleet)", tmp])
-    except Exception as e:
-        return f"viewer failed: {e}"
-    finally:
-        try:
-            os.remove(tmp)
-        except Exception:
-            pass
-        if scr is not None:
-            scr.refresh()
-    return f"read {a['type']} {a['desc']}"
-
-
 def read_transcript(path, tail_bytes=262144):
     """Tail-parse a session .jsonl -> dict(state, tool, tool_arg, text, ctx_tokens, model, ts, start)."""
     out = dict(state=None, tool=None, tool_arg="", text="", ctx_tokens=None, model=None, ts=None, start=None,
-               title="", branch=None)
+               title="", branch=None, start_cwd=None)
     if not path or not os.path.isfile(path):
         return out
     try:
@@ -358,6 +260,8 @@ def read_transcript(path, tail_bytes=262144):
             continue
         if d.get("timestamp") and not out["start"]:
             out["start"] = _iso(d["timestamp"])
+        if d.get("cwd") and not out["start_cwd"]:
+            out["start_cwd"] = d["cwd"]                       # where claude was launched: the tab's directory
         if d.get("type") == "summary" and d.get("summary") and not out["title"]:
             out["title"] = str(d["summary"]).strip()          # /resume title, when Claude Code wrote one
         if d.get("type") == "user" and not d.get("isSidechain") and not d.get("isMeta") and not out["title"]:
@@ -366,7 +270,7 @@ def read_transcript(path, tail_bytes=262144):
             txt = txt.strip()
             if txt and not txt.startswith("<"):               # skip slash-command / caveat wrappers
                 out["title"] = txt.split("\n")[0][:120]
-        if out["start"] and out["title"]:
+        if out["start"] and out["title"] and out["start_cwd"]:
             break
     recs = []
     for ln in reversed(tail[1:] if size > tail_bytes else tail):
@@ -620,6 +524,44 @@ def discover(include_ps=True, hidden=None):
     return rows
 
 
+WAITING_TOOLS = ("AskUserQuestion", "ExitPlanMode")   # a tool call that is itself a question to you
+STUCK_S = 15 * 60          # a turn silent this long with no Stop (Esc interrupt) is waiting on you
+GUESS_S = 30               # hookless sessions: "turn ended" only after the transcript sat this long
+
+
+def row_status(ev, tr, dead, now):
+    """(status, now text, ring start ts). The hook event is the truth when there is one: Stop and
+    Notification mean "waiting on you", prompt and tool events mean "working". The transcript only
+    adds what no hook reports: a tool call that is itself a question, and a turn interrupted with Esc
+    (no Stop fires) that has sat silent for STUCK_S. And a waiting event is stale once the transcript
+    shows the session working after it (a Stop the scheduler blocked, on a session whose hooks.json
+    predates the PreToolUse hook). Guessing "turn ended" off the transcript while
+    hooks exist is what rang on every mid-turn "Now let me check X" line."""
+    tool, arg = tr.get("tool"), tr.get("tool_arg") or ""
+    state, ts = tr.get("state"), tr.get("ts")
+
+    def ring(label, since):
+        return "ring", f"{G['ring']} {label}" + (f" {age_str(since)}" if since else ""), since
+
+    if dead:
+        return "sentinel", f"{G['dead']} sentinel", None
+    moved_on = state in ("tool", "think") and ts and ts > (ev.get("ts") or 0) + 1
+    if ev.get("waiting") and not moved_on:   # a Stop another hook blocked: the session carried on
+        perm = "permission" in str(ev.get("notification") or "").lower()
+        return ring(f"permission {tool or ''}".rstrip() if perm else "ring", ev.get("since") or ev.get("ts"))
+    if ev.get("event") == "SessionStart":
+        return "work", f"{G['run']} jacked in", None
+    if not ev and state == "idle" and ts and now - ts > GUESS_S:
+        return ring("ring", ts)
+    if state == "tool" and tool in WAITING_TOOLS:
+        return ring("question", ts)
+    if state in ("think", "idle") and ts and now - ts > STUCK_S:
+        return ring("idle", ts)
+    if state == "tool":
+        return "work", f"{G['run']} {tool} {arg}".rstrip(), None
+    return "work", f"{G['run']} thinking", None
+
+
 def enrich(s, now):
     tr = read_transcript(s.get("transcript_path"))
     if not s.get("transcript_path") and s.get("cwd") and s.get("sid") and not s["sid"].startswith("pid:"):
@@ -638,34 +580,9 @@ def enrich(s, now):
     model_spec = model_spec.format(**review_effort(st.get("tier")))
     if not model_spec:
         model_spec = _short_model(s.get("model") or tr.get("model") or "")
-    # status: dead? then hook event if fresher than the transcript, else transcript inference
     pid_alive = alive(s.get("pid"))
     dead = ev.get("ended") or pid_alive is False or s.get("no_proc", False)
-    ev_fresh = bool(ev) and (ev.get("ts") or 0) >= (tr.get("ts") or 0) - 1
-    tool = tr.get("tool"); arg = tr.get("tool_arg") or ""
-    since = max([x for x in (tr.get("ts"), ev.get("ts")) if x] or [0])
-    wait = f" {age_str(since)}" if since else ""             # how long it has been waiting on you
-    if dead:
-        status, now_txt = "sentinel", f"{G['dead']} sentinel"
-    elif ev_fresh and ev.get("waiting") is True:
-        status = "ring"
-        n = (ev.get("notification") or "")
-        if "permission" in str(n).lower():
-            now_txt = f"{G['ring']} permission {tool or ''}".rstrip() + wait
-        else:
-            now_txt = f"{G['ring']} ring" + wait
-    elif ev_fresh and ev.get("waiting") is False and tr.get("state") != "tool":
-        status, now_txt = "work", f"{G['run']} thinking"
-    elif tr.get("state") == "idle":
-        status, now_txt = "ring", f"{G['ring']} ring" + wait
-    elif tr.get("state") == "tool":
-        status, now_txt = "work", f"{G['run']} {tool} {arg}".rstrip()
-    elif tr.get("state") == "think" and tr.get("ts") and now - tr["ts"] > 15 * 60:
-        status, now_txt = "ring", f"{G['ring']} idle" + wait   # interrupted turn: nothing ran for 15 min
-    elif tr.get("state") == "think":
-        status, now_txt = "work", f"{G['run']} thinking"
-    else:
-        status, now_txt = "work", f"{G['run']} jacked in"
+    status, now_txt, since = row_status(ev, tr, dead, now)
     it, mx = st.get("iteration"), st.get("max_iterations")
     ctx_pct = s.get("ctx_pct")
     toks = s.get("ctx_tokens") or tr.get("ctx_tokens")
@@ -685,7 +602,8 @@ def enrich(s, now):
         "cost": s.get("cost_usd"), "ctx_pct": ctx_pct, "ctx_tokens": toks,
         "lines": (s.get("lines_added"), s.get("lines_removed")),
         "start": start, "last_seen": last_seen, "agents": subagents(s.get("transcript_path"), now),
-        "idle": status == "ring" and bool(since) and now - since > IDLE_S,
+        "idle": status == "ring" and bool(since) and now - since > IDLE_S, "since": since,
+        "start_cwd": tr.get("start_cwd"),
         "transcript_path": s.get("transcript_path"),
         "tmux_pane": s.get("tmux_pane"), "tmux_addr": s.get("tmux_addr"),
         "shipped": stage == "done", "hb_ts": s.get("hb_ts"),
@@ -706,7 +624,7 @@ def _short_model(m):
     return m[:12]
 
 
-# ── workspace: repo/group rows nested under the launch directory ─────────────────────
+# ── workspace: the repos under the launch directory, where N spawns ──────────────────
 WS_SCAN_TTL = 30           # ponytail: a repo cloned mid-run appears within this ceiling, not instantly
 _WS_CACHE = {}             # ws abs path -> (scanned_at, [{name, path, kind, repos?}])
 
@@ -762,269 +680,93 @@ def git_branch(p):
 
 
 def scan_workspace(ws):
-    """Three levels under `ws`, os.scandir only (no git subprocess): a direct repo is a `repo`
-    entry, a dir holding repos one level deeper is a `group` entry with its own `repos` list.
-    A non-repo dir *inside* a group is not a nested group -- its repos flatten into the group as
-    `sub/repo` entries, so the tree stays two deep. Memoised WS_SCAN_TTL seconds per workspace."""
+    """The repos under `ws`, flat: [{name, path}]. A direct child repo is `name`; repos one or two
+    levels inside a plain dir are `dir/name` (`dir/sub/name`). os.scandir only, no git subprocess;
+    linked worktrees are skipped (their sessions row under the main checkout). Memoised
+    WS_SCAN_TTL seconds per workspace."""
     now = time.time()
     cached = _WS_CACHE.get(ws)
     if cached and now - cached[0] < WS_SCAN_TTL:
         return cached[1]
     out = []
-    try:
-        entries = sorted(os.scandir(ws), key=lambda e: e.name)
-    except Exception:
-        entries = []
-    for e in entries:
+
+    def walk(path, prefix, depth):
         try:
-            # a linked worktree is not a repo row: its sessions nest under the main checkout
-            if e.name.startswith(".") or not e.is_dir(follow_symlinks=False) or worktree_main(e.path):
-                continue
-            if _is_repo_dir(e.path):
-                out.append({"name": e.name, "path": e.path, "kind": "repo"})
-                continue
-            subrepos = []
-            try:
-                for e2 in sorted(os.scandir(e.path), key=lambda x: x.name):
-                    if e2.name.startswith(".") or not e2.is_dir(follow_symlinks=False) or worktree_main(e2.path):
-                        continue
-                    if _is_repo_dir(e2.path):
-                        subrepos.append({"name": e2.name, "path": e2.path, "kind": "repo"})
-                        continue
-                    # ponytail: flattened, not a nested group -- one unreadable subdir must not
-                    # drop its siblings, so its scan gets its own try. Depth 4 stays invisible.
-                    try:
-                        for e3 in sorted(os.scandir(e2.path), key=lambda x: x.name):
-                            if not e3.name.startswith(".") and e3.is_dir(follow_symlinks=False) and _is_repo_dir(e3.path) and not worktree_main(e3.path):
-                                subrepos.append({"name": f"{e2.name}/{e3.name}", "path": e3.path, "kind": "repo"})
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-            if subrepos:
-                out.append({"name": e.name, "path": e.path, "kind": "group", "repos": subrepos})
+            entries = sorted(os.scandir(path), key=lambda e: e.name)
         except Exception:
-            continue
+            return
+        for e in entries:
+            try:
+                if e.name.startswith(".") or not e.is_dir(follow_symlinks=False) or worktree_main(e.path):
+                    continue
+                if _is_repo_dir(e.path):
+                    out.append({"name": prefix + e.name, "path": e.path})
+                elif depth < 2:
+                    walk(e.path, f"{prefix}{e.name}/", depth + 1)
+            except Exception:
+                continue
+
+    if ws:
+        walk(ws, "", 0)
     _WS_CACHE[ws] = (now, out)
     return out
 
 
 # every key a session row carries (enrich()'s return dict), so cell()/detail_card()/render()
-# never half-miss one: render() L1127 unpacks r["lines"] raw, footer() sums r["cost"] without .get()
+# never half-miss one on a synthetic repo/section row
 _WS_BASE = dict(
     pid=None, cwd="", root="", task="", title="", stage="", persona="", pglyph="", mood="", model="",
     iteration=None, max_iter=None, plan_verdict=None, diff_verdict=None, branch=None, gate="", tier="",
     dejavu=False, text="", cost=None, ctx_pct=None, ctx_tokens=None, lines=(None, None),
-    start=None, last_seen=None, agents=(0, 0, ""), idle=False, transcript_path=None,
-    tmux_pane=None, tmux_addr=None, shipped=False, hb_ts=None, hidden=False,
+    start=None, last_seen=None, agents=(0, 0, ""), idle=False, transcript_path=None, since=None,
+    start_cwd=None, tmux_pane=None, tmux_addr=None, shipped=False, hb_ts=None, hidden=False, status="work",
 )
-
-
-def ws_row(name, path, kind, sessions, collapsed, ws=None, indent=0, n_children=None):
-    """A synthetic repo/group row: same keys a session row has (so cell()/detail_card()/render()
-    need no restructuring), plus repo/group-only kind/path/ws/collapsed. n_children (a group's
-    repo count, Q12) prefixes the summary as `(n)` when given."""
-    n_ring = sum(1 for s in sessions if s.get("status") == "ring")
-    n_dead = sum(1 for s in sessions if s.get("status") == "sentinel")
-    n_live = len(sessions) - n_dead
-    bits = [f"{n_live} agent{'s' if n_live != 1 else ''}"] if n_live else []
-    if n_ring:
-        bits.append(f"{n_ring} ringing")
-    if n_dead:
-        bits.append(f"{n_dead} sentinel{'s' if n_dead != 1 else ''}")
-    now_txt = ", ".join(bits) if bits else "idle"
-    if n_children is not None:
-        now_txt = f"({n_children}) · {now_txt}"
-    return {**_WS_BASE, "sid": f"{kind}:{path}", "repo": name, "root": path, "cwd": path,
-            "kind": kind, "path": path, "ws": ws, "indent": indent, "collapsed": collapsed,
-            # a parent only rings for a ring you cannot see: expanded, the ringing row below it is
-            # the one that pulses, so exactly one line per ring shouts instead of the whole branch
-            "status": "ring" if (n_ring and collapsed) else "work", "now": now_txt}
-
-
-def _apply_order(names, order):
-    """`names` in the saved order, unseen ones appended alphabetically after."""
-    rank = {n: i for i, n in enumerate(order or [])}
-    known = sorted((n for n in names if n in rank), key=lambda n: rank[n])
-    unknown = sorted(n for n in names if n not in rank)
-    return known + unknown
 
 
 def session_root(s):
     """The repo a session belongs to. A session in a linked worktree (fleet's `.worktrees/`, Claude
-    Code's `.claude/worktrees/`, a sibling dir) rows under the repo it came from."""
+    Code's `.claude/worktrees/`, a sibling dir) counts under the repo it came from."""
     rp = os.path.realpath(s.get("root") or s.get("cwd") or "")
     return worktree_main(rp) or rp
 
 
-def tree_rows(sessions, ws, filt, collapsed, order=(), hidden=(), show_hidden=False):
-    """(scanned dirs + discovered sessions + saved order/collapse) -> the flat row list render()
-    already eats: synthetic kind="group"|"repo" rows interleaved with untouched session rows.
-    No repos found under `ws` -> return `sessions` verbatim (today's behaviour, criterion 7).
-    `hidden` is the set of repo/group names dismissed with `b`: they and their sessions are left
-    out entirely, until show_hidden (`h`) lists them again, dim and folded, for `b` to bring back."""
-    scan = scan_workspace(ws) if ws else []
-    if not scan:
-        if filt:
-            fl = filt.lower()
-            return [s for s in sessions if fl in (s.get("repo", "") + " " + s.get("task", "")).lower()]
-        return sessions
-    collapsed = collapsed or set()
-    hid = set(hidden or ())
+def repo_target(path, name=None):
+    """A repo row for `path`: what N spawns into."""
+    return {**_WS_BASE, "sid": f"repo:{path}", "kind": "repo", "repo": name or os.path.basename(path),
+            "path": path, "root": path, "cwd": path, "now": ""}
+
+
+def hides(h, name):
+    """Hidden entry `h` covers repo `name`: itself, a dir above it, or `x` saved by the old tree
+    (relative to its group) for `group/x`."""
+    return name == h or name.startswith(h + "/") or name.endswith("/" + h)
+
+
+def ws_rows(sessions, ws, filt="", folded=False, hidden=(), show_hidden=False):
+    """Two sections: every live session (discover()'s order, ringing first), then the workspace's
+    repos, the places N spawns a new agent. `hidden` names repos dismissed with `b`: left out of
+    the repos section until show_hidden. folded: the repos section is one header line."""
     fl = (filt or "").lower()
-
-    def sess_match(s):
-        return not fl or fl in (s.get("repo", "") + " " + s.get("task", "")).lower()
-
-    by_root = {}
+    out = [s for s in sessions if not fl or fl in (s.get("repo", "") + " " + s.get("task", "") + " " + s.get("title", "")).lower()]
+    hid = lambda name: any(hides(h, name) for h in hidden)
+    repos = [r for r in scan_workspace(ws) if show_hidden or not hid(r["name"])]
+    repos = [r for r in repos if not fl or fl in r["name"].lower()]
+    if not repos:
+        return out
+    live = {}
     for s in sessions:
-        by_root.setdefault(session_root(s), []).append(s)
-
-    def repo_matches(name, kids):
-        return not fl or fl in name.lower() or any(sess_match(s) for s in kids)
-
-    matched_roots, out = set(), []
-
-    def emit_repo(r, indent):
-        rp = os.path.realpath(r["path"])
-        matched_roots.add(rp)            # claimed either way: a hidden repo hides its sessions too
-        kids = by_root.get(rp, [])
-        is_hid = r["name"] in hid
-        if is_hid and not show_hidden:
-            return
-        if not repo_matches(r["name"], kids):
-            return
-        row = ws_row(r["name"], r["path"], "repo", kids, is_hid or r["name"] in collapsed, ws, indent)
-        row["hidden"] = is_hid
-        out.append(row)
-        if not is_hid and r["name"] not in collapsed:
-            out.extend({**k, "indent": indent + 1} for k in kids if sess_match(k))
-
-    for entry in _apply_order_entries(scan, order):
-        if entry["kind"] == "repo":
-            emit_repo(entry, 0)
-            continue
-        repos = _apply_order_entries(entry["repos"], order)
-        all_kids = []
+        if s.get("status") != "sentinel":
+            live[session_root(s)] = live.get(session_root(s), 0) + 1
+    out.append({**_WS_BASE, "sid": "section:repos", "kind": "section", "repo": f"repos ({len(repos)})",
+                "collapsed": folded, "now": f"{'enter' if is_ascii() else '⏎'} or N on a repo spawns an agent there · space folds"})
+    if not folded:
         for r in repos:
-            all_kids.extend(by_root.get(os.path.realpath(r["path"]), []))
-        if entry["name"] in hid:
-            for r in repos:
-                matched_roots.add(os.path.realpath(r["path"]))
-            if not show_hidden:
-                continue
-            row = ws_row(entry["name"], entry["path"], "group", all_kids, True, ws, 0, n_children=len(repos))
-            row["hidden"] = True
+            row = repo_target(r["path"], r["name"])
+            n = live.get(os.path.realpath(r["path"]), 0)
+            row["now"] = f"{n} agent{'s' if n != 1 else ''}" if n else ""
+            row["hidden"] = hid(r["name"])
             out.append(row)
-            continue
-        if not (repo_matches(entry["name"], all_kids) or any(repo_matches(r["name"], by_root.get(os.path.realpath(r["path"]), [])) for r in repos)):
-            for r in repos:
-                matched_roots.add(os.path.realpath(r["path"]))
-            continue
-        out.append(ws_row(entry["name"], entry["path"], "group", all_kids, entry["name"] in collapsed, ws, 0,
-                           n_children=len(repos) if entry["name"] in collapsed else None))
-        if entry["name"] not in collapsed:
-            for r in repos:
-                emit_repo(r, 1)
-        else:
-            for r in repos:
-                matched_roots.add(os.path.realpath(r["path"]))
-
-    elsewhere = [s for s in sessions if session_root(s) not in matched_roots]
-    elsewhere = [s for s in elsewhere if sess_match(s)]
-    if "elsewhere" in hid and not show_hidden:
-        elsewhere = []
-    if elsewhere:
-        out.append(ws_row("elsewhere", "", "group", elsewhere, "elsewhere" in collapsed, ws, 0))
-        if "elsewhere" not in collapsed:
-            out.extend({**s, "indent": 1} for s in elsewhere)
     return out
-
-
-def entry_for(ws, root):
-    """(group name, repo name) of the scanned entry that owns `root`, ('', '') when it owns none."""
-    rp = os.path.realpath(root or "")
-    for e in scan_workspace(ws):
-        if e["kind"] == "repo":
-            if os.path.realpath(e["path"]) == rp:
-                return "", e["name"]
-        else:
-            for sub in e["repos"]:
-                if os.path.realpath(sub["path"]) == rp:
-                    return e["name"], sub["name"]
-    return "", ""
-
-
-def focus_rows(rows, focus):
-    """→ drills in: the rows under the repo/group path `focus` (("group",) or ("group", "repo")),
-    indents rebased to 0 so the subtree reads as the whole screen. None when a step of the path is
-    not in `rows` (hidden, gone, filtered out) -- the caller drops back to the overview."""
-    for name in focus:
-        i = next((i for i, r in enumerate(rows)
-                  if r.get("kind") in ("repo", "group") and r["repo"] == name), None)
-        if i is None:
-            return None
-        base = rows[i].get("indent", 0)
-        out = []
-        for r in rows[i + 1:]:
-            if r.get("indent", 0) <= base:
-                break
-            out.append({**r, "indent": r.get("indent", 0) - base - 1})
-        rows = out
-    return rows
-
-
-def focus_target(ws, focus):
-    """The repo/group row `focus` is drilled into, rebuilt from the scan. Drilled into a repo with
-    no agents there is nothing to select, so `N` has no row to spawn from: this gives it one.
-    None when the path no longer scans (renamed, deleted)."""
-    entries = scan_workspace(ws) if ws else []
-    row = None
-    for name in focus:
-        e = next((x for x in entries if x["name"] == name), None)
-        if e is None:
-            return None
-        row = ws_row(e["name"], e["path"], e["kind"], [], False, ws=ws)
-        entries = e.get("repos") or []
-    return row
-
-
-def _apply_order_entries(entries, order):
-    names = _apply_order([e["name"] for e in entries], order)
-    by_name = {e["name"]: e for e in entries}
-    return [by_name[n] for n in names]
-
-
-def _full_ws_names(ws, order):
-    """Every repo/group name under `ws`, in the effective order -- from the scan, never from the
-    (possibly collapsed) rendered rows, so a hidden group's children are never dropped from it."""
-    top = _apply_order_entries(scan_workspace(ws), order)
-    names = []
-    for e in top:
-        names.append(e["name"])
-        if e["kind"] == "group":
-            names.extend(r["name"] for r in _apply_order_entries(e["repos"], order))
-    return names
-
-
-def move_ws_row(rows, sel, down, order):
-    """J (down) / K (up): swap the selected repo/group row with its same-indent sibling.
-    -> (new_order, moved_sid), or (None, None) when the row can't reorder or there's no room."""
-    if not rows or rows[sel].get("kind") not in ("repo", "group"):
-        return None, None
-    indent = rows[sel].get("indent", 0)
-    siblings = [i for i, r in enumerate(rows) if r.get("kind") in ("repo", "group") and r.get("indent", 0) == indent]
-    pos = siblings.index(sel)
-    npos = pos + (1 if down else -1)
-    if not (0 <= npos < len(siblings)):
-        return None, None
-    other = siblings[npos]
-    names = _full_ws_names(rows[sel]["ws"], order)
-    if rows[sel]["repo"] not in names or rows[other]["repo"] not in names:
-        return None, None                      # `elsewhere` is synthetic: not in the scan, not orderable
-    i1, i2 = names.index(rows[sel]["repo"]), names.index(rows[other]["repo"])
-    names[i1], names[i2] = names[i2], names[i1]
-    return names, rows[sel]["sid"]
 
 
 # ───────────────────────────────────────────────────────────────────── demo
@@ -1096,17 +838,15 @@ def set_theme(name, calm=False):
 
 def load_prefs():
     d = jload(PREFS_FILE) or {}
-    z = d.get("zoom")
     ws = d.get("workspaces")
     return {"theme": d.get("theme") or "matrix", "plain": bool(d.get("plain")), "calm": bool(d.get("calm")),
-            "zoom": int(z) if isinstance(z, (int, float)) and 6 <= int(z) <= 72 else None,
-            "cost": bool(d.get("cost")), "notify": bool(d.get("notify")), "editor": d.get("editor") or None,
+            "cost": bool(d.get("cost")), "notify": bool(d.get("notify")),
             "sound": bool(d.get("sound")), "ring": d.get("ring") or "phone",
             "workspaces": ws if isinstance(ws, dict) else {}}
 
 
 def save_prefs(**kw):
-    d = load_prefs(); d.update({k: v for k, v in kw.items() if v is not None or k == "zoom"})
+    d = load_prefs(); d.update({k: v for k, v in kw.items() if v is not None})
     try:
         os.makedirs(FLEET_DIR, exist_ok=True)
         with open(PREFS_FILE, "w") as f:
@@ -1117,21 +857,16 @@ def save_prefs(**kw):
 
 
 def ws_prefs(ws):
-    """Saved {order, collapsed} for this workspace, or None when never saved (first run). A
-    malformed entry (wrong type, or a dict missing a key) is coerced per-entry, never crashes a
-    caller -- one of which (`--once`) indexes `saved["collapsed"]` directly."""
+    """Saved {hidden, folded} for this workspace; a malformed entry reads as empty, never crashes."""
     v = (load_prefs()["workspaces"] or {}).get(ws)
-    if not isinstance(v, dict):
-        return None
-    return {"order": v.get("order") or [], "collapsed": v.get("collapsed") or [], "hidden": v.get("hidden") or []}
+    v = v if isinstance(v, dict) else {}
+    return {"hidden": list(v.get("hidden") or []), "folded": bool(v.get("folded"))}
 
 
 def save_ws_prefs(ws, **kw):
-    """Read-modify-write of the additive `workspaces` prefs key; unrecognised current value
-    coerced to {} (load_prefs already does that), so a hand-edited prefs.json never crashes."""
     d = load_prefs()
     workspaces = dict(d["workspaces"])
-    cur = dict(workspaces.get(ws) or {"order": [], "collapsed": [], "hidden": []})
+    cur = dict(workspaces.get(ws) if isinstance(workspaces.get(ws), dict) else {})
     cur.update({k: v for k, v in kw.items() if v is not None})
     workspaces[ws] = cur
     save_prefs(workspaces=workspaces)
@@ -1232,7 +967,7 @@ COLS = [  # key, title, width (None = elastic), align, min terminal width to sho
 PREFIX = 3   # margin + cursor + space
 
 
-SHOW_COST = False    # api$ column: on for API-key users (no limits), opt-in on subscriptions (--cost, `$` key)
+SHOW_COST = False    # api$ column: on for API-key users (no limits), opt-in on subscriptions (--cost)
 
 
 def layout(width):
@@ -1286,7 +1021,7 @@ def cell_index(line, x):
 
 def ctx_bar(pct, w=10):
     if pct is None:
-        return G["trk"] * w + "   " + ("—" if G is not ASCII else "-").rjust(1)
+        return G["trk"] * w + "   " + ("—" if not is_ascii() else "-").rjust(1)
     n = max(0, min(w, int(round(pct / 100.0 * w))))
     return G["bar"] * n + G["trk"] * (w - n) + f" {int(pct):3d}%"
 
@@ -1297,15 +1032,17 @@ TIER_LABEL = {"trivial": "triv", "normal": "normal", "hard": "HARD", "critical":
 
 
 def cell(row, key, frame):
-    if row.get("kind") in ("repo", "group"):
-        if key == "flag":
-            return G["ring"] if row["status"] == "ring" else ""
+    if row.get("kind") == "section":
         if key == "repo":
-            glyph = "▸" if row.get("collapsed") else "▾"
-            return "  " * row.get("indent", 0) + f"{glyph} {row['repo']}"
-        if key == "task":
-            return row["now"]
-        return ""
+            mark = ">v" if is_ascii() else "▸▾"
+            return f"{mark[0] if row.get('collapsed') else mark[1]} {row['repo']}"
+        return row["now"] if key == "task" else ""
+    if row.get("kind") == "repo":
+        if key == "flag":
+            return G["hid"] if row.get("hidden") else ""
+        if key == "repo":
+            return "  " + row["repo"]
+        return row["now"] if key == "task" else ""
     if key == "flag":
         f = ""
         if row["status"] == "ring":
@@ -1318,8 +1055,7 @@ def cell(row, key, frame):
             f = G["hid"] + f
         return f[:2]
     if key == "repo":
-        indent = row.get("indent", 0)
-        return ("  " * indent + "↳ " if indent else "") + row["repo"]
+        return row["repo"]
     if key == "task":
         if row["task"]:
             return row["task"]
@@ -1353,7 +1089,7 @@ def header_tail(frame):
     if THEME.get("rain"):
         return "  " + G["rain"][frame % 4]
     if THEME.get("spin"):
-        return "  " + (SPIN[frame % 4] if G is not ASCII else "|/-\\"[frame % 4])
+        return "  " + (SPIN[frame % 4] if not is_ascii() else "|/-\\"[frame % 4])
     if THEME.get("pulse"):
         return "  " + ("·" if frame % 2 else " ")
     return ""
@@ -1361,11 +1097,13 @@ def header_tail(frame):
 
 def next_step(r):
     """What the human does next for this row, in one line."""
-    if r.get("kind") in ("repo", "group"):
-        return "N spawns an agent here" + (" (workspace root)" if r["kind"] == "group" else "") + " · ⏎ goes in"
+    if r.get("kind") == "section":
+        return "space folds the repo list"
+    if r.get("kind") == "repo":
+        return f"{'enter' if is_ascii() else '⏎'} or N spawns an agent here · b hides the repo"
     st, gate, task = r.get("stage") or "", r.get("gate") or "", r.get("task") or ""
     if r["status"] == "sentinel":
-        return "⏎ revives it in a new terminal · c copies the command · b dismisses the row"
+        return f"{'enter' if is_ascii() else '⏎'} revives it in a new terminal · b dismisses the row"
     if st == "grill":
         return "answer the interrogation in the session (⏎), it hardens plan.md"
     if st == "plan_review" and gate == "human":
@@ -1406,7 +1144,7 @@ def detail_card(r, W, toast, t, airy=False):
     """Multi-line detail for the selected row. Labelled, one fact per line, no guessing needed.
     airy=True (16+ free lines): blank lines between groups, wider labels, `last` wraps to 2 lines."""
     d = G["det"]
-    if r.get("kind") in ("repo", "group"):
+    if r.get("kind"):
         lines = [("det", fit(d, W))]
         lw = 11 if airy else 9
         def L(label, txt):
@@ -1448,12 +1186,8 @@ def detail_card(r, W, toast, t, airy=False):
     total, running, last_agent = r.get("agents") or (0, 0, "")
     if total:
         run = f" · {running} running" if running else ""
-        live = agent_rows(r.get("transcript_path"), t) if (airy and running) else []
-        L("agents", f"{total} sent{run}" + ("" if live else (f" · last {last_agent}" if last_agent else "")) + ("  (a: log)" if total else ""))
-        for a in live:
-            desc = f' "{a["desc"]}"' if a["desc"] else ""
-            L("", f"↳ {a['type']}{desc} · {a['now']} · {a['age']}")
-    where = r["tmux_addr"] or r["tmux_pane"] or "no tmux pane"
+        L("agents", f"{total} sent{run}" + (f" · last {last_agent}" if last_agent else ""))
+    where = r["tmux_addr"] or r["tmux_pane"] or r.get("start_cwd") or r["cwd"] or "?"
     L("where", f"{where} · pid {r['pid'] or '?'} · session {r['sid'][:8]}")
     gap()
     if r.get("title") and r["task"]:
@@ -1485,11 +1219,10 @@ def _row_window(rows, W, filt, height, sel):
     return off, visible
 
 
-def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, height=None, ws=None, all_rows=None, focus=""):
+def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, height=None, ws=None, all_rows=None):
     """Pure: -> list of (kind, line). Every line is exactly `width` cells (see --selftest).
-    all_rows (the full session list, pre-collapse) drives the header/footer aggregates so a
-    collapsed group doesn't hide sessions from the counts; defaults to `rows` for callers that
-    pass a flat session list directly (no tree/collapse involved)."""
+    all_rows (the full session list, before the filter) drives the header/footer aggregates;
+    defaults to `rows`."""
     t = time.time() if t is None else t
     W = max(40, width)
     cols = layout(W)
@@ -1500,8 +1233,7 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
     n_dead = sum(r["status"] == "sentinel" and not r.get("hidden") for r in sess_rows)
     n_live = len(sess_rows) - n_dead - n_hid
     ws_name = os.path.basename((ws or "").rstrip("/"))
-    crumb = " / ".join(x for x in ([ws_name] + list(focus or ())) if x)
-    left = f"{G['eyes']}  T H E  O P E R A T O R" + (f" · {crumb}" if crumb else "")
+    left = f"{G['eyes']}  T H E  O P E R A T O R" + (f" · {ws_name}" if ws_name else "")
     right = f"{words('fleet')} · {n_live} {words('live')} · {n_ring} {words('ring')} · {n_dead} {words('deads' if n_dead != 1 else 'dead')}{f' · {n_hid} hidden' if n_hid else ''}{header_tail(frame)}"
     lines.append(("hdr", fit(fit(left, max(0, W - dw(right) - 1)) + " " + right, W)))
     lim = usage_limits(bars=True)
@@ -1522,9 +1254,7 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
     lines.append(("colhdr", fit(hdr, W)))
     if not rows:
         lines.append(("empty", fit("", W)))
-        empty = (f"nothing running in {' / '.join(focus)}.   {G['cur']} N spawn an agent here · ← back out"
-                 if focus else words("empty"))
-        lines.append(("empty", fit("   " + empty, W)))
+        lines.append(("empty", fit("   " + words("empty"), W)))
     for i, r in enumerate(view):
         idx = i + off
         cur = G["cur"] if idx == sel else " "
@@ -1532,6 +1262,10 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
         if r["sid"] in burst:
             body = "".join(random.choice("01·10 1 0") for _ in range(W - PREFIX))
             kind = "burst"
+        elif r.get("kind"):                    # repo / section: the name spans the repo + task columns
+            nw = max(sum(w for k, _, w, _ in cols if k in ("repo", "task")) + 2, min(48, W - PREFIX - 30))
+            body = fit(cell(r, "flag", frame), 2) + "  " + fit(cell(r, "repo", frame), nw) + "  " + fit(r["now"], max(0, W - PREFIX - nw - 6))
+            kind = ("hidden" if r.get("hidden") else r["kind"]) + ("_sel" if idx == sel else "")
         else:
             body = "  ".join(fit(cell(r, k, frame), w, a) for k, _, w, a in cols)
             kind = ("hidden" if r.get("hidden") else "shipped" if r.get("shipped") else "idle" if r.get("idle") else r["status"]) + ("_sel" if idx == sel else "")
@@ -1546,7 +1280,7 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
         r = rows[sel]
         if room >= 10:
             lines += detail_card(r, W, toast, t, airy=airy or room >= 16)
-        elif r.get("kind") in ("repo", "group"):
+        elif r.get("kind"):
             l1 = f"{d} {r['repo']}{(' · ' + r['path']) if r.get('path') else ''} · {r['now']}"
             l2 = f"{d} {next_step(r)}"
             q = quote_for(r, t)
@@ -1579,12 +1313,10 @@ def footer(rows, W, filt="", all_rows=None):
     d = G["det"]
     fleet = sum(r["cost"] or 0 for r in (all_rows if all_rows is not None else rows))
     lim = usage_limits()
-    keys = ("↑↓ tune · ←→ out/in · 1-9/⏎ jack in · N new agent · J/K reorder · space collapse · D pop out · o read plan · O in IDE · a agent log · w rabbit · "
-            "🔴 r kill · ⤴ R rebase · 🔵 b hide · 👻 h hidden · c resume · "
-            "🔔 n notify · 🔊 m sound · 🎵 s ring · $ cost · +/- zoom · 🔍 / filter · 🎨 t theme · p wording · ? manual · q quit") \
-        if G is not ASCII else ("jk tune · left/right out/in · 1-9/enter jack in · N new agent · J/K reorder · space collapse · D pop out · o read plan · O in IDE · a agent log · w rabbit · "
-                                "r kill · R rebase · b hide · h hidden · c resume · "
-                                "n notify · m sound · s ring · $ cost · +/- zoom · / filter · t theme · p wording · ? manual · q quit")
+    keys = ("↑↓ tune · ⏎/1-9 jack in · N new agent · w next ring · o read plan · r kill · b hide · h hidden · "
+            "space fold · m sound · / filter · ? manual · q quit")
+    if is_ascii():
+        keys = keys.replace("↑↓", "jk").replace("⏎", "enter")
     if filt:
         keys = f"/{filt}_   (esc clears)"
     usage = ""
@@ -1593,21 +1325,14 @@ def footer(rows, W, filt="", all_rows=None):
     elif SHOW_COST:
         usage = f"api est ${fleet:.2f} (the plan is a flat fee; this is what the tokens would cost on the API)"
     out = [("rule", rule(W))]
-    kw, groups = W - dw(d) - 1, keys.split(" · ")
-    optional = ["$ cost", "+/- zoom", "p wording", "🎨 t theme", "t theme", "c resume", "O in IDE", "a agent log", "o read plan", "w rabbit",
-                "👻 h hidden", "h hidden", "🔵 b hide", "b hide", "🔴 r kill", "r kill", "⤴ R rebase", "R rebase", "D pop out", "space collapse", "J/K reorder"]
-    while True:
-        klines, cur = [], ""
-        for grp in groups:                       # wrap between key groups, never inside one
-            cand = f"{cur} · {grp}" if cur else grp
-            if dw(cand) <= kw or not cur:
-                cur = cand
-            else:
-                klines.append(cur); cur = grp
-        klines.append(cur)
-        if len(klines) <= 3 or not optional:     # narrow terminal: shed the optional keys (? manual lists them)
-            break
-        groups.remove(optional.pop(0)) if optional[0] in groups else optional.pop(0)
+    kw, klines, cur = W - dw(d) - 1, [], ""
+    for grp in keys.split(" · "):               # wrap between key groups, never inside one
+        cand = f"{cur} · {grp}" if cur else grp
+        if dw(cand) <= kw or not cur:
+            cur = cand
+        else:
+            klines.append(cur); cur = grp
+    klines.append(cur)
     out += [("foot", fit(f"{d} {k}", W)) for k in klines[:3]]
     if usage:
         out.append(("foot", fit(f"{d} {usage}", W)))
@@ -1668,7 +1393,7 @@ def usage_limits(bars=False):
         n = max(0, min(10, int(round(float(w["pct"]) / 10))))
         bar = (G["bar"] * n + G["trk"] * (10 - n) + " ") if bars else ""
         parts.append(f"{label} {bar}{int(w['pct'])}%" + (f" · {r}" if r else ""))
-    sep = " │ " if G is not ASCII else " | "
+    sep = " │ " if not is_ascii() else " | "
     stale = f" (as of {age_str(best_ts)} ago)" if age > 120 else ""   # numbers come from the last API reply any session saw
     return sep.join(parts) + stale
 
@@ -1676,105 +1401,46 @@ def usage_limits(bars=False):
 MANUAL = """
   ⌐■-■  T H E  O P E R A T O R                                          dodge this
 
-  Every Claude Code session on this machine, one row each. Rows sort ringing first.
+  Top: every Claude Code session on this machine, ringing first. Below: the repos of the
+  workspace fleet was launched from, where N starts a new agent.
 
-  ☎  ring 12m    the session waits on you (turn ended, or a permission prompt), and for how long.
-                 Fresh rings pulse (matrix / nebuchadnezzar themes); after 5 minutes the row goes
-                 white and still: it still needs you, it just stopped shouting
-  red ctx        context past 80%: /compact before the next review panel eats the budget.
-                 Crossing it fires a toast, and a desktop notification when `n` is on.
-  "quoted" task  a session with no anderson pipeline shows its first prompt as the title
+  ☎  ring 12m    the session waits on you (turn ended, permission prompt, a question), and for
+                 how long. It rings once, 5 s after it starts waiting, so a turn that carries on
+                 by itself never rings. After 5 minutes the row goes white and still
   ▶  work        model thinking, or a tool / subagent running
-  ✝  sentinel    the process is gone; the row stays until you blue-pill it
+  ✝  sentinel    the process is gone; the row stays until you hide it with b
   ⟲  déjà vu     the loop repeated (iteration > 0)
+  red ctx        context past 80%: /compact before the next review eats the budget
 
   persona   who is on the job, from feature-research/*/state.md: ARCHITECT plan,
-            INTERROGATOR grill (you), ORACLE plan_review, NEO implement,
-            TRINITY repair (tests went red: opus/high root-causes them, never the
-            implementer looping), AGENT SMITH diff_review, THE ONE shipped,
-            T. ANDERSON: no pipeline yet
-  tier      how hard the pipeline decided this task is, from state.md `tier`: triv · normal ·
-            HARD · CRITICAL (upper-case = the two that buy a heavier review). `…` until the
-            planner's scorecard has been routed
-  ctx       from the statusline heartbeat (bin/heartbeat.py); falls back to the transcript's
-            last usage when no heartbeat is wired
-  footer    session 46% · 4h07 left │ week 41% · resets Fri 19:00   (red past 90%: extra-usage
-            credits are next). Numbers are the last API reply any session saw: fleet cannot ask
-            the API itself, so "(as of 4m ago)" appears when they are older than two minutes.
-            session = the rolling 5-hour window (/usage "Current session"), week = the 7-day
-            window for all models. Your plan is a flat fee: these percentages ARE the cost.
-            Claude Code does not expose the per-model weekly number.
-  api$      hidden on subscriptions. `$` (or --cost) shows Claude Code's list-price estimate
-            per session: a burn gauge (which session eats most), never your bill.
+            INTERROGATOR grill (you), ORACLE plan_review, NEO implement, TRINITY repair,
+            AGENT SMITH diff_review, THE ONE shipped, T. ANDERSON: no pipeline yet
+  tier      triv · normal · HARD · CRITICAL, from state.md `tier`
+  header    session / week bars are your /usage windows (red past 90%)
 
-  ↑↓ / j k  tune           select a session · 1-9 jack straight into row N
-  o         read           read the gate artifact right here: plan.md (grill, plan review),
-                           plan.md + audit.md then the code diff (diff review). glow when
-                           installed, else less with a light markdown colouring; q comes back to
-                           fleet (at diff review: q moves on to the diff), :n = next file
-  O         open in IDE    same files in your IDE: --editor code (saved), else a GUI
-                           $VISUAL/$EDITOR, else the IDE that owns the session. ⏎ / 1-9 on a row
-                           parked at a human gate does this automatically when an IDE applies
-  a         agent log      page the newest subagent's transcript as a readable log (its words,
-                           the tools it called, a line of each result); running ones first. The card
-                           lists running subagents live (↳ type "task" · ▶ tool · age) on tall terminals
-  c         resume         copy `cd <cwd> && claude --resume <sid>` (⏎ on a sentinel runs it for
-                           you: a new tmux window, else a new Ghostty / iTerm2 tab or Terminal.app window)
-  m         sound          on/off (saved): the picked sound plays when a session starts waiting
-  s         ring sound     next sound, previewed and saved: phone (the Matrix call) · snare ·
-                           hitech · freeze · blip · rift · jump. --ring NAME picks, --rings lists.
-                           Your own: drop .wav files in ~/.claude/fleet/sounds/ (picked by name),
-                           or ~/.claude/fleet/ring.wav to override everything
-  n         notify         desktop notification when a session starts ringing, or crosses
-                           80% context (saved). macOS: brew install terminal-notifier for
-                           reliable banners; clicking one brings this terminal forward
-  ⏎         jack in        tmux: switch to that pane · macOS without tmux: focus the
-                           Ghostty / iTerm2 / Terminal.app tab that owns the session (Ghostty by
-                           the tab's directory), else bring the owning app forward (WebStorm /
-                           VS Code / Cursor integrated terminals).
-                           On a sentinel: revive it in a new window already running its resume.
-                           On a repo/group row: go into it, like →. ⏎ only moves you.
-  N         new agent      opens a prompt box, then p/a/A spawns a claude agent in the selected
-                           repo (or the workspace root, on a group; the session's own repo, on a
-                           session row) in a terminal of its own -- fleet stays on screen, it is
-                           never replaced by the agent. Drilled into a repo with no agents in it,
-                           N spawns into that repo, so an empty repo is a starting point.
-                           A repo already on a feature branch is someone's work in progress, so the
-                           agent gets a worktree there instead: .worktrees/<task> on branch
-                           anderson/<task>, cut from the default branch. On the default branch the
-                           checkout is free and the agent uses it directly
-  J / K     reorder        move the selected repo/group among its siblings (saved per workspace)
-  → / ←     in / out       → drills into the selected repo or group: only what is inside it fills
-                           the screen, the workspace path shows in the header. ← comes back out one
-                           level. A ring arriving while you are on the overview zooms you into that
-                           repo by itself; drilled in, rings elsewhere leave your screen alone
-  space     collapse       fold/unfold a repo or group in place, without leaving the overview
-                           (saved per workspace). A folded row carries its children's ☎: expanded,
-                           only the ringing session row itself pulses, never its parents
-  D         pop out        a running session's tmux window, into its own OS terminal window
-  w         white rabbit   jump to the oldest ringing session, zooming into the repo that holds it
-  R         rebase         rebase this checkout's branch onto main/master and force-push it (asks
-                           first). The ONLY force push fleet does: --force-with-lease, on that one
-                           branch, never the base and never another ref. It refuses when the
-                           checkout is on main/master itself, when the tree is dirty, and when
-                           GitHub does not report the base branch as protected -- unverifiable
-                           counts as unprotected. Conflicts abort the rebase and push nothing:
-                           those are yours to resolve by hand
-  r         red pill       kill the session's process (asks first); the row is hidden with it
-  b         blue pill      hide the row, any row; the process is left alone. On a repo/group row:
-                           hide that repo and its agents, saved per workspace. On a hidden one: un-hide
-  h         hidden         show the hidden rows and repos too (◌, dim), so you can bring one back with b
-  ctrl-L    redraw         repaint the whole screen (also automatic every 10 s and on resize)
-  /         filter         substring on repo · task ; esc clears
-  t         theme          matrix · construct · zion · nebuchadnezzar · agent (saved)
-  p         wording        Matrix lingo (zion · jacked in · ringing · sentinel) or plain (saved)
-  $         api$           show/hide the per-session API-price estimate column (saved)
-  + / -     zoom           Terminal.app: grow/shrink this window's font while fleet runs (saved,
-                           restored on quit; --zoom 16 sets it, --no-zoom clears). iTerm2 / IDE: ⌘+
-  ?         this           q quits
+  ↑↓ / j k  tune         select a row
+  ⏎ / 1-9   jack in      bring that session's terminal tab to the front (Ghostty, iTerm2,
+                         Terminal.app, or the tmux pane). On a sentinel: reopen it with
+                         claude --resume in a new tab. On a repo: same as N
+  N         new agent    prompt box, then p plain claude · a /anderson:start · A /anderson:auto,
+                         in a new tab of its own. A repo parked on a feature branch gets a
+                         worktree (.worktrees/<task>, branch anderson/<task>) so the work in
+                         progress there is never touched. On a session row: its repo
+  w         next ring    jump to the session that has waited longest
+  o         read         plan.md / audit.md right here (glow, else less), then the code diff at
+                         diff review. q comes back
+  r         kill         SIGTERM the session (asks first); the row goes with it
+  b         hide         hide a row or a repo (the process is left alone); on a hidden one: show it
+  h         hidden       list the hidden rows and repos too, dim
+  space     fold         fold / unfold the repo list (saved)
+  m         sound        ring sound on/off, for every running fleet at once (saved)
+  /         filter       substring on repo · task ; esc clears
+  ?         this         any key closes
+  q         quit
 
-  prefs: ~/.claude/fleet/prefs.json (theme · plain · calm; --theme/--plain/--calm set them)
-  data:  ~/.claude/fleet/  ·  --no-intro  ·  --ascii  ·  --selftest
+  back to fleet from a session: `fleet --focus` brings this tab forward (bind it to a hotkey).
+  flags: --theme NAME · --plain · --calm · --cost · --notify · --ring NAME · --rings · --play all
+         --ping · --demo · --once · --ascii · --no-intro.  prefs: ~/.claude/fleet/prefs.json
 """
 
 
@@ -1806,18 +1472,19 @@ def _terminal_bundle():
             "WarpTerminal": "dev.warp.Warp-Stable", "ghostty": "com.mitchellh.ghostty"}.get(os.environ.get("TERM_PROGRAM", ""))
 
 
-def notify(title, body):
-    """Desktop ping when a session starts waiting or crosses the context line. Fire-and-forget.
-    macOS: terminal-notifier when installed (reliable, listed in System Settings, click focuses the
-    terminal fleet runs in); else osascript, which recent macOS often swallows. Linux: notify-send."""
+def notify(title, body, sid=None):
+    """Desktop banner when a session starts waiting or crosses the context line. Fire-and-forget,
+    and silent: the ring sound is `m`'s job alone, so muting fleet mutes everything.
+    macOS: terminal-notifier when installed (reliable; clicking the banner runs `--jack <sid>`,
+    which brings that session's tab forward); else osascript, which recent macOS often swallows.
+    Linux: notify-send."""
     try:
         if sys.platform == "darwin":
             if shutil.which("terminal-notifier"):
                 cmd = ["terminal-notifier", "-title", "THE OPERATOR", "-subtitle", title, "-message", body,
-                       "-group", "anderson-fleet", "-sound", "default"]
-                b = _terminal_bundle()
-                if b:
-                    cmd += ["-activate", b]
+                       "-group", "anderson-fleet"]
+                if sid:
+                    cmd += ["-execute", f"{shlex_quote(sys.executable)} {shlex_quote(os.path.abspath(__file__))} --jack {shlex_quote(sid)}"]
                 subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 return
             esc = lambda t: t.replace("\\", "\\\\").replace('"', '\\"')
@@ -1858,8 +1525,7 @@ def sound_file(name):
 
 
 def ring_path():
-    """Which sound rings: your ~/.claude/fleet/ring.wav, else the picked sound (RING; `s` cycles,
-    --ring NAME), else the bundled phone, else a synthesized ringback written once to the fleet dir."""
+    """Which sound rings: your ~/.claude/fleet/ring.wav, else the picked sound (RING; --ring NAME), else the bundled phone, else a synthesized ringback written once to the fleet dir."""
     if os.path.isfile(RING_WAV):
         return RING_WAV
     f = sound_file(RING) or sound_file("phone")
@@ -1903,23 +1569,14 @@ def ring_sound():
     return False
 
 
-def notify_hint():
-    """What the `n` toast adds when banners are likely to be swallowed."""
-    if sys.platform == "darwin" and not shutil.which("terminal-notifier"):
-        return "  (macOS often drops osascript banners: brew install terminal-notifier)"
-    return ""
-
-
 def resume_cmd(r):
-    # synthetic repo:/group: rows have no session to resume; the shared choke point for `c`,
-    # copy_resume() and revive() so a `repo:/Users/...` sid never reaches the clipboard (criterion 5)
+    # repo/section rows have no session to resume
     if r.get("kind"):
         return None
     sid = r.get("sid") or ""
     if sid.startswith("pid:") or sid.startswith("demo") or len(sid) < 8:
         return None
-    cwd = r.get("cwd") or ""
-    return (f"cd {shlex_quote(cwd)} && " if cwd else "") + f"claude --resume {sid}"
+    return f"claude --resume {sid}"
 
 
 def shlex_quote(s):
@@ -1937,15 +1594,6 @@ def copy_cmd(cmd):
             except Exception:
                 break
     return f"run: {cmd}"
-
-
-def copy_resume(r):
-    """`c`: put `cd <cwd> && claude --resume <sid>` on the clipboard. Works for any row; the point is
-    bringing a sentinel back."""
-    cmd = resume_cmd(r)
-    if not cmd:
-        return "no session id for that row."
-    return copy_cmd(cmd)
 
 
 NEW_TAB_ITERM = """tell application "iTerm2"
@@ -1984,41 +1632,17 @@ def _host_terminal():
     return {"com.mitchellh.ghostty": "Ghostty", "com.googlecode.iterm2": "iTerm2"}.get(b, "Terminal")
 
 
-def new_terminal(cmd, name=None, cwd=None, use_tmux=True, verb=None, detach=False):
-    """A new terminal already running `cmd`: tmux window first (`-c cwd`/`-n name` when given),
-    else AppleScript on the terminal fleet runs in (a new Ghostty / iTerm2 tab, a Terminal.app window;
-    `cd cwd && cmd`), else the command
-    lands on the clipboard. Shared by revive() (no name/cwd: byte-identical to before) and the
-    spawn flow (both). use_tmux=False forces the OS-window branch: pop_out()'s `cmd` is itself
-    a `tmux attach`, and a tmux new-window running that nests (tmux refuses, no window appears)
-    when fleet is already inside tmux — the default now. `verb` overrides the "spawned"/"resumed"
-    wording (pop_out() is neither: it's popping an existing window into its own terminal).
-    detach=True creates the tmux window without switching to it, so whatever you were looking at
-    (the monitor) stays on screen."""
+def new_terminal(cmd, cwd=None, name=None, verb="spawned"):
+    """A new terminal already running `cmd` in `cwd`, never the one fleet is in. macOS: a new tab in
+    the terminal app fleet runs in (Ghostty / iTerm2; a Terminal.app window), started in `cwd` so
+    the tab's directory names the repo. Elsewhere: a detached tmux window when fleet is in tmux.
+    Else the command lands on the clipboard."""
     full = f"cd {shlex_quote(cwd)} && {cmd}" if cwd else cmd
-    verb = verb or ("spawned" if name else "resumed")
-    if use_tmux and os.environ.get("TMUX"):
-        try:
-            args = ["tmux", "new-window"]
-            if detach:
-                args.append("-d")
-            if cwd:
-                args += ["-c", cwd]
-            if name:
-                args += ["-n", name]
-            args.append(cmd)
-            subprocess.run(args, timeout=5, check=True)
-            where = " (still here; prefix+n to reach it)" if detach else ""
-            return f'Operator. {verb} in tmux window "{name}".{where}' if name else f"Operator. {verb} in a new tmux window.{where}"
-        except Exception as e:
-            return f"launch failed: {e}  ·  {copy_cmd(full)}"
     if sys.platform == "darwin":
         app = _host_terminal()
         tmpl = {"Ghostty": NEW_TAB_GHOSTTY, "iTerm2": NEW_TAB_ITERM}.get(app, NEW_WINDOW_TERMINAL)
         # the shell sees cmd verbatim; only the AppleScript string literal needs escaping
         esc = lambda t: t.replace("\\", "\\\\").replace('"', '\\"')
-        # Ghostty: start the tab in cwd too, so its `working directory` names the repo from the
-        # first frame (jack in finds the tab by it; `cd x && claude` alone never reports x)
         wd = f'\tset initial working directory of cfg to "{esc(cwd)}"\n' if cwd else ""
         script = tmpl.replace("{wd}", wd).replace("{cmd}", esc(full))
         try:
@@ -2028,20 +1652,27 @@ def new_terminal(cmd, name=None, cwd=None, use_tmux=True, verb=None, detach=Fals
             return f"launch failed: {rc.stderr.strip() or 'osascript'}  ·  {copy_cmd(full)}"
         except Exception as e:
             return f"launch failed: {e}  ·  {copy_cmd(full)}"
+    if os.environ.get("TMUX"):
+        try:
+            args = ["tmux", "new-window", "-d"] + (["-c", cwd] if cwd else []) + (["-n", name] if name else []) + [cmd]
+            subprocess.run(args, timeout=5, check=True)
+            return f'Operator. {verb} in tmux window "{name or cmd.split()[0]}" (prefix+n to reach it).'
+        except Exception as e:
+            return f"launch failed: {e}  ·  {copy_cmd(full)}"
     # ponytail: no portable "open a new terminal window" off macOS/tmux. Add one if someone asks on Linux.
     return copy_cmd(full)
 
 
 def revive(r):
-    """A sentinel has no terminal left to jack into, so give it one: a new window already running
-    `cd <cwd> && claude --resume <sid>`."""
+    """A sentinel has no terminal left to jack into, so give it one: a new tab already running
+    `claude --resume <sid>` where the session lived."""
     cmd = resume_cmd(r)
     if not cmd:
         return "no session id for that row."
-    return new_terminal(cmd)
+    return new_terminal(cmd, cwd=r.get("start_cwd") or r.get("cwd") or None, verb="resumed")
 
 
-# ──────────────────────────────────────────────────────────────────── spawn: N on a repo/group row
+# ──────────────────────────────────────────────────────────────────── spawn: N on a repo
 def slug(prompt):
     """The window name / phase-3 task-dir key: an issue id (LIN-482) lowercased, else the first
     words slugified to <=32 chars, else task-<HHMM>. [^a-z0-9-] stripped: no `:` and no `.`,
@@ -2100,97 +1731,11 @@ def worktree_for(path, task):
     return wt, f"worktree .worktrees/{task} on anderson/{task} (off {start}) — {os.path.basename(path)} stays on {cur}"
 
 
-def _sh(cmd, cwd, timeout=20):
-    """Any non-git command in `cwd`: stdout stripped on success, None when it fails or is missing."""
-    try:
-        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
-        return r.stdout.strip() if r.returncode == 0 else None
-    except Exception:
-        return None
-
-
-def _git_out(args, cwd, timeout=180):
-    """(ok, stdout+stderr) for the git calls whose failure text IS the answer: fetch, rebase, push."""
-    try:
-        r = subprocess.run(["git", "-C", cwd] + args, capture_output=True, text=True, timeout=timeout)
-        return r.returncode == 0, (r.stdout + r.stderr).strip()
-    except Exception as e:
-        return False, str(e)
-
-
-def base_protected(path, base):
-    """Is `base` protected on the remote? True / False / None when it cannot be told (no gh, not a
-    GitHub remote, API refused). The plain branch endpoint, not /protection: `protected` is true for
-    a classic rule OR a ruleset and any collaborator can read it, while /protection needs admin and
-    would read as 'unprotected' for everyone else."""
-    if not shutil.which("gh"):
-        return None
-    nwo = _sh(["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"], path)
-    if not nwo:
-        return None
-    return {"true": True, "false": False}.get(
-        _sh(["gh", "api", f"repos/{nwo}/branches/{base}", "--jq", ".protected"], path))
-
-
-def rebase_row(path):
-    """`R`: rebase this checkout's branch onto the default branch, then force-push that branch.
-
-    The only force push fleet ever does, and it is fenced in: --force-with-lease on one explicit
-    <branch>:refs/heads/<branch> refspec -- never the base, never --all, never another ref. It
-    refuses outright when the checkout sits on the base branch itself, when the tree is dirty, and
-    when GitHub does not report the base as protected; "cannot tell" counts as unprotected, because
-    an unprotected base is what makes a mis-aimed force push unrecoverable. Conflicts are the user's:
-    the rebase is aborted and nothing is pushed."""
-    cur = _git(["rev-parse", "--abbrev-ref", "HEAD"], path)
-    if not cur:
-        return f"not a git checkout: {path}"
-    if cur == "HEAD":
-        return "detached HEAD — check out a branch first."
-    base = default_branch(path)
-    if not base:
-        return "no main/master here — nothing to rebase onto."
-    if cur == base:
-        return f"this checkout IS {base}. R rebases a feature branch or a worktree, never the base itself."
-    if _git(["status", "--porcelain", "-uno"], path):
-        return f"{cur} has uncommitted changes — commit or stash them first."
-    prot = base_protected(path, base)
-    if prot is not True:
-        why = (f"{base} is NOT protected on the remote" if prot is False else
-               f"cannot verify that {base} is protected (no gh, or not a GitHub remote)")
-        return f"REFUSED: {why}. Protect it (branch protection or a ruleset) first — no force push until then."
-    origin = _git(["remote", "get-url", "origin"], path) is not None
-    onto = base
-    if origin:
-        ok, out = _git_out(["fetch", "origin", base], path)
-        if not ok:
-            return f"fetch origin {base} failed: {out.splitlines()[-1] if out else '?'}"
-        _git_out(["fetch", "origin", cur], path)      # best effort: a fresh tracking ref keeps the lease honest
-        onto = f"origin/{base}"
-    ok, out = _git_out(["rebase", onto], path)
-    if not ok:
-        _git_out(["rebase", "--abort"], path)
-        tail = out.splitlines()[-1] if out else "?"
-        if "CONFLICT" in out:
-            return f"CONFLICTS rebasing {cur} onto {onto} — aborted, nothing pushed. This one is yours to resolve by hand."
-        return f"rebase of {cur} onto {onto} failed — aborted, nothing pushed: {tail}"
-    if not origin:
-        return f"{cur} rebased onto {base}. No origin, so nothing was pushed."
-    known = _git(["rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{cur}"], path)
-    spec = f"{cur}:refs/heads/{cur}"
-    args = ["push", "--force-with-lease", "origin", spec] if known else ["push", "-u", "origin", spec]
-    ok, out = _git_out(args, path)
-    if not ok:
-        return f"{cur} rebased onto {onto}, but the push was refused: {out.splitlines()[-1] if out else '?'}"
-    how = "force-pushed (--force-with-lease)" if known else "pushed (new branch)"
-    return f"{cur} rebased onto {onto} and {how} — {cur} only, nothing else touched."
-
-
 def spawn_cmd(row, prompt, mode):
-    """(cwd, shell_cmd, window_name) for `N` on a repo/group row. Pure — phase-3's worktree swap
-    is only the `cwd` line. cwd = the repo path, or the workspace root for a group row (router
-    mode). mode: p = bare `claude <prompt>`, a/A = /anderson:start|auto <slug> <prompt> (both
-    commands take the FIRST WORD as the task key, so the slug has to lead)."""
-    cwd = row["path"] if row.get("kind") == "repo" else (row.get("ws") or row.get("path") or "")
+    """(cwd, shell_cmd, window_name) for `N` on a repo row. Pure. mode: p = bare `claude <prompt>`,
+    a/A = /anderson:start|auto <slug> <prompt> (both commands take the FIRST WORD as the task key,
+    so the slug has to lead)."""
+    cwd = row["path"]
     prompt = (prompt or "").strip()
     if not prompt:
         return cwd, "claude", row["repo"]
@@ -2205,83 +1750,19 @@ def spawn_cmd(row, prompt, mode):
 
 
 def launch_agent(row, prompt, mode):
-    """`N` → prompt box → p/a/A: spawn a claude agent into a repo/group row, in a terminal of its
-    own. Stateless: no registry of launched sessions, spawn just fires new_terminal() and forgets.
-    The monitor never gets replaced by the agent: where a real OS window is available (macOS) the
-    agent gets one, and the tmux fallback creates its window detached."""
+    """`N` → prompt box → p/a/A: spawn a claude agent into a repo, in a terminal of its own.
+    Stateless: spawn fires new_terminal() and forgets; the session shows up through its hooks."""
     if not shutil.which("claude"):
         return "claude not on PATH: install it first."
     cwd, cmd, window = spawn_cmd(row, prompt, mode)
     note = ""
-    if row.get("kind") == "repo" and (prompt or "").strip():
+    if (prompt or "").strip():
         cwd, note = worktree_for(cwd, slug(prompt))
-    msg = new_terminal(cmd, name=window, cwd=cwd, use_tmux=sys.platform != "darwin", detach=True)
+    msg = new_terminal(cmd, cwd=cwd, name=window)
     return f"{msg}  ·  {note}" if note else msg
 
 
-def tmux_session(ws=None):
-    """fleet-<slugified workspace name>: tmux rewrites `:` to `_` and `.` makes -t parse as
-    session.pane, so the slug keeps [a-z0-9-] only (verified on tmux 3.6b)."""
-    ws = ws or workspace_root(os.getcwd())
-    name = re.sub(r"[^a-z0-9-]", "-", os.path.basename((ws or "").rstrip("/")).lower()).strip("-")
-    return f"fleet-{name or 'root'}"
-
-
-def pop_out_cmds(sess_name, win_index):
-    """argv for `D`: pop a session's tmux window into its own OS terminal window, grouped
-    against the pane's OWN session (often not fleet's) rather than <sess>-pop-<win>, which would
-    embed the `<repo>:<task>` colon tmux cannot use in a session name. Pure, so a `:`/`.` in the
-    session or window name is exercised in tests, not just tmux."""
-    grouped = "fleet-pop-" + re.sub(r"[^a-z0-9-]", "-", (sess_name or "").lower()).strip("-")
-    return {
-        "grouped": grouped,
-        "has_session": ["tmux", "has-session", "-t", grouped],
-        "new_session": ["tmux", "new-session", "-d", "-s", grouped, "-t", sess_name],
-        "select_window": ["tmux", "select-window", "-t", f"{grouped}:{win_index}"],
-        "attach": f"tmux attach -t {grouped}",
-    }
-
-
-def pop_out(row):
-    """`D` on a session row: resolve the pane's own #S/#I (the idiom jack_in() already uses),
-    reuse an existing pop session (has-session first: idempotent, no second window on a second
-    `D`), else create it, then attach in a new OS terminal window."""
-    pane = row.get("tmux_pane")
-    if not pane:
-        return "no tmux pane for that row."
-    try:
-        out = subprocess.run(["tmux", "display", "-p", "-t", pane, "#S #I"],
-                             capture_output=True, text=True, timeout=3).stdout.strip().split()
-        if len(out) != 2:
-            return "no tmux pane for that row."
-        sess_name, win_index = out
-    except Exception:
-        return "no tmux pane for that row."
-    # a pane already popped resolves #S to the pop session itself (grouped sessions share windows,
-    # tmux picks the newest): group against it directly, or a second `D` would prefix
-    # "fleet-pop-" onto an already-"fleet-pop-"-prefixed name and leak a session every press.
-    if sess_name.startswith("fleet-pop-"):
-        cmds = {"grouped": sess_name, "has_session": ["tmux", "has-session", "-t", sess_name],
-                "select_window": ["tmux", "select-window", "-t", f"{sess_name}:{win_index}"],
-                "attach": f"tmux attach -t {sess_name}"}
-    else:
-        cmds = pop_out_cmds(sess_name, win_index)
-    try:
-        exists = subprocess.run(cmds["has_session"], capture_output=True, timeout=3).returncode == 0
-        if not exists:
-            subprocess.run(cmds["new_session"], timeout=5, check=True)
-        subprocess.run(cmds["select_window"], timeout=5, check=True)
-    except Exception as e:
-        return f"pop out failed: {e}"
-    return new_terminal(cmds["attach"], use_tmux=False, verb="popped out")
-
-
 # ──────────────────────────────────────────────────────── open the gate artifact
-EDITOR = None
-GUI_EDITORS = {"code", "code-insiders", "cursor", "windsurf", "zed", "subl", "webstorm", "idea", "pycharm",
-               "phpstorm", "goland", "rubymine", "clion", "rider", "fleet", "mate", "atom", "nova"}
-
-
 def gate_files(r):
     """The artifacts a human gate asks you to read, for this row's stage. Existing files only."""
     root, task = r.get("root") or r.get("cwd") or "", r.get("task") or ""
@@ -2291,22 +1772,6 @@ def gate_files(r):
     want = {"grill": ["plan.md"], "plan_review": ["plan.md"], "diff_review": ["plan.md", "audit.md"],
             "implement": ["audit.md"]}.get(r.get("stage") or "", ["plan.md"])
     return [os.path.join(d, f) for f in want if os.path.isfile(os.path.join(d, f))]
-
-
-def editor_cmd(r, files):
-    """argv to open files: --editor / $FLEET_EDITOR / a GUI $VISUAL·$EDITOR, else the IDE owning the
-    session (macOS), else the OS default opener. None when nothing applies."""
-    for cand in (EDITOR, os.environ.get("FLEET_EDITOR"), os.environ.get("VISUAL"), os.environ.get("EDITOR")):
-        if cand and os.path.basename(cand.split()[0]) in GUI_EDITORS and shutil.which(cand.split()[0]):
-            return cand.split() + files
-    if sys.platform == "darwin":
-        app = _owner_app(r.get("pid")) if r.get("pid") else None
-        if app and app[0] not in ("Terminal", "iTerm2", "Warp", "Ghostty", "Alacritty", "kitty"):
-            return ["open", "-a", app[1]] + files
-        return None                              # a plain terminal owns it: nothing sensible to open into
-    if shutil.which("xdg-open"):
-        return ["xdg-open"] + files[:1]
-    return None
 
 
 def md_ansi(text):
@@ -2410,24 +1875,6 @@ def view_gate(r, scr=None):
     return f"read {', '.join(os.path.basename(f) for f in files)}{' + code diff' if diff else ''}{hint}"
 
 
-def open_gate(r):
-    files = gate_files(r)
-    if not files:
-        return "nothing to open: no plan.md / audit.md for that row."
-    cmd = editor_cmd(r, files)
-    if not cmd:
-        return "no IDE owns that session: o reads it here, or fleet --editor code"
-    try:
-        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return f"opened {', '.join(os.path.basename(f) for f in files)} in {os.path.basename(cmd[0]) if cmd[0] != 'open' else (cmd[2].rsplit('/', 1)[-1] if cmd[1:2] == ['-a'] else 'default app')}"
-    except Exception as e:
-        return f"open failed: {e}"
-
-
-# ───────────────────────────────────────────────────────────────────── zoom
-# Font size is the terminal's, not ours. Terminal.app exposes it per window over AppleScript, so
-# on macOS fleet can grow its own window while it runs and put it back on exit. iTerm2 and IDE
-# terminals have no such API: we print the shortcut instead (⌘+ / ⌘-).
 def _own_tty():
     try:
         return os.ttyname(sys.stdout.fileno())
@@ -2435,54 +1882,34 @@ def _own_tty():
         return None
 
 
-def _terminal_font(tty, size=None):
-    """Terminal.app only. size None -> read current size; int -> set it. Returns int or None."""
-    if sys.platform != "darwin" or os.environ.get("TERM_PROGRAM") != "Apple_Terminal" or not tty:
-        return None
-    action = f"set font size of w to {int(size)}\n          " if size else ""
-    script = f"""tell application "Terminal"
-  repeat with w in windows
-    repeat with t in tabs of w
-      if tty of t is "{tty}" then
-          {action}return font size of w
-      end if
-    end repeat
-  end repeat
-end tell
-return """""
-    try:
-        r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=4)
-        out = r.stdout.strip()
-        return int(out) if out.isdigit() else None
-    except Exception:
-        return None
+FLEET_TITLE = "⌐■-■ fleet"      # this tab's title while fleet runs: findable in the tab bar, and what --focus looks for
+RING_SETTLE_S = 5               # a ring alerts only once it has lasted this long: a turn that carries on by itself never rings
+
+
+def due_rings(rows, rung, now):
+    """(rows to alert for now, new `rung`). A ring alerts once, and only after RING_SETTLE_S: a Stop
+    another hook blocks (the scheduler chaining a stage) is followed by tool events within seconds,
+    and must not ring. `rung` remembers what already alerted until it stops ringing."""
+    ringing = {r["sid"]: r for r in rows if r["status"] == "ring" and not r.get("hidden")}
+    settled = {sid for sid, r in ringing.items() if now - (r.get("since") or 0) >= RING_SETTLE_S}
+    return [ringing[sid] for sid in sorted(settled - rung)], (rung & set(ringing)) | settled
 
 
 def run_tui(args):
     import curses
     demo = "--demo" in args
     intro = "--no-intro" not in args
-    calm = load_prefs()["calm"]
     tty = _own_tty()
-    zoom = {"size": load_prefs()["zoom"], "orig": None}
-    if zoom["size"]:
-        zoom["orig"] = _terminal_font(tty)
-        if zoom["orig"]:
-            _terminal_font(tty, zoom["size"])
-
-    def zoom_by(delta):
-        cur = _terminal_font(tty)
-        if cur is None:
-            return ("no font control here: Terminal.app only. iTerm2 / IDE: ⌘+ and ⌘-"
-                    if sys.platform == "darwin" else "no font control here: use your terminal's zoom (ctrl+shift+= / ctrl+-)")
-        if zoom["orig"] is None:
-            zoom["orig"] = cur
-        new = max(6, min(72, cur + delta))
-        _terminal_font(tty, new); save_prefs(zoom=new); zoom["size"] = new
-        return f"font {new}pt (saved; window restored to {zoom['orig']}pt on quit)"
+    try:
+        sys.stdout.write(f"\033]2;{FLEET_TITLE}\007"); sys.stdout.flush()
+        os.makedirs(FLEET_DIR, exist_ok=True)
+        with open(os.path.join(FLEET_DIR, "fleet.tty"), "w") as f:
+            f.write(f"{tty or '-'} {os.getpid()}")
+    except Exception:
+        pass
 
     def app(scr):
-        global NOTIFY, SHOW_COST, PLAIN, SOUND, RING, SHOW_HIDDEN
+        global NOTIFY, SOUND, RING, SHOW_HIDDEN
         curses.curs_set(0)
         scr.timeout(100)
         col = _colors(curses)
@@ -2498,9 +1925,10 @@ def run_tui(args):
                 "idle": col("white"), "idle_sel": col("white") | REV,
                 "sentinel": col(T["dead"]) | DIM, "sentinel_sel": DIM | REV,
                 "hidden": DIM, "hidden_sel": DIM | REV,
+                "section": col(T["hdr"]) | BOLD, "section_sel": col(T["hdr"]) | BOLD | REV,
+                "repo": DIM, "repo_sel": REV,
                 "shipped": col("red") | BOLD, "shipped_sel": col("red") | BOLD | REV,   # final state: done, stands out
                 "burst": col(T["accent"]) | BOLD, "det": 0, "quote": col(T["quote"]) | DIM, "foot": DIM,
-                "foot_hot": col("red") | BOLD,
             }
 
         if intro:
@@ -2509,61 +1937,40 @@ def run_tui(args):
         toast, toast_until = "", 0
         confirm, confirm_do = None, None
         manual = False
-        typed = ""
         rung, shipped, burst, hot_seen = set(), set(), {}, set()
         last_scan = 0
         last_full = 0          # a full repaint every FULL_REPAINT_S: a Space swipe or an app switch can leave stale cells
         prev = None            # last painted (size, lines-with-attrs): repaint only on change
-        # workspace tree: `collapsed`/`order` are in-memory, seeded once from prefs, and only
-        # written back by space/←/→/J/K (Q11: `w`'s auto-expand is a jump, not a silent rewrite)
         ws = workspace_root(os.getcwd())
-        wprefs = ws_prefs(ws)
-        if wprefs is None:
-            collapsed = {e["name"] for e in scan_workspace(ws) if e["kind"] == "group"}   # Q17
-            order = []
-        else:
-            collapsed = set(wprefs.get("collapsed") or [])
-            order = list(wprefs.get("order") or [])
-        hidden_repos = set((wprefs or {}).get("hidden") or [])
-        prompt_mode, prompt_row, prompt_buf = False, None, ""
-        menu_mode = False
+        wp = ws_prefs(ws)
+        hidden_repos, folded = set(wp["hidden"]), wp["folded"]
+        prompt_mode, menu_mode, prompt_row, prompt_buf = False, False, None, ""
         pending_sel_sid = None
-        pending_sel_name = None
-        focus = ()             # ponytail: in-memory, never saved -- fleet always opens on the overview
-
-        def activate(row):
-            """`⏎` / `1`-`9`: a session row jacks in; a repo/group row drills in, like `→`
-            (⏎ only ever moves you, it never starts anything: `N` spawns)."""
-            nonlocal focus, sel, last_scan
-            if row.get("kind") in ("repo", "group"):
-                focus = focus + (row["repo"],)
-                sel = 0; last_scan = 0
-                return ""
-            return jack_in(row) + gate_auto_open(row)
-
-        def spawn_here():
-            """`N`: open the spawn prompt box for the selected repo/group row, the repo a selected
-            session belongs to, or the repo you are drilled into when it has no rows."""
-            nonlocal prompt_mode, prompt_row, prompt_buf
-            if rows and rows[sel].get("kind") in ("repo", "group"):
-                tgt = rows[sel]
-            elif rows:
-                path = tuple(x for x in entry_for(ws, session_root(rows[sel])) if x)
-                tgt = focus_target(ws, path) if path else None
-                if tgt is None:
-                    return "that session is outside the workspace: pick a repo row to spawn into."
-            elif focus:
-                tgt = focus_target(ws, focus)
-                if tgt is None:
-                    return f"{' / '.join(focus)} is gone from the workspace — ← backs out."
-            else:
-                return "nothing to spawn into: pick a repo row."
-            prompt_mode, prompt_row, prompt_buf = True, tgt, ""
-            return ""
 
         def say(msg, secs=3):
             nonlocal toast, toast_until
             toast, toast_until = msg, time.time() + secs
+
+        def spawn_into(row):
+            """Open the spawn prompt box for a repo row, or for the repo a session row belongs to."""
+            nonlocal prompt_mode, prompt_row, prompt_buf
+            if row.get("kind") == "section":
+                return "pick a repo to spawn into."
+            prompt_mode, prompt_row, prompt_buf = True, (row if row.get("kind") == "repo" else repo_target(session_root(row))), ""
+            return ""
+
+        def toggle_fold():
+            nonlocal folded, last_scan
+            folded = not folded
+            save_ws_prefs(ws, folded=folded); last_scan = 0
+
+        def activate(row):
+            """`⏎` / `1`-`9`: a session jacks in, a repo opens the spawn box, the section folds."""
+            if row.get("kind") == "section":
+                toggle_fold(); return ""
+            if row.get("kind") == "repo":
+                return spawn_into(row)
+            return jack_in(row)
 
         def kill_row(r):
             """`r` confirmed: SIGTERM the session and hide its row."""
@@ -2577,41 +1984,35 @@ def run_tui(args):
             except Exception as e:
                 return f"red pill failed: {e}"
 
+        def label(r):
+            return f"{r['repo']} · {r['task'] or r.get('title') or 'session'}"
+
         while True:
             now = time.time()
             frame = int(now)   # 1 fps animation clock, whatever the input poll rate
             if now - last_scan > REFRESH_S:
+                p = load_prefs()                      # live: `m` in another fleet mutes this one too
+                SOUND, NOTIFY, RING = p["sound"], p["notify"], p["ring"]
                 all_rows = discover()
                 if demo:
                     all_rows = demo_rows() + all_rows
-                new_ring = {r["sid"] for r in all_rows if r["status"] == "ring"}
-                for sid in new_ring - rung:
-                    r = next(x for x in all_rows if x["sid"] == sid)
-                    if last_scan and THEME["eggs"] != "quiet":
-                        say(f"Wake up, Neo…  {r['repo']} · {r['task'] or 'session'} needs you.", 5)
-                    watched = last_scan and (NOTIFY or SOUND) and looking_at(r)
-                    if watched:
-                        say(f"{r['repo']} · {r['task'] or 'session'} needs you — you're on it, no ping.", 4)
-                    if last_scan and NOTIFY and not watched:
-                        notify(f"{r['repo']} · {r['task'] or r.get('title') or 'session'}", r["now"])
-                    if last_scan and SOUND and not watched:
-                        ring_sound()
-                    if last_scan and not focus and not filt:
-                        # only from the overview: once you have drilled in, a ring elsewhere
-                        # must not yank the screen out from under you
-                        path = tuple(x for x in entry_for(ws, session_root(r)) if x)
-                        if path:
-                            focus = path
-                            pending_sel_sid = r["sid"]
-                            say(f"{' / '.join(path)} is ringing — zoomed in. ← back to the overview.", 5)
-                rung = new_ring
+                fresh, rung = due_rings(all_rows, rung, now)
+                fresh = fresh if last_scan else []    # first scan: whatever rings already is old news
+                fresh = [r for r in fresh if not ((NOTIFY or SOUND) and looking_at(r))]  # you're on it already
+                for r in fresh:
+                    if NOTIFY:
+                        notify(label(r), r["now"], r["sid"])
+                if fresh:
+                    say(f"Wake up, Neo…  {label(fresh[0])} needs you." if THEME["eggs"] != "quiet" else f"{label(fresh[0])} needs you.", 5)
+                    if SOUND:
+                        ring_sound()                  # once, however many rang together
                 new_hot = hot_rows(all_rows)
                 for sid in new_hot - hot_seen:
                     r = next(x for x in all_rows if x["sid"] == sid)
                     if last_scan:
-                        say(f"context {int(r['ctx_pct'])}% on {r['repo']} · {r['task'] or r.get('title') or 'session'}: /compact before it eats the budget.", 6)
+                        say(f"context {int(r['ctx_pct'])}% on {label(r)}: /compact before it eats the budget.", 6)
                         if NOTIFY:
-                            notify(f"{r['repo']} · {r['task'] or r.get('title') or 'session'}", f"context {int(r['ctx_pct'])}%: /compact")
+                            notify(label(r), f"context {int(r['ctx_pct'])}%: /compact", r["sid"])
                 hot_seen = new_hot            # drops below the line (after a /compact) re-arms the alert
                 new_ship = {r["sid"] for r in all_rows if r["shipped"]}
                 for sid in new_ship - shipped:
@@ -2620,20 +2021,10 @@ def run_tui(args):
                         if THEME["eggs"] != "quiet":
                             say("He is The One.", 4)
                 shipped = new_ship
-                rows = tree_rows(all_rows, ws, filt, collapsed - set(focus), order, hidden_repos, SHOW_HIDDEN)
-                if focus:
-                    sub = focus_rows(rows, focus)
-                    if sub is None:
-                        focus = ()          # the repo went away (hidden, deleted, filtered out)
-                    else:
-                        rows = sub
-                if pending_sel_sid or pending_sel_name:
-                    idx = next((i for i, rr in enumerate(rows)
-                                if rr["sid"] == pending_sel_sid
-                                or (pending_sel_name and rr.get("kind") and rr["repo"] == pending_sel_name)), None)
-                    if idx is not None:
-                        sel = idx
-                    pending_sel_sid = pending_sel_name = None
+                rows = ws_rows(all_rows, ws, filt, folded, hidden_repos, SHOW_HIDDEN)
+                if pending_sel_sid:
+                    sel = next((i for i, rr in enumerate(rows) if rr["sid"] == pending_sel_sid), sel)
+                    pending_sel_sid = None
                 sel = min(sel, max(0, len(rows) - 1))
                 last_scan = now
             burst = {k: v for k, v in burst.items() if v > now}
@@ -2643,19 +2034,19 @@ def run_tui(args):
             if now - last_full > FULL_REPAINT_S:
                 prev = None; last_full = now
             A = attrs()
+            hot, hot_key, span = set(), (), None
             if manual:
                 painted = [(fit(ln, w - 1), A["hdr"] if y == 0 else 0)
                            for y, ln in enumerate(MANUAL.strip("\n").split("\n")[: h - 1])]
             else:
                 if prompt_mode:
-                    shown_toast = f"task in {prompt_row['repo']} {G['cur']} {prompt_buf}{G['cursor']}   {'⏎' if G is not ASCII else 'enter'} next · esc cancels"
+                    shown_toast = f"task in {prompt_row['repo']} {G['cur']} {prompt_buf}{G['cursor']}   {'⏎' if not is_ascii() else 'enter'} next · esc cancels"
                 elif menu_mode:
                     shown_toast = f"spawn in {prompt_row['repo']} {G['cur']} \"{prompt_buf or '(empty: bare claude)'}\"   p plain · a /anderson:start · A /anderson:auto · esc cancels"
                 else:
                     shown_toast = confirm or toast
-                lines = render(rows, w - 1, sel, frame, filt if filt_mode else "", shown_toast, set(burst), now, height=h - 1, ws=ws, all_rows=all_rows, focus=focus)
+                lines = render(rows, w - 1, sel, frame, filt if filt_mode else "", shown_toast, set(burst), now, height=h - 1, ws=ws, all_rows=all_rows)
                 painted = []
-                hot = set()
                 span = ctx_span(w - 1)
                 win_off, win_n = _row_window(rows, max(40, w - 1), filt if filt_mode else "", h - 1, sel)
                 top = next((i for i, (k, _) in enumerate(lines) if k == "colhdr"), 2) + 1   # first row's line
@@ -2668,13 +2059,11 @@ def run_tui(args):
                     if kind == "quote" and (prompt_mode or menu_mode):
                         a = col(THEME["accent"]) | BOLD | REV   # typing has to be findable, not a dim quote
                     painted.append((ln, a))
-                    if span and top <= y < top + win_n and kind not in ("burst",):
+                    if span and top <= y < top + win_n and kind != "burst":
                         r = rows[win_off + (y - top)]
                         if r["ctx_pct"] is not None and r["ctx_pct"] >= HOT_CTX and r["status"] != "sentinel":
                             hot.add(y)
                 hot_key = tuple(sorted(hot))
-            if manual:
-                hot, hot_key, span = set(), (), None
             key = ((h, w), painted, hot_key)
             if key != prev:                                 # repaint only the lines that changed
                 full = prev is None or prev[0] != (h, w)
@@ -2722,14 +2111,11 @@ def run_tui(args):
                 if k == 27:
                     menu_mode, prompt_row, prompt_buf = False, None, ""
                 elif k in (ord("p"), ord("a"), ord("A")):
-                    say(launch_agent(prompt_row, prompt_buf, chr(k)))
+                    say(launch_agent(prompt_row, prompt_buf, chr(k)), 6)
                     menu_mode, prompt_row, prompt_buf = False, None, ""
                 continue
             if confirm:
-                if k in (ord("y"), ord("Y")):
-                    say(confirm_do(), 8)
-                else:
-                    say("blue sky. nothing happened.")
+                say(confirm_do(), 8) if k in (ord("y"), ord("Y")) else say("blue sky. nothing happened.")
                 confirm = confirm_do = None; continue
             if filt_mode:
                 if k == 27:
@@ -2742,6 +2128,8 @@ def run_tui(args):
                     filt += chr(k)
                 last_scan = 0
                 continue
+            r = rows[sel] if rows else None
+            is_sess = bool(r) and not r.get("kind")
             if k in (ord("q"), 27):
                 return
             if k in (curses.KEY_DOWN, ord("j")):
@@ -2749,176 +2137,64 @@ def run_tui(args):
             elif k in (curses.KEY_UP, ord("k")):
                 sel = max(sel - 1, 0)
             elif k in (10, 13, curses.KEY_ENTER):
-                if rows:
-                    say(activate(rows[sel]))
-                elif focus:
-                    say("nothing to jack into here. N spawns an agent.")
+                if r:
+                    say(activate(r), 6)
+            elif ord("1") <= k <= ord("9"):
+                if k - ord("1") < len(rows):
+                    sel = k - ord("1"); say(activate(rows[sel]), 6)
             elif k == ord("N"):
-                say(spawn_here())
+                say(spawn_into(r) if r else "nothing to spawn into: no repos under this workspace.")
             elif k == ord("o"):
-                if rows:
-                    say(view_gate(rows[sel], scr), 4); prev = None; last_full = now
-            elif k == ord("O"):
-                if rows:
-                    say(open_gate(rows[sel]))
-            elif k == ord("a"):
-                if rows:
-                    say(view_agent(rows[sel], scr), 4); prev = None; last_full = now
+                if is_sess:
+                    say(view_gate(r, scr), 4); prev = None; last_full = now
             elif k == ord("w"):
-                # searches all_rows, not the (possibly collapsed) tree: a collapsed child is not
-                # in `rows` at all (Q11)
-                ringing = [r for r in all_rows if r["status"] == "ring"]
+                ringing = [x for x in all_rows if x["status"] == "ring" and not x.get("hidden")]
                 if ringing:
-                    r = min(ringing, key=lambda r: r["last_seen"])
-                    path = tuple(x for x in entry_for(ws, session_root(r)) if x)
-                    focus = path                    # a rabbit in another repo: zoom there, not just unfold
-                    if not path:
-                        collapsed.discard("elsewhere")
-                    pending_sel_sid = r["sid"]; last_scan = 0
+                    filt = ""; pending_sel_sid = min(ringing, key=lambda x: x.get("since") or now)["sid"]; last_scan = 0
                     say("follow the white rabbit.")
                 else:
                     say("no rabbit. nobody is ringing.")
-            elif k in (ord("J"), ord("K")):
-                if rows and rows[sel].get("kind") in ("repo", "group"):
-                    new_order, moved_sid = move_ws_row(rows, sel, k == ord("J"), order)
-                    if new_order is not None:
-                        order = new_order
-                        # collapsed left out: `w`'s in-memory auto-expand (Q11: no prefs write)
-                        # would otherwise ride along on the next reorder's save
-                        save_ws_prefs(ws, order=order)
-                        pending_sel_sid = moved_sid; last_scan = 0
-                    else:
-                        say("no more room to move.")
-                elif rows:
-                    say("repos and groups reorder, sessions follow their repo")
-            elif k == curses.KEY_RIGHT:
-                if rows and rows[sel].get("kind") in ("repo", "group"):
-                    focus = focus + (rows[sel]["repo"],)
-                    sel = 0; last_scan = 0
-                elif rows:
-                    say("→ goes into a repo or a group; this row is a session (⏎ jacks in)")
-            elif k == curses.KEY_LEFT:
-                if focus:
-                    pending_sel_name = focus[-1]
-                    focus = focus[:-1]; last_scan = 0
-                else:
-                    say("already at the top of the workspace.")
-            elif k == ord(" "):
-                if rows and rows[sel].get("kind") in ("repo", "group"):
-                    name = rows[sel]["repo"]
-                    if name in collapsed:
-                        collapsed.discard(name)
-                    else:
-                        collapsed.add(name)
-                    save_ws_prefs(ws, collapsed=sorted(collapsed)); last_scan = 0
-            elif k == ord("D"):
-                if rows:
-                    r = rows[sel]
-                    if r.get("kind"):
-                        say("D pops a running agent out; pick a session row")
-                    elif not shutil.which("tmux"):
-                        say("no tmux: nothing to pop out.")
-                    else:
-                        say(pop_out(r))
             elif k == ord("r"):
-                if rows and rows[sel].get("kind"):
-                    say("nothing to kill here — pick a session row")
-                elif rows:
-                    confirm = f"red pill: kill {rows[sel]['repo']} · {rows[sel]['task'] or rows[sel]['sid'][:8]} ?  How far down does the rabbit hole go? [y/N]"
-                    confirm_do = lambda r=rows[sel]: kill_row(r)
-            elif k == ord("R"):
-                if rows and rows[sel].get("kind") == "group":
-                    say("R rebases one checkout — pick a repo or a session row")
-                elif rows:
-                    path = rows[sel].get("root") or rows[sel].get("cwd") or ""
-                    cur = _git(["rev-parse", "--abbrev-ref", "HEAD"], path)
-                    base = default_branch(path)
-                    if not cur or not base:
-                        say(f"no branch to rebase in {os.path.basename(path) or path}")
-                    else:
-                        confirm = (f"rebase {cur} onto {base} and force-push {cur} (--force-with-lease, "
-                                   f"{base} must be protected)?  [y/N]")
-                        confirm_do = lambda p=path: rebase_row(p)
+                if is_sess:
+                    confirm = f"red pill: kill {label(r)} ?  How far down does the rabbit hole go? [y/N]"
+                    confirm_do = lambda r=r: kill_row(r)
             elif k == ord("b"):
-                if rows and rows[sel].get("kind") in ("repo", "group"):
-                    name = rows[sel]["repo"]
-                    if name in hidden_repos:
-                        hidden_repos.discard(name)
-                        say(f"{name} back in the list.")
+                if r and r.get("kind") == "repo":
+                    name = r["repo"]
+                    if r.get("hidden"):
+                        hidden_repos = {h for h in hidden_repos if not hides(h, name)}; say(f"{name} back in the list.")
                     else:
-                        hidden_repos.add(name)
-                        say(f"blue pill: {name} hidden, its agents with it (they keep running).  h shows hidden rows", 5)
+                        hidden_repos.add(name); say(f"{name} hidden from the repo list.  h shows hidden", 5)
                     save_ws_prefs(ws, hidden=sorted(hidden_repos)); last_scan = 0
-                elif rows and rows[sel].get("kind"):
-                    say("nothing to hide here — pick a session row")
-                elif rows and rows[sel].get("hidden"):
-                    unhide(rows[sel]["sid"]); last_scan = 0
+                elif is_sess and r.get("hidden"):
+                    unhide(r["sid"]); last_scan = 0
                     say("row back in the list.")
-                elif rows:
-                    r = rows[sel]
+                elif is_sess:
                     dismiss(r["sid"], clean=r["status"] == "sentinel"); last_scan = 0
                     live = "" if r["status"] == "sentinel" else " (the session keeps running)"
-                    say(f"blue pill: row hidden{live}. you wake up in your bed and believe whatever you want to.  h shows hidden rows", 5)
+                    say(f"blue pill: row hidden{live}.  h shows hidden rows", 5)
             elif k == ord("h"):
                 SHOW_HIDDEN = not SHOW_HIDDEN; last_scan = 0
-                say(f"hidden rows and repos shown ({G['hid']} dim) · b on one brings it back · h hides them again" if SHOW_HIDDEN else "hidden rows hidden.", 5)
-            elif k == ord("t"):
-                nxt = THEME_ORDER[(THEME_ORDER.index(THEME["name"]) + 1) % len(THEME_ORDER)]
-                set_theme(nxt, calm); save_prefs(theme=nxt); prev = None
-                say(f"theme: {nxt} — {THEMES[nxt]['desc']}", 4)
-            elif k == ord("p"):
-                PLAIN = not PLAIN; save_prefs(plain=PLAIN); prev = None
-                say("plain english." if PLAIN else "welcome back to the Matrix.")
-            elif ord("1") <= k <= ord("9"):
-                i = k - ord("1")
-                if i < len(rows):
-                    sel = i; say(activate(rows[sel]))
-            elif k == ord("c"):
-                if rows:
-                    say(copy_resume(rows[sel]))
+                say(f"hidden rows and repos shown ({G['hid']} dim) · b on one brings it back" if SHOW_HIDDEN else "hidden rows hidden.", 5)
+            elif k == ord(" "):
+                toggle_fold()
             elif k == ord("m"):
                 SOUND = not SOUND; save_prefs(sound=SOUND)
                 if SOUND:
-                    say(f"sound on: '{RING}' rings when a session waits on you.  s picks another sound", 6)
+                    say(f"sound on: '{RING}' rings when a session waits on you (every fleet you have open).", 6)
                     ring_sound()
                 else:
-                    say("sound off.")
-            elif k == ord("s"):
-                names = sound_names() or ["phone"]
-                RING = names[(names.index(RING) + 1) % len(names)] if RING in names else names[0]
-                save_prefs(ring=RING)
-                if not SOUND:
-                    SOUND = True; save_prefs(sound=True)
-                say(f"ring: {RING}  ({names.index(RING) + 1}/{len(names)}) · s again for the next · own .wav: ~/.claude/fleet/sounds/", 6)
-                ring_sound()
-            elif k == ord("n"):
-                NOTIFY = not NOTIFY; save_prefs(notify=NOTIFY)
-                if NOTIFY:
-                    say("desktop notifications on: a ring pings you wherever you are." + notify_hint(), 6)
-                    notify("fleet", "notifications on")          # the test banner: seen it, it works
-                else:
-                    say("desktop notifications off.")
-            elif k == ord("$"):
-                SHOW_COST = not SHOW_COST; save_prefs(cost=SHOW_COST); prev = None
-                say("api$ shown: Claude Code's list-price estimate, a burn gauge, not your bill." if SHOW_COST else "api$ hidden.")
-            elif k in (ord("+"), ord("=")):
-                say(zoom_by(+1)); prev = None
-            elif k in (ord("-"), ord("_")):
-                say(zoom_by(-1)); prev = None
+                    say("sound off, in every fleet you have open.")
             elif k == ord("/"):
                 filt_mode = True; filt = ""
             elif k == ord("?"):
                 manual = True
-            if 32 <= k < 127:
-                typed = (typed + chr(k))[-3:]
-                if typed == "neo" and THEME["eggs"] != "quiet":
-                    say("I know kung fu.", 4)
 
+    curses.wrapper(app)
     try:
-        curses.wrapper(app)
-    finally:
-        if zoom["orig"]:
-            _terminal_font(tty, zoom["orig"])
+        sys.stdout.write("\033]2;\007"); sys.stdout.flush()      # hand the tab title back to the shell
+    except Exception:
+        pass
 
 
 def boot(scr, curses, col):
@@ -2929,7 +2205,7 @@ def boot(scr, curses, col):
     accent = col(THEME["hdr"])
     t0 = time.time()
     rain_until, hold_until = t0 + 0.7, t0 + 1.8
-    seed_chars = "01·10 1 0" if G is not ASCII else "01.10 1 0"
+    seed_chars = "01·10 1 0" if not is_ascii() else "01.10 1 0"
     while time.time() < hold_until:
         h, w = scr.getmaxyx()
         scr.erase()
@@ -2970,12 +2246,14 @@ def _tty_of(pid):
         return None
 
 
+# iTerm2 / Terminal.app: find the tab by tty, and activate only on a hit. Activating first pulled
+# a terminal app you were not even using to the front, just to search it.
 FOCUS_ITERM = """tell application "iTerm2"
-  activate
   repeat with w in windows
     repeat with t in tabs of w
       repeat with s in sessions of t
         if tty of s is "{tty}" then
+          activate
           select s
           select t
           set index of w to 1
@@ -2988,10 +2266,10 @@ end tell
 return "miss\""""
 
 FOCUS_TERMINAL = """tell application "Terminal"
-  activate
   repeat with w in windows
     repeat with t in tabs of w
       if tty of t is "{tty}" then
+        activate
         set selected tab of w to t
         set index of w to 1
         return "ok"
@@ -3000,11 +2278,6 @@ FOCUS_TERMINAL = """tell application "Terminal"
   end repeat
 end tell
 return "miss\""""
-
-
-def _focus_script(app, tty):
-    """AppleScript that brings the tab owning `tty` to the front in iTerm2 or Terminal.app."""
-    return (FOCUS_ITERM if app == "iTerm2" else FOCUS_TERMINAL).replace("{tty}", tty)
 
 
 def _wait_focused(tty, secs):
@@ -3017,36 +2290,19 @@ def _wait_focused(tty, secs):
     return False
 
 
-def _focus_tty(tty):
-    """macOS: bring the iTerm2 / Terminal.app tab owning `tty` to the front, and check that it got
-    there. Selecting a tab succeeds even when its window stays put (another Space, or a full-screen
-    window in the way), so the AppleScript's "ok" is not the answer: the frontmost tab is.
-    Returns "ok" (in front), "unraised" (selected, window did not come over) or None (no such tab).
-    ponytail: no AXRaise fallback. It cannot pull a window off another Space anyway, and aiming it
-    needs a window title, which in Terminal carries the running command and changes under you."""
-    if sys.platform != "darwin" or not tty:
+def _focus_tty(app, tty):
+    """macOS: bring the iTerm2 / Terminal.app tab owning `tty` to the front and check it got there:
+    selecting a tab succeeds even when its window stays on another Space, so the frontmost tab is
+    the answer, not the AppleScript's "ok". -> "ok", "unraised" (selected, window stayed put) or None."""
+    script = (FOCUS_ITERM if app == "iTerm2" else FOCUS_TERMINAL).replace("{tty}", tty)
+    try:
+        r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=5)
+    except Exception:
         return None
-    found = False
-    for app in ("iTerm2", "Terminal"):
-        try:
-            up = subprocess.run(["osascript", "-e", f'application "{app}" is running'],
-                                capture_output=True, text=True, timeout=3).stdout.strip()
-            if up != "true":
-                continue
-            r = subprocess.run(["osascript", "-e", _focus_script(app, tty)], capture_output=True, text=True, timeout=5)
-            if r.stdout.strip() != "ok":
-                continue
-            found = True
-            # Same-Space raises land in ~0.15s. A window on another Space costs a full-screen
-            # Spaces animation first (~1s, and it is not interruptible), so give it room: the poll
-            # exits the moment the tab is in front, and only a real failure pays the whole wait.
-            # A same-Space raise lands in ~0.15s. Crossing Spaces plays a full-screen animation
-            # first, so allow for that; the poll leaves the moment the tab is in front.
-            if _wait_focused(tty, 2.0):
-                return "ok"
-        except Exception:
-            continue
-    return "unraised" if found else None
+    if r.stdout.strip() != "ok":
+        return None
+    # a same-Space raise lands in ~0.15s; crossing Spaces plays a ~1s animation first
+    return "ok" if _wait_focused(tty, 2.0) else "unraised"
 
 
 TERMINAL_BUNDLES = {"com.apple.Terminal", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "com.mitchellh.ghostty",
@@ -3080,9 +2336,7 @@ def _selected_tty(bundle):
 
 
 def _focused_now(tty):
-    """True when `tty` is the tty of the terminal tab in front of the human right now. Used to check
-    that a jack in actually landed: AppleScript reports "ok" for selecting a tab even when the window
-    it lives in stays behind (another Space, or a full-screen window in the way)."""
+    """True when `tty` is the tty of the Terminal.app / iTerm2 tab in front of the human right now."""
     try:
         bid, _ = _front_app()
         return bool(bid) and _selected_tty(bid) == tty
@@ -3091,7 +2345,7 @@ def _focused_now(tty):
 
 
 def looking_at(r):
-    """True when the session's own terminal is what the human is looking at right now, so a desktop
+    """True when the session's own terminal tab is what the human is looking at right now, so a
     banner and a ring would only repeat what is in front of them. Best effort, False on any doubt.
     ponytail: a tmux pane counts as watched when it is the active pane of an attached session and a
     terminal app is frontmost; which terminal window hosts that tmux client is not checked."""
@@ -3108,11 +2362,19 @@ def looking_at(r):
                                     "#{pane_active}#{window_active}#{session_attached}"],
                                    capture_output=True, text=True, timeout=2).stdout.strip()
             return flags.startswith("11") and flags[2:3] not in ("", "0")
-        tty = _tty_of(r["pid"])
-        if tty and bid in ("com.apple.Terminal", "com.googlecode.iterm2"):
-            return _selected_tty(bid) == tty
-        owner = _owner_app(r["pid"])                     # IDE terminals: the IDE itself is frontmost
-        return bool(owner) and owner[0].lower() in (name.lower(), bid.lower().rsplit(".", 1)[-1])
+        app = _owner_app(r["pid"])
+        if not app:
+            return False
+        if app[0] == "Ghostty":
+            # Ghostty in front is not enough (fleet's own tab is Ghostty too): its focused tab must be this one
+            if bid != "com.mitchellh.ghostty":
+                return False
+            tid, _ = ghostty_tid(r, app[2])
+            front = _jxa(f"{_ghostty_app(app[2])}.frontWindow().selectedTab().focusedTerminal().id()").stdout.strip()
+            return bool(tid) and front == tid
+        if app[0] in ("iTerm", "iTerm2", "Terminal"):
+            return _selected_tty(bid) == _tty_of(r["pid"])
+        return app[0].lower() in (name.lower(), bid.lower().rsplit(".", 1)[-1])   # IDE terminal: the IDE is in front
     except Exception:
         return False
 
@@ -3130,10 +2392,9 @@ def _jxa(script):
 
 def ghostty_pick(listing, cwd):
     """The Ghostty terminal id to focus for a session in `cwd`, from _ghostty_list()'s output,
-    or (None, why). Ghostty has no tty in its dictionary, so the tab is found by working directory;
-    two tabs in one directory are told apart by the claude title (a spinner glyph, or
-    "Claude Code"), which a bare shell prompt does not carry. Two claude tabs in one checkout stay
-    ambiguous here: _ghostty_mark() splits those by tty, this is its fallback."""
+    or (None, why). The fallback when the tty mark fails: Ghostty has no tty in its dictionary, so
+    the tab is found by working directory; two tabs in one directory are told apart by the claude
+    title (a spinner glyph, or "Claude Code"), which a bare shell prompt does not carry."""
     want = os.path.realpath(cwd or "")
     hits = []
     for ln in (listing or "").splitlines():
@@ -3145,7 +2406,7 @@ def ghostty_pick(listing, cwd):
         hits = claude or hits
     if len(hits) == 1:
         return hits[0][0], None
-    return None, (f"{len(hits)} tabs in {cwd}, can't tell which" if hits else "no tab in that directory")
+    return None, (f"{len(hits)} tabs in {cwd}, can't tell which" if hits else f"no tab in {cwd}")
 
 
 def _ghostty_list(app_pid=None):
@@ -3184,21 +2445,24 @@ def _ghostty_mark(tty, before, app_pid=None):
     return None
 
 
-def _focus_ghostty(cwd, tty=None, app_pid=None):
-    """macOS Ghostty 1.3+: focus the terminal a session runs in. "ok", else why not.
-    By tty when known (exact), else by working directory. app_pid: the Ghostty instance to ask."""
-    if not cwd and not tty:
-        return "no cwd for that session"
-    try:
-        out = _ghostty_list(app_pid)
-        tid = _ghostty_mark(tty, out, app_pid) if tty else None
-        tid, why = (tid, None) if tid else ghostty_pick(out, cwd)
-        if not tid:
-            return why
-        r = _jxa(f'var a = {_ghostty_app(app_pid)}; a.activate(); a.focus(a.terminals.byId({json.dumps(tid)})); "ok"')
-        return "ok" if r.returncode == 0 else (r.stderr.strip() or "focus failed")
-    except Exception as e:
-        return f"focus failed: {e}"
+_GHOSTTY_TID = {}    # pid -> Ghostty terminal id, found by tty mark: exact, and stable for the tab's life
+
+
+def ghostty_tid(r, app_pid):
+    """(terminal id, None) of the Ghostty tab a session runs in, or (None, why). By tty first (exact,
+    cached per pid while the tab lives, since each lookup flashes the title), else by the directory
+    claude was launched from: the live cwd follows every `cd` the session makes, the tab's does not."""
+    listing = _ghostty_list(app_pid)
+    pid = r.get("pid")
+    if pid in _GHOSTTY_TID and any(ln.startswith(_GHOSTTY_TID[pid] + "\t") for ln in listing.splitlines()):
+        return _GHOSTTY_TID[pid], None
+    tty = _tty_of(pid) if pid else None
+    tid = _ghostty_mark(tty, listing, app_pid) if tty else None
+    if tid:
+        _GHOSTTY_TID[pid] = tid
+        return tid, None
+    cwd = r.get("start_cwd") or r.get("cwd")
+    return ghostty_pick(listing, cwd) if cwd else (None, "no tty and no directory to find its tab by")
 
 
 def _owner_app(pid):
@@ -3220,65 +2484,74 @@ def _owner_app(pid):
     return None
 
 
-def gate_auto_open(r):
-    """Jacking into a session parked at a human gate also opens what the gate wants read.
-    ponytail: silent when no GUI editor applies. ⏎ means "move me to that terminal", and
-    "no IDE owns that session" tacked onto a successful jack in reads like the jack in failed.
-    `O` asks for the IDE on purpose, so it still says why nothing opened."""
-    files = gate_files(r) if r.get("gate") == "human" else None
-    if files and editor_cmd(r, files):
-        return "  ·  " + open_gate(r)
-    return ""
+def focus_owner(r):
+    """macOS: bring the terminal tab running r["pid"] to the front, whichever app owns it.
+    -> "Operator." or why not."""
+    app = _owner_app(r["pid"])
+    if not app:
+        return "can't tell which app runs that session (not under a macOS app)."
+    name, path, app_pid = app
+    try:
+        if name == "Ghostty":
+            tid, why = ghostty_tid(r, app_pid)
+            if not tid:
+                return f"Ghostty: {why}"
+            ok = _jxa(f'var a = {_ghostty_app(app_pid)}; a.activate(); a.focus(a.terminals.byId({json.dumps(tid)})); "ok"')
+            return "Operator." if ok.returncode == 0 else f"Ghostty: {ok.stderr.strip() or 'focus failed'}"
+        if name in ("iTerm", "iTerm2", "Terminal"):
+            tty = _tty_of(r["pid"])
+            landed = _focus_tty("iTerm2" if name.startswith("iTerm") else "Terminal", tty) if tty else None
+            if landed == "ok":
+                return "Operator."
+            if landed == "unraised":
+                return ("that tab is selected but its window stayed on another Space. fix it once: "
+                        "defaults write com.apple.dock workspaces-auto-swoosh -bool YES; killall Dock")
+            return f"no {name} tab shows that session."
+        subprocess.run(["open", "-a", path], timeout=5)
+        return f"Operator. ({name}: app in front; its terminal tab can't be picked from outside)"
+    except Exception as e:
+        return f"jack in failed: {e}"
 
 
 def jack_in(r):
-    """⏎: bring that session to the front. tmux pane first; else the terminal tab owning the
-    session's tty (macOS iTerm2 / Terminal.app via AppleScript); else say what would work."""
+    """⏎: bring that session's terminal to the front. A sentinel has none left, so it gets a new tab
+    resuming it. A tmux session: its pane, shown by whichever terminal is attached (a new tab
+    attaches when none is). Else (macOS) the tab of the app that owns the process."""
+    if r.get("status") == "sentinel":
+        return revive(r)
     pane = r.get("tmux_pane")
     if pane:
         try:
-            sess_name = subprocess.run(["tmux", "display", "-p", "-t", pane, "#S"],
-                                       capture_output=True, text=True, timeout=3).stdout.strip()
-            if os.environ.get("TMUX"):
-                subprocess.run(["tmux", "switch-client", "-t", sess_name], timeout=3)
-            subprocess.run(["tmux", "select-window", "-t", pane], timeout=3)
-            subprocess.run(["tmux", "select-pane", "-t", pane], timeout=3)
-            if not os.environ.get("TMUX"):
-                # fleet runs outside tmux: also focus the terminal tab holding that tmux client
-                ct = subprocess.run(["tmux", "list-clients", "-t", sess_name, "-F", "#{client_tty}"],
-                                    capture_output=True, text=True, timeout=3).stdout.split()
-                if not any(_focus_tty(t) for t in ct):
-                    return f"pane {r.get('tmux_addr') or pane} selected. attach with: tmux attach -t {sess_name}"
-            return "Operator."
+            tm = lambda *a: subprocess.run(["tmux", *a], capture_output=True, text=True, timeout=3).stdout.strip()
+            sess = tm("display", "-p", "-t", pane, "#S")
+            tm("select-window", "-t", pane); tm("select-pane", "-t", pane)
+            if os.environ.get("TMUX") and tm("display", "-p", "#S") == sess:
+                return "Operator. (same tmux session as fleet: prefix+l comes back)"
+            clients = tm("list-clients", "-t", sess, "-F", "#{client_pid}").split()
+            if clients and sys.platform == "darwin":
+                return focus_owner({"pid": int(clients[0])})
+            if sys.platform == "darwin":
+                return new_terminal(f"tmux attach -t {shlex_quote(sess)}", verb="attached")
+            return f"pane {r.get('tmux_addr') or pane} selected. attach with: tmux attach -t {sess}"
         except Exception as e:
             return f"jack in failed: {e}"
-    if r.get("status") == "sentinel":
-        # The process is gone: there is no terminal to move to, so open one that resumes the session.
-        return revive(r)
-    tty = _tty_of(r.get("pid")) if r.get("pid") else None
-    landed = _focus_tty(tty) if tty else None
-    if landed == "ok":
-        return "Operator."
-    if landed == "unraised":
-        return ("that tab is selected but its window stayed on another Space. fix it once: "
-                "defaults write com.apple.dock workspaces-auto-swoosh -bool YES; killall Dock")
-    if sys.platform == "darwin":
-        app = _owner_app(r.get("pid")) if r.get("pid") else None
-        if app and app[0] == "Ghostty":
-            hit = _focus_ghostty(r.get("cwd"), tty, app[2])
-            if hit == "ok":
-                return "Operator."
-            if hit:
-                return f"Ghostty: {hit}"
-        if app:
-            name, path = app[:2]
-            try:
-                subprocess.run(["open", "-a", path], timeout=5)
-                return f"Operator. ({name} integrated terminal: app focused, tab not selectable)"
-            except Exception:
-                pass
-        return "no tmux pane, and no iTerm2/Terminal.app tab owns that session. start it in tmux to jack in."
-    return "no tmux pane for that session. start it inside tmux to jack in."
+    if sys.platform != "darwin":
+        return "no tmux pane for that session. start it inside tmux to jack in."
+    if not r.get("pid"):
+        return "no process known for that session yet."
+    return focus_owner(r)
+
+
+def focus_fleet():
+    """`fleet --focus`: bring the running fleet's own tab back to the front, from anywhere. Bind it to a
+    hotkey; it is the way back after a jack in. Finds a fleet run in place (not one inside tmux)."""
+    try:
+        tty, pid = open(os.path.join(FLEET_DIR, "fleet.tty")).read().split()
+    except Exception:
+        return "no running fleet found."
+    if not alive(pid):
+        return "fleet is not running."
+    return focus_owner({"pid": int(pid)})
 
 
 # ─────────────────────────────────────────────────────────────────── main
@@ -3288,14 +2561,10 @@ def selftest():
              "ar-2270-sku-images-lightbox", "déjà-vu-tâche-éè", "日本語のタスク", "remove-db-triggers", ""]
     stages = list(PERSONA) + [""]
     fails = 0
-    # tree rows: group/repo headers at both indents, collapsed and expanded, CJK and overlong
-    # names — mixed into the same width fuzz as the session rows below
+    # repo-section rows, CJK and overlong names, mixed into the same width fuzz as the session rows
     tree_words = ["autoretouch", "日本語のタスク", "a-very-long-repository-name-that-goes-on-and-on-and-on", "x"]
-    tree_rows_fuzz = []
-    for i, nm in enumerate(tree_words):
-        row = ws_row(nm, f"/tmp/ws/{nm}", "group" if i % 2 else "repo", [], collapsed=bool(i % 2))
-        row["indent"] = i % 2
-        tree_rows_fuzz.append(row)
+    tree_rows_fuzz = [{**_WS_BASE, "sid": "section:repos", "kind": "section", "repo": "repos (4)", "now": "N spawns"}]
+    tree_rows_fuzz += [{**repo_target(f"/tmp/ws/{nm}", nm), "now": "2 agents"} for nm in tree_words]
     for theme in THEME_ORDER:
         set_theme(theme)
         for width in list(range(60, 221, 7)) + [40, 300]:
@@ -3342,8 +2611,13 @@ def selftest():
 
 def main(argv):
     args = argv[1:]
-    if "--session-name" in args:                # the launcher's `tmux new-session -A -s "$(...)"`
-        print(tmux_session())                   # name lookup only: never touches prefs.json
+    if "--focus" in args:
+        print(focus_fleet())
+        return 0
+    if "--jack" in args and args.index("--jack") + 1 < len(args):
+        sid = args[args.index("--jack") + 1]
+        r = next((x for x in discover(hidden=True) if x["sid"] == sid), None)
+        print(jack_in(r) if r else f"no session {sid}")
         return 0
     if "--ascii" in args or (os.environ.get("LANG", "").lower()[:2] in ("ja", "zh", "ko") and "--unicode" not in args):
         use_ascii()
@@ -3363,24 +2637,10 @@ def main(argv):
         prefs["calm"] = True
     if "--motion" in args:
         prefs["calm"] = False
-    for a in args:
-        if a.startswith("--zoom="):
-            prefs["zoom"] = int(a.split("=", 1)[1]) if a.split("=", 1)[1].isdigit() else None
-    if "--zoom" in args and args.index("--zoom") + 1 < len(args) and args[args.index("--zoom") + 1].isdigit():
-        prefs["zoom"] = int(args[args.index("--zoom") + 1])
-    if "--no-zoom" in args:
-        prefs["zoom"] = None
     if "--cost" in args:
         prefs["cost"] = True
     if "--no-cost" in args:
         prefs["cost"] = False
-    if "--editor" in args and args.index("--editor") + 1 < len(args):
-        prefs["editor"] = args[args.index("--editor") + 1]
-    for a in args:
-        if a.startswith("--editor="):
-            prefs["editor"] = a.split("=", 1)[1]
-    global EDITOR
-    EDITOR = prefs["editor"]
     if "--notify" in args:
         prefs["notify"] = True
     if "--no-notify" in args:
@@ -3399,7 +2659,7 @@ def main(argv):
     if "--rings" in args:
         for n in sound_names():
             print(f"  {n:8} {'◂ current' if n == RING else ''}  {sound_file(n)}")
-        print("  hear one: fleet --play NAME   ·   pick: fleet --ring NAME   ·   in the TUI: s")
+        print("  hear one: fleet --play NAME   ·   pick: fleet --ring NAME")
         return 0
     if "--ping" in args:
         print("sending a test banner through every channel; note which ones you actually see:")
@@ -3443,7 +2703,7 @@ def main(argv):
         return 0
     PLAIN = prefs["plain"]
     if theme in THEMES and "--selftest" not in args and "--once" not in args:
-        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"], zoom=prefs["zoom"], cost=prefs["cost"], notify=prefs["notify"], editor=prefs["editor"], sound=prefs["sound"], ring=prefs["ring"])
+        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"], cost=prefs["cost"], notify=prefs["notify"], sound=prefs["sound"], ring=prefs["ring"])
     set_theme(theme or "matrix", calm=prefs["calm"])
     if "--themes" in args:
         for n, t in THEMES.items():
@@ -3460,10 +2720,8 @@ def main(argv):
         if "--demo" in args:
             all_rows = demo_rows() + all_rows
         ws = workspace_root(os.getcwd())
-        saved = ws_prefs(ws)
-        collapsed = set(saved["collapsed"]) if saved else {e["name"] for e in scan_workspace(ws) if e["kind"] == "group"}
-        order = list(saved["order"]) if saved else []
-        rows = tree_rows(all_rows, ws, "", collapsed, order, set(saved["hidden"]) if saved else ())
+        wp = ws_prefs(ws)
+        rows = ws_rows(all_rows, ws, "", wp["folded"], set(wp["hidden"]))
         for _, ln in render(rows, width, sel=0, frame=int(time.time()) % 4, ws=ws, all_rows=all_rows):
             print(ln)
         return

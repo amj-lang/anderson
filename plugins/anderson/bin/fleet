@@ -2,22 +2,21 @@
 # fleet — launcher for THE OPERATOR (bin/fleet.py). Picks the right way to start it for
 # whatever terminal setup you have; everything else passes through to fleet.py.
 #
-#   fleet                 outside tmux: attach a per-workspace tmux session (status bar on, so
-#                         spawned agent windows are reachable); inside tmux: run right here
-#   fleet --tmux          outside tmux: start/attach the legacy tmux session "fleet" (status bar hidden)
+#   fleet                 run right here, in this terminal tab (tmux or not)
+#   fleet --tmux          outside tmux: start/attach a tmux session "fleet" (status bar hidden)
 #   fleet --pane          inside tmux: open in a 45% side pane
 #   fleet --window        inside tmux: open in a new window named "fleet"
-#   fleet --here          run right here regardless of tmux; kept for scripts and the prefix+F hotkey
+#   fleet --focus         bring the running fleet's tab back to the front (bind it to a hotkey)
 #   fleet install         put a stable `fleet` shim in ~/.local/bin (survives plugin updates)
 #   fleet install --with-tmux   same, plus install tmux (brew / apt / dnf) if missing. tmux is
-#                         optional: on macOS ⏎ jack-in also works without it (focuses the
-#                         iTerm2 / Terminal.app tab that owns the session)
+#                         optional: on macOS ⏎ jack-in works without it (focuses the
+#                         Ghostty / iTerm2 / Terminal.app tab that owns the session)
 #   fleet install --extras      same, plus the optional tools fleet can use: glow (o renders
-#                         markdown) and, on macOS, terminal-notifier (n desktop banners)
+#                         markdown) and, on macOS, terminal-notifier (--notify banners)
 #   fleet update          update the anderson plugin to its latest release (needs the `claude`
 #                         CLI; restart Claude Code to apply)
 #   fleet uninstall       remove that shim
-#   fleet --demo | --theme zion | --plain | --calm | --no-intro | --once   -> fleet.py flags
+#   fleet --demo | --theme zion | --plain | --calm | --notify | --no-intro | --once | --jack SID   -> fleet.py flags
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -58,7 +57,7 @@ EOF
   if command -v tmux >/dev/null 2>&1; then
     printf 'optional tmux hotkey (prefix+F):  echo '"'"'bind F split-window -h -l 45%% "%s --here"'"'"' >> ~/.tmux.conf && tmux source ~/.tmux.conf\n' "$shim"
   else
-    printf 'tmux not found: optional. without it fleet runs plain, and on macOS ⏎ jack-in focuses the iTerm2/Terminal.app tab.\n'
+    printf 'tmux not found: optional. on macOS ⏎ jack-in focuses the Ghostty / iTerm2 / Terminal.app tab without it.\n'
     printf 'for tmux panes:  fleet install --with-tmux   (runs: %s)\n' "$(tmux_hint)"
   fi
 }
@@ -67,7 +66,7 @@ EOF
 extra_use(){
   case "$1" in
     glow) echo "o renders plan.md / audit.md as markdown (else less with a light colouring)" ;;
-    terminal-notifier) echo "n desktop banners on macOS (osascript banners are unreliable)" ;;
+    terminal-notifier) echo "--notify desktop banners on macOS; a click jumps to the session (osascript banners are unreliable)" ;;
     tmux) echo "panes / windows and ⏎ jack-in by pane" ;;
   esac
 }
@@ -148,14 +147,14 @@ case "${1:-}" in
   uninstall) rm -f "$shim" && printf 'removed %s\n' "$shim"; exit 0 ;;
 esac
 
-mode="default"
+mode="here"
 args=()
 for a in "$@"; do
   case "$a" in
     --pane)   mode="pane" ;;
     --window) mode="window" ;;
     --tmux)   mode="tmux" ;;
-    --here)   mode="here" ;;
+    --here)   mode="here" ;;   # the default now; kept so old scripts and the prefix+F hotkey still work
     *)        args+=("$a") ;;
   esac
 done
@@ -163,35 +162,15 @@ done
 cmd="python3 $(printf '%q' "$py")"
 for a in "${args[@]+"${args[@]}"}"; do cmd="$cmd $(printf '%q' "$a")"; done
 
-# --once / --selftest / --themes are non-interactive: always run in place.
-for a in "${args[@]+"${args[@]}"}"; do
-  case "$a" in --once|--selftest|--themes) mode="here" ;; esac
-done
-
-if [ "$mode" = "here" ] || ! command -v tmux >/dev/null 2>&1; then
-  exec python3 "$py" "${args[@]+"${args[@]}"}"
-fi
-
-if [ -n "${TMUX:-}" ]; then
-  case "$mode" in
-    pane)   exec tmux split-window -h -l 45% "$cmd" ;;
-    window) exec tmux new-window -n fleet "$cmd" ;;
-    *)      exec python3 "$py" "${args[@]+"${args[@]}"}" ;;   # already in tmux: run right here (Q5)
-  esac
-fi
-
-# Outside tmux: --tmux = the legacy single session "fleet" (created on first run, attached
-# after), its status bar off so only the monitor shows. Default = attach a per-workspace tmux
-# session instead, status bar ON: it is the window list, the only way to reach a spawned agent
-# window once one exists. Anything else (--pane/--window make no sense outside tmux) runs right here.
-if [ "$mode" = "tmux" ]; then
-  exec tmux new-session -A -s fleet "$cmd" \; set-option status off
-fi
-if [ "$mode" = "default" ]; then
-  session="$(python3 "$py" --session-name 2>/dev/null || true)"
-  case "$session" in
-    ""|*[!a-z0-9-]*) session="fleet" ;;    # --session-name failed or printed garbage: never -s ""
-  esac
-  exec tmux new-session -A -s "$session" "$cmd"
+# --pane / --window need tmux around fleet; --tmux starts one. Anything else runs right here.
+if [ "$mode" != "here" ] && command -v tmux >/dev/null 2>&1; then
+  if [ -n "${TMUX:-}" ]; then
+    case "$mode" in
+      pane)   exec tmux split-window -h -l 45% "$cmd" ;;
+      window) exec tmux new-window -n fleet "$cmd" ;;
+    esac
+  elif [ "$mode" = "tmux" ]; then
+    exec tmux new-session -A -s fleet "$cmd" \; set-option status off
+  fi
 fi
 exec python3 "$py" "${args[@]+"${args[@]}"}"

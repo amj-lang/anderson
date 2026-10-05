@@ -1,5 +1,6 @@
 """fleet.py UX batch: session titles, transcript branch, hot-ctx cell span, row numbers, resume command."""
-import importlib.util, json, os, pathlib, tempfile, unittest
+from unittest import mock
+import importlib.util, json, os, pathlib, subprocess, tempfile, unittest
 
 BIN = pathlib.Path(__file__).resolve().parents[1] / "bin"
 _spec = importlib.util.spec_from_file_location("fleet_ux", BIN / "fleet.py")
@@ -54,7 +55,7 @@ class TestUxBatch(unittest.TestCase):
         self.assertIsNone(fleet.resume_cmd({"sid": "pid:12", "cwd": "/x"}))
         self.assertIsNone(fleet.resume_cmd({"sid": "demo-1", "cwd": "/x"}))
         cmd = fleet.resume_cmd({"sid": "8596c744-4f19-48ac-ac12-7f4445578e3d", "cwd": "/Users/a b/repo"})
-        self.assertEqual(cmd, "cd '/Users/a b/repo' && claude --resume 8596c744-4f19-48ac-ac12-7f4445578e3d")
+        self.assertEqual(cmd, "claude --resume 8596c744-4f19-48ac-ac12-7f4445578e3d")   # revive() passes the cwd
 
     def test_hot_rows_ignore_sentinels_and_unknown_ctx(self):
         rows = fleet.demo_rows()
@@ -75,7 +76,7 @@ class TestPinnedFooter(unittest.TestCase):
             kinds = [k for k, _ in lines]
             self.assertEqual(kinds[-1] in ("foot", "foot_hot"), True)
             foot_txt = " ".join(ln for k, ln in lines if k == "foot")
-            for key in ("s ring", "m sound", "q quit", "? manual"):
+            for key in ("N new agent", "m sound", "q quit", "? manual"):
                 self.assertIn(key, foot_txt, (W, H, key))
             for _, ln in lines:
                 self.assertEqual(fleet.dw(ln), W)
@@ -155,23 +156,24 @@ class TestShowHidden(unittest.TestCase):
             finally:
                 fleet.FLEET_DIR = old
 
-    def test_footer_emoji_markers_keep_width(self):
+    def test_footer_keeps_width_and_lists_only_the_kept_keys(self):
         for W in (200, 120, 80, 50):
-            foot = fleet.footer(fleet.demo_rows(), W)
-            for _, ln in foot:
+            for _, ln in fleet.footer(fleet.demo_rows(), W):
                 self.assertEqual(fleet.dw(ln), W)
         wide = " ".join(ln for k, ln in fleet.footer(fleet.demo_rows(), 200) if k == "foot")
-        for mark in ("🔴 r kill", "🔵 b hide", "🔊 m sound", "👻 h hidden"):
-            self.assertIn(mark, wide)
+        for key in ("r kill", "b hide", "m sound", "h hidden", "space fold", "w next ring"):
+            self.assertIn(key, wide)
+        for gone in ("R rebase", "J/K", "D pop", "O in IDE", "a agent", "c resume", "zoom", "t theme", "$ cost"):
+            self.assertNotIn(gone, wide)
 
 
 class TestLookingAt(unittest.TestCase):
     """Alerts are skipped when the session's own terminal is what the human is looking at."""
     def setUp(self):
-        self.old = {k: getattr(fleet, k) for k in ("_front_app", "_selected_tty", "_tty_of", "_owner_app")}
+        self.old = {k: getattr(fleet, k) for k in ("_front_app", "_selected_tty", "_tty_of", "_owner_app", "ghostty_tid", "_jxa")}
         self.row = {"pid": 4242, "tmux_pane": None}
         fleet._tty_of = lambda pid: "/dev/ttys005"
-        fleet._owner_app = lambda pid: ("WebStorm", "/Applications/WebStorm.app")
+        fleet._owner_app = lambda pid: ("WebStorm", "/Applications/WebStorm.app", 9)
 
     def tearDown(self):
         for k, v in self.old.items():
@@ -181,10 +183,27 @@ class TestLookingAt(unittest.TestCase):
         import sys
         if sys.platform != "darwin":
             self.skipTest("macOS only")
+        fleet._owner_app = lambda pid: ("Terminal", "/System/Applications/Utilities/Terminal.app", 9)
         fleet._front_app = lambda: ("com.apple.Terminal", "Terminal")
         fleet._selected_tty = lambda b: "/dev/ttys005"
         self.assertTrue(fleet.looking_at(self.row))
         fleet._selected_tty = lambda b: "/dev/ttys011"
+        self.assertFalse(fleet.looking_at(self.row))
+
+    def test_ghostty_in_front_is_not_enough_its_focused_tab_must_be_the_session(self):
+        """The bug: any Ghostty window in front (fleet's own tab, say) counted as watching every
+        Ghostty session, so their rings were swallowed."""
+        import sys
+        if sys.platform != "darwin":
+            self.skipTest("macOS only")
+        fleet._owner_app = lambda pid: ("Ghostty", "/Applications/Ghostty.app", 9)
+        fleet._front_app = lambda: ("com.mitchellh.ghostty", "Ghostty")
+        fleet.ghostty_tid = lambda r, app_pid: ("T-SESSION", None)
+        fleet._jxa = lambda script: mock.Mock(stdout="T-FLEET\n")
+        self.assertFalse(fleet.looking_at(self.row))
+        fleet._jxa = lambda script: mock.Mock(stdout="T-SESSION\n")
+        self.assertTrue(fleet.looking_at(self.row))
+        fleet._front_app = lambda: ("com.google.Chrome", "Google Chrome")
         self.assertFalse(fleet.looking_at(self.row))
 
     def test_ide_frontmost_counts_as_watching(self):
@@ -243,49 +262,99 @@ class TestIdleGoesWhite(unittest.TestCase):
             self.assertTrue(row(fleet.IDLE_S + 1)["idle"]); self.assertEqual(row(fleet.IDLE_S + 1)["status"], "ring")
 
 
-class TestAgentRows(unittest.TestCase):
-    def _session(self, tmp):
-        import time
-        tp = os.path.join(tmp, "s1.jsonl"); open(tp, "w").write("")
-        d = os.path.join(tmp, "s1", "subagents"); os.makedirs(d)
-        recs = [{"type": "user", "timestamp": "2026-09-09T10:00:00Z", "message": {"role": "user", "content": "Review the diff for AR-1"}},
-                {"type": "assistant", "timestamp": "2026-09-09T10:00:05Z", "message": {"role": "assistant", "content": [
-                    {"type": "text", "text": "Looking at the callers first."},
-                    {"type": "tool_use", "name": "Grep", "input": {"pattern": "process_order"}}]}}]
-        p = os.path.join(d, "agent-a1.jsonl")
-        open(p, "w").write("\n".join(json.dumps(r) for r in recs) + "\n")     # Grep still running: no result yet
-        json.dump({"agentType": "anderson:reviewer", "description": "Diff-review AR-1", "model": "fable"},
-                  open(os.path.join(d, "agent-a1.meta.json"), "w"))
-        return tp, p
+class TestRings(unittest.TestCase):
+    """When a row rings. Hooks are the truth; the transcript only fills what no hook reports."""
+    NOW = 1_000_000.0
 
-    def test_running_agent_row_shows_tool_and_log_is_readable(self):
+    def status(self, ev, tr, dead=False):
+        return fleet.row_status(ev, {"state": None, "ts": None, **tr}, dead, self.NOW)
+
+    def test_mid_turn_text_never_rings_when_hooks_exist(self):
+        """The bug: a "Now let me check X" text line is newer than the last PostToolUse and reads
+        like a finished turn, so every turn rang several times."""
+        ev = {"event": "PostToolUse", "waiting": False, "ts": self.NOW - 3}
+        self.assertEqual(self.status(ev, {"state": "idle", "ts": self.NOW - 1})[0], "work")
+
+    def test_stop_and_permission_ring(self):
+        st, txt, since = self.status({"event": "Stop", "waiting": True, "ts": self.NOW - 60}, {})
+        self.assertEqual((st, since), ("ring", self.NOW - 60))
+        perm = {"event": "Notification", "waiting": True, "ts": self.NOW, "notification": "permission_prompt"}
+        self.assertIn("permission Bash", self.status(perm, {"state": "tool", "tool": "Bash", "ts": self.NOW})[1])
+
+    def test_ring_keeps_its_start_across_the_idle_notification(self):
+        ev = {"event": "Notification", "waiting": True, "ts": self.NOW, "since": self.NOW - 90}
+        self.assertEqual(self.status(ev, {})[2], self.NOW - 90)
+
+    def test_a_question_tool_rings(self):
+        ev = {"event": "PreToolUse", "waiting": False, "ts": self.NOW}
+        for tool in ("AskUserQuestion", "ExitPlanMode"):
+            self.assertEqual(self.status(ev, {"state": "tool", "tool": tool, "ts": self.NOW})[0], "ring")
+        self.assertEqual(self.status(ev, {"state": "tool", "tool": "Bash", "ts": self.NOW})[0], "work")
+
+    def test_interrupted_turn_rings_only_after_long_silence(self):
+        ev = {"event": "PostToolUse", "waiting": False, "ts": self.NOW - fleet.STUCK_S - 99}
+        self.assertEqual(self.status(ev, {"state": "think", "ts": self.NOW - 60})[0], "work")
+        self.assertEqual(self.status(ev, {"state": "think", "ts": self.NOW - fleet.STUCK_S - 1})[1].split()[1], "idle")
+        self.assertEqual(self.status(ev, {"state": "tool", "tool": "Bash", "ts": self.NOW - fleet.STUCK_S - 1})[0], "work")
+
+    def test_fresh_session_is_not_waiting_on_you(self):
+        ev = {"event": "SessionStart", "waiting": False, "ts": self.NOW}
+        self.assertEqual(self.status(ev, {"state": "idle", "ts": self.NOW - 86400})[0], "work")
+
+    def test_hookless_session_guesses_from_the_transcript_after_a_pause(self):
+        self.assertEqual(self.status({}, {"state": "idle", "ts": self.NOW - 2})[0], "work")
+        self.assertEqual(self.status({}, {"state": "idle", "ts": self.NOW - fleet.GUESS_S - 1})[0], "ring")
+
+    def test_a_stop_the_session_moved_past_is_stale(self):
+        """A blocked Stop on a session whose hooks predate PreToolUse: the transcript shows it working."""
+        ev = {"event": "Stop", "waiting": True, "ts": self.NOW - 100}
+        self.assertEqual(self.status(ev, {"state": "tool", "tool": "Agent", "ts": self.NOW - 5})[0], "work")
+        perm = {"event": "Notification", "waiting": True, "ts": self.NOW, "notification": "permission_prompt"}
+        self.assertEqual(self.status(perm, {"state": "tool", "tool": "Bash", "ts": self.NOW - 2})[0], "ring")
+
+    def test_dead_beats_everything(self):
+        self.assertEqual(self.status({"waiting": True, "ts": self.NOW}, {}, dead=True)[0], "sentinel")
+
+    def test_due_rings_settle_then_alert_once(self):
+        row = lambda since: {"sid": "a", "status": "ring", "since": since}
+        fresh, rung = fleet.due_rings([row(self.NOW - 1)], set(), self.NOW)
+        self.assertEqual((fresh, rung), ([], set()))                       # too new: a blocked Stop looks like this
+        fresh, rung = fleet.due_rings([row(self.NOW - fleet.RING_SETTLE_S)], rung, self.NOW)
+        self.assertEqual([r["sid"] for r in fresh], ["a"])
+        fresh, rung = fleet.due_rings([row(self.NOW - 60)], rung, self.NOW)
+        self.assertEqual(fresh, [])                                         # once
+        fresh, rung = fleet.due_rings([{"sid": "a", "status": "work"}], rung, self.NOW)
+        self.assertEqual(rung, set())                                       # stopped ringing: re-armed
+        self.assertEqual(len(fleet.due_rings([{"sid": "n", "status": "ring", "since": None}], set(), self.NOW)[0]), 1)
+        hidden = {"sid": "h", "status": "ring", "since": 0, "hidden": True}
+        self.assertEqual(fleet.due_rings([hidden], set(), self.NOW)[0], [])
+
+
+class TestEventHook(unittest.TestCase):
+    def fire(self, tmp, event, **kw):
+        env = {**os.environ, "ANDERSON_FLEET_DIR": tmp}
+        payload = {"session_id": "s", "hook_event_name": event, "cwd": tmp, **kw}
+        r = subprocess.run(["python3", str(BIN.parent / "hooks" / "fleet_event.py")], input=json.dumps(payload),
+                           text=True, env=env, capture_output=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return json.load(open(os.path.join(tmp, "s.event.json")))
+
+    def test_pre_tool_use_clears_a_blocked_stop(self):
         with tempfile.TemporaryDirectory() as tmp:
-            tp, p = self._session(tmp)
-            rows = fleet.agent_rows(tp)
-            self.assertEqual(len(rows), 1)
-            self.assertEqual(rows[0]["type"], "anderson:reviewer"); self.assertIn("Grep process_order", rows[0]["now"])
-            open(p, "a").write(json.dumps({"type": "user", "timestamp": "2026-09-09T10:00:06Z", "message": {"role": "user", "content": [
-                {"type": "tool_result", "content": "orders.py:12: def process_order\norders.py:40"}]}}) + "\n")
-            self.assertIn("thinking", fleet.agent_rows(tp)[0]["now"])            # result in: the tool is done
-            log = fleet.agent_log(p)
-            self.assertIn("anderson:reviewer  Diff-review AR-1  (fable)", log)
-            self.assertIn("Looking at the callers first.", log); self.assertIn("Grep", log); self.assertIn("orders.py:12", log)
-            os.utime(p, (1, 1))                                  # old: not running
-            self.assertEqual(fleet.agent_rows(tp), [])
-            self.assertEqual(fleet.agent_rows(tp, running_only=False)[0]["now"], "done: Looking at the callers first.")
+            self.assertTrue(self.fire(tmp, "Stop")["waiting"])
+            ev = self.fire(tmp, "PreToolUse", tool_name="Agent")
+            self.assertEqual((ev["waiting"], ev["tool"]), (False, "Agent"))
 
-    def test_card_lists_running_agents_when_airy(self):
+    def test_wait_start_survives_the_idle_notification(self):
         with tempfile.TemporaryDirectory() as tmp:
-            tp, p = self._session(tmp)
-            r = {**fleet.demo_rows()[1], "agents": (1, 1, "anderson:reviewer"), "transcript_path": tp}
-            card = "\n".join(ln for _, ln in fleet.detail_card(r, 160, "", 0, airy=True))
-            self.assertIn("↳ anderson:reviewer \"Diff-review AR-1\"", card); self.assertIn("Grep process_order", card)
-            self.assertIn("(a: log)", card)
-            compact = "\n".join(ln for _, ln in fleet.detail_card(r, 160, "", 0, airy=False))
-            self.assertNotIn("↳", compact)
+            first = self.fire(tmp, "Stop")["since"]
+            self.assertEqual(self.fire(tmp, "Notification", notification_type="idle_prompt")["since"], first)
+            self.fire(tmp, "UserPromptSubmit", prompt="go")
+            self.assertGreater(self.fire(tmp, "Stop")["since"], first)       # a new wait starts fresh
 
-    def test_view_agent_without_agents_says_so(self):
-        self.assertIn("no subagent", fleet.view_agent({"transcript_path": "/nonexistent/x.jsonl"}))
+    def test_hooks_json_wires_pre_tool_use(self):
+        hooks = json.load(open(BIN.parent / "hooks" / "hooks.json"))["hooks"]
+        self.assertIn("fleet_event.py", json.dumps(hooks["PreToolUse"]))
 
 
 if __name__ == "__main__":

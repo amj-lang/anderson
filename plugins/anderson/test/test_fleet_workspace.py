@@ -1,5 +1,5 @@
-"""fleet.py workspace mode (phases 1+2): repo/group tree rows, per-workspace J/K + collapse,
-the row viewport, and the ⏎ -> prompt -> p/a/A spawn flow. Loads bin/fleet.py by path, same
+"""fleet.py workspace mode: the sessions + repos sections, per-workspace hide/fold, the row
+viewport, the ⏎ -> prompt -> p/a/A spawn flow, and finding a session's Ghostty tab. Loads bin/fleet.py by path, same
 idiom as the other fleet test modules."""
 import importlib.util, os, pathlib, subprocess, tempfile, time, unittest
 from unittest import mock
@@ -34,58 +34,38 @@ class TestWorkspaceScan(unittest.TestCase):
         make_repo(os.path.join(self.tmp, "autoretouch", "fashion-webapp-2"))
         fleet._WS_CACHE.clear()
 
-    def test_scan_finds_direct_repos_and_nested_groups(self):
-        scan = fleet.scan_workspace(self.tmp)
-        by_name = {e["name"]: e for e in scan}
-        self.assertEqual(by_name["claude-loop"]["kind"], "repo")
-        self.assertEqual(by_name["autoretouch"]["kind"], "group")
-        self.assertEqual({r["name"] for r in by_name["autoretouch"]["repos"]},
-                          {"ai-shoot-service", "fashion-webapp-2"})
-
-    def test_scan_flattens_depth_three_repos_into_the_group(self):
-        """A non-repo dir inside a group (workspace/autoretouch/mpe/) is not a nested group: its
-        repos join the group as `mpe/<repo>` rather than vanishing."""
-        make_repo(os.path.join(self.tmp, "autoretouch", "mpe", "watermark"))
-        make_repo(os.path.join(self.tmp, "autoretouch", "mpe", "simple-shadow"))
-        os.makedirs(os.path.join(self.tmp, "autoretouch", "mpe", "not-a-repo"))
+    def names(self):
         fleet._WS_CACHE.clear()
-        grp = {e["name"]: e for e in fleet.scan_workspace(self.tmp)}["autoretouch"]
-        self.assertEqual({r["name"] for r in grp["repos"]},
-                          {"ai-shoot-service", "fashion-webapp-2", "mpe/watermark", "mpe/simple-shadow"})
-        flat = {r["name"]: r for r in grp["repos"]}["mpe/watermark"]
-        self.assertEqual(flat["kind"], "repo")
-        self.assertEqual(flat["path"], os.path.join(self.tmp, "autoretouch", "mpe", "watermark"))
+        return [e["name"] for e in fleet.scan_workspace(self.tmp)]
 
-    def test_tree_rows_shows_a_flattened_repo_and_its_sessions(self):
+    def test_scan_is_flat_with_dir_prefixes(self):
+        self.assertEqual(self.names(), ["autoretouch/ai-shoot-service", "autoretouch/fashion-webapp-2", "claude-loop"])
+
+    def test_scan_reaches_two_plain_dirs_deep(self):
         make_repo(os.path.join(self.tmp, "autoretouch", "mpe", "watermark"))
-        fleet._WS_CACHE.clear()
-        wt = os.path.join(self.tmp, "autoretouch", "mpe", "watermark")
-        rows = fleet.tree_rows([make_session(wt, sid="s9")], self.tmp, "", set())
-        self.assertIn(("repo", "mpe/watermark"), [(r.get("kind"), r["repo"]) for r in rows])
-        self.assertIn("s9", [r["sid"] for r in rows])
+        os.makedirs(os.path.join(self.tmp, "autoretouch", "mpe", "not-a-repo", "deeper"))
+        make_repo(os.path.join(self.tmp, "a", "b", "c", "too-deep"))
+        names = self.names()
+        self.assertIn("autoretouch/mpe/watermark", names)
+        self.assertFalse(any("too-deep" in n for n in names))
 
     def test_scan_sees_a_submodule_whose_dot_git_is_a_file(self):
-        """A submodule writes `.git` as a file. It is still a repo row."""
+        """A submodule writes `.git` as a file. It is still a repo."""
         sub = os.path.join(self.tmp, "ar-core-eval")
         os.makedirs(sub)
         with open(os.path.join(sub, ".git"), "w") as fh:
             fh.write("gitdir: ../claude-loop/.git/modules/ar-core-eval\n")
-        fleet._WS_CACHE.clear()
-        self.assertEqual({e["name"]: e for e in fleet.scan_workspace(self.tmp)}["ar-core-eval"]["kind"], "repo")
+        self.assertIn("ar-core-eval", self.names())
         self.assertEqual(fleet.workspace_root(sub), self.tmp)
 
-    def test_a_linked_worktree_is_not_a_repo_row_and_its_session_nests_under_the_main_checkout(self):
-        """A sibling worktree (`git worktree add ../ar-core-x`) is the main repo's, not a repo of its own."""
+    def test_a_linked_worktree_is_not_a_repo_and_its_session_counts_under_the_main_checkout(self):
         wt = os.path.join(self.tmp, "claude-loop-wt")
         os.makedirs(wt)
         with open(os.path.join(wt, ".git"), "w") as fh:
             fh.write(f"gitdir: {self.tmp}/claude-loop/.git/worktrees/claude-loop-wt\n")
-        fleet._WS_CACHE.clear()
-        self.assertNotIn("claude-loop-wt", [e["name"] for e in fleet.scan_workspace(self.tmp)])
-        rows = fleet.tree_rows([make_session(wt, sid="wt")], self.tmp, "", set())
-        i = next(i for i, r in enumerate(rows) if r.get("kind") == "repo" and r["repo"] == "claude-loop")
-        self.assertEqual(rows[i + 1]["sid"], "wt")
-        self.assertNotIn("elsewhere", [r["repo"] for r in rows])
+        self.assertNotIn("claude-loop-wt", self.names())
+        rows = fleet.ws_rows([make_session(wt, sid="wt")], self.tmp)
+        self.assertEqual(next(r for r in rows if r["repo"] == "claude-loop")["now"], "1 agent")
 
     def test_workspace_root_steps_one_level_up_from_a_repo(self):
         self.assertEqual(fleet.workspace_root(os.path.join(self.tmp, "claude-loop")), self.tmp)
@@ -94,192 +74,80 @@ class TestWorkspaceScan(unittest.TestCase):
         with tempfile.TemporaryDirectory() as bare:
             self.assertEqual(fleet.workspace_root(bare), bare)
 
-    def test_tree_rows_nests_repos_groups_and_elsewhere(self):
+    def test_sessions_first_then_the_repos_section(self):
         sess = [make_session(os.path.join(self.tmp, "claude-loop")),
-                make_session(os.path.join(self.tmp, "autoretouch", "ai-shoot-service"), sid="s2"),
                 make_session("/somewhere/else", sid="s3")]
-        rows = fleet.tree_rows(sess, self.tmp, "", set())
-        kinds = [(r.get("kind"), r["repo"]) for r in rows]
-        self.assertIn(("repo", "claude-loop"), kinds)
-        self.assertIn(("group", "autoretouch"), kinds)
-        self.assertIn(("group", "elsewhere"), kinds)
-        # sessions matched to their repo/group are interleaved, unchanged but for the display
-        # indent that nests them under their repo/group row
-        self.assertIn({**sess[0], "indent": 1}, rows)
-        self.assertIn({**sess[1], "indent": 2}, rows)
-        self.assertIn({**sess[2], "indent": 1}, rows)
+        rows = fleet.ws_rows(sess, self.tmp)
+        self.assertEqual(rows[:2], sess)                                  # sessions untouched, on top
+        self.assertEqual(rows[2]["kind"], "section")
+        self.assertEqual([r["repo"] for r in rows[3:]],
+                         ["autoretouch/ai-shoot-service", "autoretouch/fashion-webapp-2", "claude-loop"])
+        self.assertTrue(all(r["kind"] == "repo" for r in rows[3:]))
 
-    def test_no_repos_under_launch_dir_returns_sessions_verbatim(self):
-        with tempfile.TemporaryDirectory() as bare:
-            sess = [make_session(bare)]
-            self.assertEqual(fleet.tree_rows(sess, bare, "", set()), sess)
+    def test_folded_section_is_one_line(self):
+        rows = fleet.ws_rows([make_session(self.tmp)], self.tmp, folded=True)
+        self.assertEqual([r.get("kind") for r in rows], [None, "section"])
 
-    def test_no_repos_fallback_still_filters(self):
+    def test_no_repos_returns_sessions_verbatim_and_still_filters(self):
         with tempfile.TemporaryDirectory() as bare:
             sess = [make_session(bare, task="alpha"), make_session(bare, sid="s2", task="beta")]
-            self.assertEqual(fleet.tree_rows(sess, bare, "alpha", set()), [sess[0]])
+            self.assertEqual(fleet.ws_rows(sess, bare), sess)
+            self.assertEqual(fleet.ws_rows(sess, bare, "alpha"), [sess[0]])
 
-    def test_hidden_repo_takes_its_sessions_with_it_and_does_not_leak_into_elsewhere(self):
-        sess = [make_session(os.path.join(self.tmp, "claude-loop")),
-                make_session(os.path.join(self.tmp, "autoretouch", "ai-shoot-service"), sid="s2")]
-        rows = fleet.tree_rows(sess, self.tmp, "", set(), (), {"claude-loop"})
-        self.assertNotIn("claude-loop", [r["repo"] for r in rows])
-        self.assertNotIn(sess[0]["sid"], [r["sid"] for r in rows])       # not re-homed under `elsewhere`
-        self.assertNotIn("elsewhere", [r["repo"] for r in rows])
-        self.assertIn("s2", [r["sid"] for r in rows])                    # the other repo is untouched
+    def test_filter_applies_to_sessions_and_repos(self):
+        sess = [make_session(os.path.join(self.tmp, "claude-loop"), task="alpha")]
+        rows = fleet.ws_rows(sess, self.tmp, "shoot")
+        self.assertEqual([r["repo"] for r in rows if r.get("kind") == "repo"], ["autoretouch/ai-shoot-service"])
+        self.assertNotIn("s1", [r["sid"] for r in rows])
 
-    def test_hidden_group_hides_its_repos_too_and_show_hidden_lists_it_folded(self):
-        rows = fleet.tree_rows([], self.tmp, "", set(), (), {"autoretouch"})
-        names = [r["repo"] for r in rows]
-        self.assertNotIn("autoretouch", names)
-        self.assertNotIn("ai-shoot-service", names)
-        rows = fleet.tree_rows([], self.tmp, "", set(), (), {"autoretouch"}, show_hidden=True)
-        grp = next(r for r in rows if r["repo"] == "autoretouch")
-        self.assertTrue(grp["hidden"])                                   # dim, flagged, and `b` un-hides it
-        self.assertTrue(grp["collapsed"])
-        self.assertNotIn("ai-shoot-service", [r["repo"] for r in rows])  # revealed folded, not expanded
+    def test_hidden_repo_leaves_the_list_its_sessions_stay(self):
+        sess = [make_session(os.path.join(self.tmp, "claude-loop"))]
+        rows = fleet.ws_rows(sess, self.tmp, hidden={"claude-loop"})
+        self.assertIn("s1", [r["sid"] for r in rows])                    # a live agent is never hidden by its repo
+        self.assertNotIn("claude-loop", [r["repo"] for r in rows if r.get("kind") == "repo"])
+        shown = fleet.ws_rows(sess, self.tmp, hidden={"claude-loop"}, show_hidden=True)
+        self.assertTrue(next(r for r in shown if r.get("kind") == "repo" and r["repo"] == "claude-loop")["hidden"])
 
-    def test_collapsed_group_hides_its_repos_but_keeps_its_summary(self):
-        sess = [make_session(os.path.join(self.tmp, "autoretouch", "ai-shoot-service"), status="ring")]
-        rows = fleet.tree_rows(sess, self.tmp, "", {"autoretouch"})
-        names = [r["repo"] for r in rows]
-        self.assertIn("autoretouch", names)
-        self.assertNotIn("ai-shoot-service", names)              # collapsed: repo row not emitted
-        grp = next(r for r in rows if r["repo"] == "autoretouch")
-        self.assertIn("ringing", grp["now"])                      # rolled-up summary survives collapse
-        self.assertEqual(grp["status"], "ring")                   # Q12: reuses the ring-pulse path
+    def test_a_hidden_dir_hides_every_repo_under_it(self):
+        """Hides saved by the old tree were group names: `autoretouch` must still hide its repos."""
+        rows = fleet.ws_rows([], self.tmp, hidden={"autoretouch"})
+        self.assertEqual([r["repo"] for r in rows if r.get("kind") == "repo"], ["claude-loop"])
 
-    def test_only_the_deepest_hidden_ring_shouts(self):
-        """Expanded, a ringing session is on screen: its repo and its group must not pulse too.
-        Collapse the repo and the ring rolls up to the row that is still visible, one row only."""
-        sess = [make_session(os.path.join(self.tmp, "autoretouch", "ai-shoot-service"), status="ring")]
-        def synthetic(collapsed):
-            return {r["repo"]: r for r in fleet.tree_rows(sess, self.tmp, "", collapsed) if r.get("kind")}
-        rows = synthetic(set())
-        self.assertEqual(rows["autoretouch"]["status"], "work")     # group expanded: quiet
-        self.assertEqual(rows["ai-shoot-service"]["status"], "work")  # repo expanded: quiet
-        rows = synthetic({"ai-shoot-service"})
-        self.assertEqual(rows["ai-shoot-service"]["status"], "ring")  # the ring it hides is its own
-        self.assertEqual(rows["autoretouch"]["status"], "work")       # still one shouting row, not two
+    def test_hides_matches_what_ws_rows_hides(self):
+        """`b` unhides by the same rule ws_rows hides by, or an old `x` hide could never be undone."""
+        for h in ("autoretouch", "ai-shoot-service", "autoretouch/ai-shoot-service"):
+            self.assertTrue(fleet.hides(h, "autoretouch/ai-shoot-service"), h)
+        self.assertFalse(fleet.hides("shoot-service", "autoretouch/ai-shoot-service"))
 
-    def test_focus_drills_into_a_group_then_a_repo_and_back_out(self):
-        sess = [make_session(os.path.join(self.tmp, "autoretouch", "ai-shoot-service"))]
-        rows = fleet.tree_rows(sess, self.tmp, "", set())
-        self.assertIn("claude-loop", [r["repo"] for r in rows])
-        inside = fleet.focus_rows(rows, ("autoretouch",))
-        self.assertEqual([r["repo"] for r in inside],
-                          ["ai-shoot-service", "ai-shoot-service", "fashion-webapp-2"])   # repo, session, repo
-        self.assertEqual(inside[0]["indent"], 0)                    # rebased: the subtree is the screen
-        deeper = fleet.focus_rows(rows, ("autoretouch", "ai-shoot-service"))
-        self.assertEqual([r["sid"] for r in deeper], ["s1"])        # just that repo's sessions
-        self.assertIsNone(fleet.focus_rows(rows, ("gone",)))        # caller drops back to the overview
-
-    def test_focus_target_gives_enter_a_row_to_spawn_from_in_an_empty_repo(self):
-        """Drilled into a repo with no agents, focus_rows() is empty: ⏎ has no selected row, so the
-        spawn target comes from the scan instead."""
-        rows = fleet.tree_rows([], self.tmp, "", set())
-        self.assertEqual(fleet.focus_rows(rows, ("autoretouch", "ai-shoot-service")), [])
-        tgt = fleet.focus_target(self.tmp, ("autoretouch", "ai-shoot-service"))
-        self.assertEqual((tgt["kind"], tgt["repo"]), ("repo", "ai-shoot-service"))
-        self.assertEqual(tgt["path"], os.path.join(self.tmp, "autoretouch", "ai-shoot-service"))
-        self.assertEqual(tgt["ws"], self.tmp)
-        # a group is a spawn target too (launch lands in the workspace root, as on the overview)
-        self.assertEqual(fleet.focus_target(self.tmp, ("autoretouch",))["kind"], "group")
-        # and spawn_cmd eats it unchanged
-        cwd, cmd, window = fleet.spawn_cmd(tgt, "LIN-9 fix it", "a")
-        self.assertEqual(cwd, tgt["path"])
-        self.assertEqual(window, "ai-shoot-service:lin-9")
-        self.assertIsNone(fleet.focus_target(self.tmp, ("gone",)))
-        self.assertIsNone(fleet.focus_target(self.tmp, ("autoretouch", "gone")))
-
-    def test_entry_for_maps_a_session_root_to_its_scan_path(self):
-        self.assertEqual(fleet.entry_for(self.tmp, os.path.join(self.tmp, "autoretouch", "ai-shoot-service")),
-                          ("autoretouch", "ai-shoot-service"))
-        self.assertEqual(fleet.entry_for(self.tmp, os.path.join(self.tmp, "claude-loop")), ("", "claude-loop"))
-        self.assertEqual(fleet.entry_for(self.tmp, "/nowhere"), ("", ""))
+    def test_repo_rows_count_live_agents_not_sentinels(self):
+        repo = os.path.join(self.tmp, "claude-loop")
+        sess = [make_session(repo), make_session(repo, sid="s2"), make_session(repo, sid="d", status="sentinel")]
+        row = next(r for r in fleet.ws_rows(sess, self.tmp) if r.get("kind") == "repo" and r["repo"] == "claude-loop")
+        self.assertEqual(row["now"], "2 agents")
 
     def test_repo_row_carries_every_session_key(self):
-        rows = fleet.tree_rows([], self.tmp, "", set())
-        repo_row = next(r for r in rows if r.get("kind") == "repo")
+        repo_row = next(r for r in fleet.ws_rows([], self.tmp) if r.get("kind") == "repo")
         session_keys = set(make_session(self.tmp).keys())
         self.assertTrue(session_keys <= set(repo_row.keys()), session_keys - set(repo_row.keys()))
 
-    def test_header_counts_the_full_session_list_not_just_the_visible_tree(self):
-        """render()'s aggregates must still read as SESSIONS: a ring hidden under a collapsed
-        group must still show in the header, same as a `discover()`-only flat list would."""
-        ring = make_session(os.path.join(self.tmp, "autoretouch", "ai-shoot-service"), sid="r1", status="ring")
+    def test_header_counts_sessions_only(self):
+        ring = make_session(os.path.join(self.tmp, "claude-loop"), sid="r1", status="ring")
         dead = make_session(os.path.join(self.tmp, "claude-loop"), sid="d1", status="sentinel")
-        all_rows = [ring, dead]
-        rows = fleet.tree_rows(all_rows, self.tmp, "", {"autoretouch"})   # ring's repo is collapsed away
-        self.assertNotIn("r1", [r["sid"] for r in rows])                 # sanity: really hidden from `rows`
-        hdr = next(ln for kind, ln in fleet.render(rows, 100, all_rows=all_rows) if kind == "hdr")
+        rows = fleet.ws_rows([ring, dead], self.tmp)
+        hdr = next(ln for kind, ln in fleet.render(rows, 100, all_rows=[ring, dead]) if kind == "hdr")
         self.assertIn("1 ringing", hdr)
         self.assertIn("1 sentinel", hdr)
-        self.assertIn("1 jacked in", hdr)
+        self.assertIn("1 jacked in", hdr)                                  # repo rows are not sessions
 
-
-class TestReorderHandler(unittest.TestCase):
-    """`move_ws_row()` is the pure core the `J`/`K` handler calls -- exercised directly here so a
-    reorder bug isn't only provable through `save_ws_prefs()`'s own round-trip test."""
-
-    def setUp(self):
-        self.tmp = tempfile.mkdtemp()
-        for name in ("aa", "bb", "cc", "dd"):
-            make_repo(os.path.join(self.tmp, name))
+    def test_repo_names_are_not_squeezed_into_the_repo_column(self):
+        long = "autoretouch/a-repo-with-a-rather-long-name"
+        make_repo(os.path.join(self.tmp, long))
         fleet._WS_CACHE.clear()
-
-    def test_two_consecutive_j_presses_move_a_repo_two_slots_and_cursor_follows_it(self):
-        order, collapsed = [], set()
-        rows = fleet.tree_rows([], self.tmp, "", collapsed, order)
-        sel = next(i for i, r in enumerate(rows) if r["repo"] == "aa")
-        order, sid = fleet.move_ws_row(rows, sel, True, order)          # J: aa <-> bb
-        rows = fleet.tree_rows([], self.tmp, "", collapsed, order)
-        sel = next(i for i, r in enumerate(rows) if r["sid"] == sid)
-        order, sid = fleet.move_ws_row(rows, sel, True, order)          # J again: aa <-> cc
-        rows = fleet.tree_rows([], self.tmp, "", collapsed, order)
-        sel = next(i for i, r in enumerate(rows) if r["sid"] == sid)
-        self.assertEqual([r["repo"] for r in rows if r.get("kind") == "repo"], ["bb", "cc", "aa", "dd"])
-        self.assertEqual(rows[sel]["repo"], "aa")                       # cursor stayed on the moved repo
-
-    def test_reorder_under_a_collapsed_sibling_group_keeps_its_hidden_intra_group_order(self):
-        """repro: grp/{aa,bb} + solo + zzz. J on aa (expanded) then, after collapsing grp, J on
-        solo must not drop aa/bb from the saved order just because they're offscreen."""
-        tmp = tempfile.mkdtemp()
-        os.makedirs(os.path.join(tmp, "grp"))
-        make_repo(os.path.join(tmp, "grp", "aa"))
-        make_repo(os.path.join(tmp, "grp", "bb"))
-        make_repo(os.path.join(tmp, "solo"))
-        make_repo(os.path.join(tmp, "zzz"))
-        fleet._WS_CACHE.clear()
-        order, collapsed = [], set()
-        rows = fleet.tree_rows([], tmp, "", collapsed, order)
-        sel = next(i for i, r in enumerate(rows) if r["repo"] == "aa")
-        order, _ = fleet.move_ws_row(rows, sel, True, order)             # J: aa <-> bb (grp expanded)
-        self.assertEqual(order, ["grp", "bb", "aa", "solo", "zzz"])
-        collapsed.add("grp")
-        rows = fleet.tree_rows([], tmp, "", collapsed, order)
-        self.assertNotIn("aa", [r["repo"] for r in rows])                # now hidden by the collapse
-        sel = next(i for i, r in enumerate(rows) if r["repo"] == "solo")
-        order, _ = fleet.move_ws_row(rows, sel, True, order)              # J: solo <-> zzz
-        self.assertEqual(order, ["grp", "bb", "aa", "zzz", "solo"])       # aa/bb survive the reorder
+        lines = [ln for _, ln in fleet.render(fleet.ws_rows([], self.tmp), 120)]
+        self.assertTrue(any(long in ln for ln in lines))
 
 
-    def test_reorder_onto_the_elsewhere_row_is_refused_not_a_crash(self):
-        """`elsewhere` is synthetic and never in `scan_workspace()`, so a naive `names.index()`
-        raises ValueError -- uncaught, that kills the TUI. Both triggers are one keypress away
-        whenever a session lives outside the workspace."""
-        outside = [make_session("/somewhere/else", sid="x1")]
-        rows = fleet.tree_rows(outside, self.tmp, "", set(), [])
-        self.assertEqual(rows[-2]["repo"], "elsewhere")                  # sanity: the row is on screen
-        sel = next(i for i, r in enumerate(rows) if r["repo"] == "elsewhere")
-        self.assertEqual(fleet.move_ws_row(rows, sel, False, []), (None, None))   # K on elsewhere
-        last = max(i for i, r in enumerate(rows) if r.get("kind") == "repo")
-        self.assertEqual(fleet.move_ws_row(rows, last, True, []), (None, None))   # J onto elsewhere
-        first = next(i for i, r in enumerate(rows) if r.get("kind") == "repo")
-        self.assertIsNotNone(fleet.move_ws_row(rows, first, True, [])[0])          # real rows still move
-
-
-class TestOrderAndCollapsePrefs(unittest.TestCase):
+class TestWsPrefs(unittest.TestCase):
     def setUp(self):
         self.tmp_home = tempfile.mkdtemp()
         self.old = fleet.FLEET_DIR, fleet.PREFS_FILE
@@ -289,55 +157,36 @@ class TestOrderAndCollapsePrefs(unittest.TestCase):
     def tearDown(self):
         fleet.FLEET_DIR, fleet.PREFS_FILE = self.old
 
-    def test_ws_prefs_roundtrip_is_additive_and_per_workspace(self):
-        self.assertIsNone(fleet.ws_prefs("/ws/a"))
-        fleet.save_ws_prefs("/ws/a", order=["b", "a"], collapsed=["b"])
-        self.assertEqual(fleet.ws_prefs("/ws/a"), {"order": ["b", "a"], "collapsed": ["b"], "hidden": []})
-        self.assertIsNone(fleet.ws_prefs("/ws/other"))            # a different workspace keeps its own
+    def test_roundtrip_is_additive_and_per_workspace(self):
+        self.assertEqual(fleet.ws_prefs("/ws/a"), {"hidden": [], "folded": False})
+        fleet.save_ws_prefs("/ws/a", hidden=["b"])
+        fleet.save_ws_prefs("/ws/a", folded=True)
+        self.assertEqual(fleet.ws_prefs("/ws/a"), {"hidden": ["b"], "folded": True})
+        self.assertEqual(fleet.ws_prefs("/ws/other"), {"hidden": [], "folded": False})
         fleet.save_prefs(theme="zion")                            # an unrelated pref write never wipes it
-        self.assertEqual(fleet.ws_prefs("/ws/a"), {"order": ["b", "a"], "collapsed": ["b"], "hidden": []})
+        self.assertEqual(fleet.ws_prefs("/ws/a"), {"hidden": ["b"], "folded": True})
 
-    def test_malformed_workspaces_value_is_ignored_not_fatal(self):
+    def test_malformed_values_are_ignored_not_fatal(self):
         import json
         json.dump({"workspaces": "not-a-dict"}, open(fleet.PREFS_FILE, "w"))
-        self.assertEqual(fleet.load_prefs()["workspaces"], {})
-        self.assertIsNone(fleet.ws_prefs("/ws/a"))                # never crashes on a hand-edited file
-
-    def test_ws_prefs_coerces_a_non_dict_per_workspace_entry(self):
-        # {"<ws>": "junk"} used to AttributeError in run_tui() on wprefs.get(...)
-        import json
+        self.assertEqual(fleet.ws_prefs("/ws/a"), {"hidden": [], "folded": False})
         json.dump({"workspaces": {"/ws/a": "junk"}}, open(fleet.PREFS_FILE, "w"))
-        self.assertIsNone(fleet.ws_prefs("/ws/a"))
+        self.assertEqual(fleet.ws_prefs("/ws/a"), {"hidden": [], "folded": False})
 
-    def test_ws_prefs_fills_a_missing_collapsed_key(self):
-        # {"<ws>": {"order": []}} (no "collapsed") used to KeyError on --once's saved["collapsed"]
+    def test_old_tree_prefs_keep_their_hides(self):
         import json
-        json.dump({"workspaces": {"/ws/a": {"order": ["x"]}}}, open(fleet.PREFS_FILE, "w"))
-        self.assertEqual(fleet.ws_prefs("/ws/a"), {"order": ["x"], "collapsed": [], "hidden": []})
-
-    def test_apply_order_unseen_names_appended_alphabetically(self):
-        self.assertEqual(fleet._apply_order(["z", "a", "b"], ["b", "z"]), ["b", "z", "a"])
-
-    def test_apply_order_drops_a_name_no_longer_in_the_scan(self):
-        # "gone" is only in the saved order, not in `names` (repo deleted): it must not reappear
-        self.assertEqual(fleet._apply_order(["z", "a"], ["gone", "b", "z"]), ["z", "a"])
+        json.dump({"workspaces": {"/ws/a": {"order": ["x"], "collapsed": ["g"], "hidden": ["g"]}}}, open(fleet.PREFS_FILE, "w"))
+        self.assertEqual(fleet.ws_prefs("/ws/a"), {"hidden": ["g"], "folded": False})
 
 
 class TestResumeGuard(unittest.TestCase):
-    """resume_cmd() is the shared choke point for `c`, copy_resume() and revive(): a synthetic
-    repo:/group: sid must never reach the clipboard (criterion 5)."""
-
     def test_resume_cmd_rejects_synthetic_rows(self):
         self.assertIsNone(fleet.resume_cmd({"kind": "repo", "sid": "repo:/Users/x/repo", "cwd": "/x"}))
-        self.assertIsNone(fleet.resume_cmd({"kind": "group", "sid": "group:autoretouch", "cwd": "/x"}))
+        self.assertIsNone(fleet.resume_cmd({"kind": "section", "sid": "section:repos", "cwd": "/x"}))
 
     def test_resume_cmd_still_works_for_a_real_session(self):
-        cmd = fleet.resume_cmd({"sid": "8596c744-4f19-48ac-ac12-7f4445578e3d", "cwd": "/x"})
-        self.assertIn("claude --resume", cmd)
-
-    def test_copy_resume_on_a_synthetic_row_says_no_session_id(self):
-        self.assertEqual(fleet.copy_resume({"kind": "group", "sid": "group:g", "cwd": "/x"}),
-                          "no session id for that row.")
+        self.assertEqual(fleet.resume_cmd({"sid": "8596c744-4f19-48ac-ac12-7f4445578e3d", "cwd": "/x"}),
+                         "claude --resume 8596c744-4f19-48ac-ac12-7f4445578e3d")
 
 
 class TestSpawn(unittest.TestCase):
@@ -358,12 +207,6 @@ class TestSpawn(unittest.TestCase):
         self.assertEqual(cwd, "/ws/core-service")
         self.assertIn("/anderson:start lin-482 LIN-482 fix it", cmd)
         self.assertEqual(window, "core-service:lin-482")
-
-    def test_spawn_cmd_on_a_group_row_uses_the_workspace_root(self):
-        row = {"kind": "group", "repo": "autoretouch", "path": "/ws/autoretouch", "ws": "/ws"}
-        cwd, cmd, window = fleet.spawn_cmd(row, "sweep the fleet", "A")
-        self.assertEqual(cwd, "/ws")
-        self.assertIn("/anderson:auto sweep-the-fleet sweep the fleet", cmd)
 
     def test_spawn_cmd_plain_mode_sends_the_prompt_verbatim(self):
         row = {"kind": "repo", "repo": "x", "path": "/ws/x", "ws": "/ws"}
@@ -431,14 +274,13 @@ class TestSpawn(unittest.TestCase):
         fleet._WS_CACHE.clear()
         sess = [make_session(os.path.join(repo, ".worktrees", "lin-482"), sid="wt"),
                 make_session(os.path.join(repo, ".claude", "worktrees", "x+y"), sid="cc")]   # Claude Code's own
-        rows = fleet.tree_rows(sess, ws, "", set())
-        self.assertNotIn("elsewhere", [r["repo"] for r in rows])
-        i = next(i for i, r in enumerate(rows) if r.get("kind") == "repo" and r["repo"] == "claude-loop")
-        self.assertEqual({rows[i + 1]["sid"], rows[i + 2]["sid"]}, {"wt", "cc"})   # nested under its repo, not adrift
+        self.assertEqual({fleet.session_root(s) for s in sess}, {os.path.realpath(repo)})
+        row = next(r for r in fleet.ws_rows(sess, ws) if r.get("kind") == "repo" and r["repo"] == "claude-loop")
+        self.assertEqual(row["now"], "2 agents")
 
     def test_launch_agent_never_replaces_the_fleet_window(self):
-        """The monitor has to survive a spawn: on macOS the agent gets its own OS window, and the
-        tmux fallback creates the window with -d so focus stays on fleet."""
+        """The monitor has to survive a spawn: on macOS the agent gets its own OS tab even under
+        tmux, and the tmux fallback elsewhere creates the window with -d so focus stays on fleet."""
         row = {"kind": "repo", "repo": "x", "path": "/ws/x", "ws": "/ws"}
         old_tmux = os.environ.get("TMUX")
         os.environ["TMUX"] = "/tmp/tmux-0/default,123,0"
@@ -481,7 +323,7 @@ class TestSpawn(unittest.TestCase):
             with mock.patch.dict(os.environ, {**clean, **env}, clear=True), \
                  mock.patch.object(fleet.subprocess, "run", side_effect=lambda a, *x, **k: seen.append(a) or mock.Mock(returncode=0)), \
                  mock.patch.object(fleet.sys, "platform", "darwin"):
-                out = fleet.new_terminal("claude", name="r:t", cwd="/tmp/a b")
+                out = fleet.new_terminal("claude", cwd="/tmp/a b", name="r:t")
             self.assertIn(want, seen[0][2], env)
             self.assertIn("cd '/tmp/a b' && claude", seen[0][2])
             self.assertIn(msg, out)
@@ -501,9 +343,9 @@ class TestSpawn(unittest.TestCase):
         self.assertIsNone(fleet.ghostty_pick(ls, "/ws/none")[0])
         self.assertIsNone(fleet.ghostty_pick("", "/ws/web")[0])
 
-    def test_focus_ghostty_splits_same_repo_tabs_by_tty(self):
-        """Three claude tabs in one checkout: the cwd pick can't choose, so jack in titles the
-        session's tty, focuses the tab showing that title, and puts the old title back."""
+    def test_ghostty_tid_splits_same_repo_tabs_by_tty_and_caches_it(self):
+        """Three claude tabs in one checkout: the cwd pick can't choose, so the session's tty gets a
+        unique title, the tab showing it is the one, and the old title goes back. Found once per pid."""
         tabs = {"A": "◐ one", "B": "✳ two", "C": "✳ Claude Code"}
         titles = []
         listing = lambda *a: "".join(f"{i}\t/ws/web\t{n}\n" for i, n in tabs.items())
@@ -511,14 +353,29 @@ class TestSpawn(unittest.TestCase):
             titles.append(t)
             if tty == "/dev/ttys004":
                 tabs["B"] = t
-        ran = []
+        fleet._GHOSTTY_TID.clear()
         with mock.patch.object(fleet, "_ghostty_list", side_effect=listing), \
              mock.patch.object(fleet, "_tty_title", side_effect=title), \
-             mock.patch.object(fleet.subprocess, "run", side_effect=lambda a, *x, **k: ran.append(a) or mock.Mock(returncode=0)):
-            self.assertEqual(fleet._focus_ghostty("/ws/web", "/dev/ttys004"), "ok")
-            self.assertIn('byId("B")', ran[-1][-1])
-            self.assertEqual(tabs["B"], "✳ two")                     # old title restored
-            self.assertIn("can't tell", fleet._focus_ghostty("/ws/web"))  # no tty: cwd fallback, says so
+             mock.patch.object(fleet, "_tty_of", side_effect=lambda pid: "/dev/ttys004" if pid == 7 else None):
+            self.assertEqual(fleet.ghostty_tid({"pid": 7, "cwd": "/ws/web"}, 1), ("B", None))
+            self.assertEqual(tabs["B"], "✳ two")                                # old title restored
+            n = len(titles)
+            self.assertEqual(fleet.ghostty_tid({"pid": 7, "cwd": "/ws/web"}, 1), ("B", None))
+            self.assertEqual(len(titles), n)                                    # cached: no second title flash
+            self.assertIn("can't tell", fleet.ghostty_tid({"pid": 8, "cwd": "/ws/web"}, 1)[1])   # no tty: cwd fallback says so
+
+    def test_ghostty_without_tty_or_dir_does_not_guess(self):
+        with mock.patch.object(fleet, "_ghostty_list", return_value="A\t" + os.getcwd() + "\tfleet\n"), \
+             mock.patch.object(fleet, "_tty_of", return_value=None):
+            self.assertIsNone(fleet.ghostty_tid({"pid": 10}, 1)[0])            # never fleet's own tab by accident
+
+    def test_ghostty_fallback_uses_the_launch_dir_not_the_live_cwd(self):
+        """The hook's cwd follows every `cd` the session makes; the Ghostty tab stays where claude started."""
+        listing = "A\t/ws/web\t✳ Claude Code\n"
+        with mock.patch.object(fleet, "_ghostty_list", return_value=listing), \
+             mock.patch.object(fleet, "_tty_of", return_value=None):
+            r = {"pid": 9, "cwd": "/ws/web/packages/ui", "start_cwd": "/ws/web"}
+            self.assertEqual(fleet.ghostty_tid(r, 1), ("A", None))
 
     def test_new_terminal_tmux_failure_says_so_and_copies_to_clipboard(self):
         """criterion 5's failure half: tmux (or the launch) fails -> fleet says what failed AND
@@ -536,6 +393,7 @@ class TestSpawn(unittest.TestCase):
 
         try:
             with mock.patch.object(fleet.subprocess, "run", side_effect=fake_run), \
+                 mock.patch.object(fleet.sys, "platform", "linux"), \
                  mock.patch.object(fleet.shutil, "which",
                                    side_effect=lambda name: "/usr/bin/pbcopy" if name == "pbcopy" else None):
                 result = fleet.new_terminal("claude --resume xyz")
@@ -546,45 +404,6 @@ class TestSpawn(unittest.TestCase):
                 os.environ.pop("TMUX", None)
             else:
                 os.environ["TMUX"] = old_tmux
-
-
-class TestPopOut(unittest.TestCase):
-    def test_pop_out_cmds_groups_by_the_panes_own_session_not_fleets(self):
-        cmds = fleet.pop_out_cmds("someone-elses-session", "3")
-        self.assertEqual(cmds["grouped"], "fleet-pop-someone-elses-session")
-        self.assertEqual(cmds["new_session"], ["tmux", "new-session", "-d", "-s", "fleet-pop-someone-elses-session",
-                                                "-t", "someone-elses-session"])
-        self.assertEqual(cmds["select_window"], ["tmux", "select-window", "-t", "fleet-pop-someone-elses-session:3"])
-        self.assertIn("fleet-pop-someone-elses-session", cmds["attach"])
-
-    def test_pop_out_cmds_strips_colon_and_dot_from_the_grouped_name(self):
-        cmds = fleet.pop_out_cmds("core-service:LIN-482", "1")
-        self.assertNotIn(":", cmds["grouped"])
-        self.assertNotIn(".", cmds["grouped"])
-
-    def test_pop_out_without_a_tmux_pane_says_so(self):
-        self.assertEqual(fleet.pop_out({"tmux_pane": None}), "no tmux pane for that row.")
-
-    def test_pop_out_twice_reuses_the_pop_session_instead_of_leaking_one(self):
-        """A second `D` on the same row: grouped sessions share windows, so tmux resolves the
-        pane's #S to the pop session itself (already `fleet-pop-...`). Must group against that
-        directly, never re-prefix it (which grows the name and defeats the has-session guard)."""
-        calls = []
-
-        class Ok:
-            returncode = 0
-            stdout = "fleet-pop-abc 3"
-
-        def fake_run(args, *a, **k):
-            calls.append(args)
-            return Ok()
-
-        with mock.patch.object(fleet.subprocess, "run", side_effect=fake_run):
-            fleet.pop_out({"tmux_pane": "%3"})
-        joined = [" ".join(c) for c in calls if isinstance(c, list)]
-        self.assertTrue(any(c == ["tmux", "has-session", "-t", "fleet-pop-abc"] for c in calls))
-        self.assertFalse(any("fleet-pop-fleet-pop" in j for j in joined))            # no re-prefix
-        self.assertFalse(any(c[:2] == ["tmux", "new-session"] for c in calls))       # already exists: no leak
 
 
 class TestViewport(unittest.TestCase):
@@ -613,8 +432,7 @@ class TestViewport(unittest.TestCase):
 
 
 class TestLauncherDefaultMode(unittest.TestCase):
-    """`fleet` outside tmux now attaches a per-workspace tmux session by default; `--here` still
-    runs in place; no tmux -> nothing changes."""
+    """`fleet` runs right here by default, tmux or not; only --tmux starts a session."""
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -635,27 +453,17 @@ class TestLauncherDefaultMode(unittest.TestCase):
         log = open(self.log).read() if os.path.exists(self.log) else ""
         self.assertNotIn("new-session", log)          # fleet.py itself may still probe tmux panes
 
-    def test_default_outside_tmux_attaches_a_per_workspace_session(self):
-        """No args, outside tmux: the launcher itself starts a per-workspace tmux session (the
-        stub tmux only logs and exits, so this never blocks on a real curses TUI)."""
-        r = subprocess.run(["bash", str(BIN / "fleet")], env=self._env(), capture_output=True, text=True)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("new-session -A -s fleet-", open(self.log).read())
-
-    def test_here_flag_never_starts_a_tmux_session(self):
-        r = subprocess.run(["bash", str(BIN / "fleet"), "--here", "--once"], env=self._env(),
-                            capture_output=True, text=True)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        log = open(self.log).read() if os.path.exists(self.log) else ""
-        self.assertNotIn("new-session", log)
-
-    def test_session_name_flag_never_touches_prefs(self):
-        with tempfile.TemporaryDirectory() as home:
-            r = subprocess.run(["python3", str(BIN / "fleet.py"), "--session-name"],
-                                env={**os.environ, "ANDERSON_FLEET_DIR": home}, capture_output=True, text=True)
+    def test_default_never_starts_a_tmux_session(self):
+        for args in (["--once"], ["--here", "--once"]):
+            r = subprocess.run(["bash", str(BIN / "fleet"), *args], env=self._env(), capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stderr)
-            self.assertTrue(r.stdout.strip().startswith("fleet-"))
-            self.assertFalse(os.path.exists(os.path.join(home, "prefs.json")))
+            log = open(self.log).read() if os.path.exists(self.log) else ""
+            self.assertNotIn("new-session", log)
+
+    def test_tmux_flag_starts_the_fleet_session(self):
+        r = subprocess.run(["bash", str(BIN / "fleet"), "--tmux"], env=self._env(), capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("new-session -A -s fleet", open(self.log).read())
 
 
 class TestLiveCheckout(unittest.TestCase):

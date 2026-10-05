@@ -1,4 +1,4 @@
-"""fleet.py: opening the gate artifact (plan.md / audit.md) in an editor on `o` or at a human gate."""
+"""fleet.py: reading the gate artifact (plan.md / audit.md, then the diff) right in fleet on `o`."""
 import importlib.util, os, pathlib, tempfile, unittest
 
 BIN = pathlib.Path(__file__).resolve().parents[1] / "bin"
@@ -26,55 +26,6 @@ class TestGateOpen(unittest.TestCase):
         self.assertEqual(self.names({**self.row, "stage": "implement"}), ["audit.md"])
         self.assertEqual(self.names({**self.row, "task": ""}), [])
         self.assertEqual(self.names({**self.row, "task": "missing"}), [])
-
-    def test_editor_resolution_order(self):
-        old = {k: os.environ.get(k) for k in ("VISUAL", "EDITOR", "FLEET_EDITOR")}
-        old_editor = fleet.EDITOR
-        try:
-            for k in old:
-                os.environ.pop(k, None)
-            fleet.EDITOR = None
-            os.environ["EDITOR"] = "vim"                       # terminal editor: not used for GUI opening
-            cmd = fleet.editor_cmd(self.row, ["/a"])
-            self.assertTrue(cmd is None or cmd[0] != "vim")
-            fleet.EDITOR = "definitely-not-installed-editor"   # unknown/missing: falls through, never crashes
-            fleet.editor_cmd(self.row, ["/a"])
-        finally:
-            fleet.EDITOR = old_editor
-            for k, v in old.items():
-                if v is None:
-                    os.environ.pop(k, None)
-                else:
-                    os.environ[k] = v
-
-    def test_open_gate_without_files_says_so(self):
-        self.assertIn("nothing to open", fleet.open_gate({**self.row, "task": "missing"}))
-
-    def test_auto_open_only_at_human_gate(self):
-        self.assertEqual(fleet.gate_auto_open({**self.row, "gate": "none"}), "")
-        self.assertEqual(fleet.gate_auto_open({**self.row, "task": "missing"}), "")
-
-    def test_auto_open_silent_when_no_editor_applies(self):
-        """⏎ on a plain-terminal session must not report an IDE failure over a good jack in."""
-        old = fleet.editor_cmd
-        try:
-            fleet.editor_cmd = lambda r, files: None
-            self.assertEqual(fleet.gate_auto_open(self.row), "")
-            fleet.editor_cmd = lambda r, files: ["true"] + files
-            self.assertIn("plan.md", fleet.gate_auto_open(self.row))
-        finally:
-            fleet.editor_cmd = old
-
-    def test_editor_pref_roundtrip(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            old = fleet.FLEET_DIR, fleet.PREFS_FILE
-            fleet.FLEET_DIR = tmp; fleet.PREFS_FILE = os.path.join(tmp, "prefs.json")
-            try:
-                self.assertIsNone(fleet.load_prefs()["editor"])
-                fleet.save_prefs(editor="code -g")
-                self.assertEqual(fleet.load_prefs()["editor"], "code -g")
-            finally:
-                fleet.FLEET_DIR, fleet.PREFS_FILE = old
 
 
 class TestReadHere(unittest.TestCase):
@@ -126,22 +77,6 @@ class TestReadHere(unittest.TestCase):
 
     def test_view_gate_without_files_says_so(self):
         self.assertIn("nothing to read", fleet.view_gate({"root": "/nonexistent", "task": "x", "stage": "grill", "pid": None}))
-
-    def test_terminal_owned_session_has_no_ide_to_open(self):
-        import sys
-        if sys.platform != "darwin":
-            self.skipTest("macOS only")
-        old = fleet._owner_app, fleet.EDITOR
-        try:
-            fleet.EDITOR = None
-            for k in ("FLEET_EDITOR", "VISUAL", "EDITOR"):
-                os.environ.pop(k, None)
-            fleet._owner_app = lambda pid: ("Terminal", "/System/Applications/Utilities/Terminal.app")
-            self.assertIsNone(fleet.editor_cmd({"pid": 1}, ["/a"]))
-            fleet._owner_app = lambda pid: ("WebStorm", "/Applications/WebStorm.app")
-            self.assertEqual(fleet.editor_cmd({"pid": 1}, ["/a"]), ["open", "-a", "/Applications/WebStorm.app", "/a"])
-        finally:
-            fleet._owner_app, fleet.EDITOR = old
 
 
 if __name__ == "__main__":
