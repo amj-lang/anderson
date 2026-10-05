@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.61.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.62.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -547,44 +547,42 @@ input-side saving, not a dramatic one.
 
 Optional flourishes in `bin/` — run them in a real terminal (the in-loop banners are plain text and don't animate):
 
-- **`fleet`** — **THE OPERATOR**, the cross-repo fleet monitor and, since phase 2, where work
-  starts. Install once with `/anderson:fleet` (writes a `fleet` shim to `~/.local/bin` that
-  resolves the newest installed anderson at run time, so plugin updates never break it), then in
-  any terminal: `fleet` (outside tmux: attaches a per-workspace tmux session, status bar on; inside
-  tmux: runs right here), `fleet --here` (right here regardless), `fleet --tmux` (the legacy single
-  session named `fleet`, status bar hidden), `fleet --pane` (45% side pane inside tmux), `fleet
-  --window`. The installer also prints an optional `prefix+F` tmux hotkey line.
+- **`fleet`** — **THE OPERATOR**, the cross-repo fleet monitor and where work starts. Install once
+  with `/anderson:fleet` (writes a `fleet` shim to `~/.local/bin` that resolves the newest installed
+  anderson at run time, so plugin updates never break it), then in any terminal tab: `fleet`. It runs
+  right there. `fleet --tmux` (a tmux session named `fleet`), `--pane` / `--window` (inside tmux) are
+  there if you want them.
 
-  Rows are the repos of the workspace fleet was launched from (one nested level): a repo is a row,
-  a dir holding several repos is a collapsible group row, live sessions nest under their repo, and
-  sessions from elsewhere land in an `elsewhere` group. No repos found under the launch dir falls
-  back to today's flat session list. Each row: repo · anderson task · **persona on the job**
-  (▲ ARCHITECT, ◇ INTERROGATOR, ◎ ORACLE, ● NEO, ✚ TRINITY, ▣ AGENT SMITH, ★ THE ONE, ○ T. ANDERSON = no
-  pipeline yet) · stage `n/max` · **tier** (how hard the pipeline decided the task is: `triv` ·
-  `normal` · `HARD` · `CRITICAL`, from state.md) · model · **now** (`▶ Bash pytest -q`, `▶ Agent implementer`,
-  `☎ ring` = waits on you, `☎ permission Bash`, `✝ sentinel` = process gone, `⟲` = rework loop) ·
-  $ · context bar · age. Detail pane: verdicts, lines ±, tmux pane, last words, a mood-matched line
-  from `quotes.txt`. Runs **outside** Claude (python stdlib curses, zero tokens) in its own tmux
-  session; rows ring first.
+  Two sections. On top, every Claude Code session on the machine, ringing first: repo · anderson task
+  · **persona on the job** (▲ ARCHITECT, ◇ INTERROGATOR, ◎ ORACLE, ● NEO, ✚ TRINITY, ▣ AGENT SMITH,
+  ★ THE ONE, ○ T. ANDERSON = no pipeline yet) · stage `n/max` · **tier** (`triv` · `normal` · `HARD` ·
+  `CRITICAL`, from state.md) · model · **now** (`▶ Bash pytest -q`, `☎ ring 12m` = waits on you,
+  `☎ permission Bash`, `☎ question`, `✝ sentinel` = process gone, `⟲` = rework loop) · context bar ·
+  age. Below, the repos of the workspace fleet was launched from (`dir/repo` when nested), each with
+  its live agent count: the places `N` starts a new agent. Runs **outside** Claude (python stdlib
+  curses, zero tokens).
 
-  Rows are numbered; sessions with no pipeline show their first prompt as a quoted title; ringing
-  rows say for how long (`☎ ring 12m`); the ctx cell turns red past 80%.
+  **When it rings.** The plugin's hooks are the truth: a Stop, a permission prompt or a question
+  (`AskUserQuestion`, `ExitPlanMode`) means the session waits on you; every prompt and tool event means
+  it is working. A ring alerts once, 5 s after it starts, so a turn that carries on by itself (a Stop
+  the scheduler blocks to chain the next stage) never rings. A turn you interrupted with Esc fires no
+  Stop, so it rings after 15 silent minutes. No alert while that session's own tab is in front of you.
 
-  Keys: `↑↓` tune · `1`..`9` / `⏎` **jack in** on a session row (switches tmux to that session's
-  pane; without tmux, on macOS it focuses the Ghostty / iTerm2 / Terminal.app tab that owns the
-  session, or brings the owning IDE forward for integrated terminals, so tmux is optional: `fleet install
-  --with-tmux` adds it via brew / apt / dnf if you want panes); on a repo/group row `⏎` goes in, like `→`.
-  `N` **spawns an agent**: a prompt box, then `p`/`a`/`A` launches a claude agent (bare /
-  `/anderson:start` / `/anderson:auto`) into the selected repo — the workspace root on a group, the
-  session's own repo on a session row — in a terminal of its own, so the monitor keeps the window it
-  is in. Drilled into a repo that has no agents in it, `N` spawns into that repo. If that repo is already parked on a
-  feature branch, the agent does not land in it: it gets a worktree (`.worktrees/<task>` on branch
-  `anderson/<task>`, cut from the default branch), and its row still nests under the repo. `J`/`K` reorder a repo/group among its siblings, `space` (`←`/`→` too)
-  collapses/expands it; both persist per workspace. `D` pops a session's tmux window out into its
-  own OS terminal window. `w` white rabbit
-  (oldest ring, expanding any collapsed group in the way) · `r` kill (asks first; the row is hidden with it) · `R` rebase that checkout's branch onto main/master and force-push it (asks first) — the only force push fleet does, `--force-with-lease` on that one branch, refused outright when the base branch is not protected on GitHub, when the tree is dirty, or on main itself; conflicts abort it and stay yours · `b` hide the row (any row, the process is left alone) or, on a repo/group row, that whole repo and its agents (saved per workspace) · `h` show hidden rows and repos (`b` on one un-hides) · `c` copy the
-  `claude --resume` command for that session · `n` desktop notification on ring · `m` sound · `s` next ring sound · `/` filter ·
-  `t` theme · `p` wording · `?` manual · `q`.
+  Keys: `↑↓` tune · `⏎` / `1`-`9` **jack in**: bring that session's tab to the front, in whichever app
+  owns it (Ghostty, found exactly by tty; iTerm2 / Terminal.app; the tmux pane; an IDE is brought
+  forward). On a sentinel it opens a new tab running `claude --resume`; on a repo row it opens the
+  spawn box · `N` **new agent**: a prompt box, then `p` / `a` / `A` launches a bare claude /
+  `/anderson:start` / `/anderson:auto` in a new tab of its own (on a session row: its repo). A repo
+  parked on a feature branch gets a worktree (`.worktrees/<task>` on `anderson/<task>`, cut from the
+  default branch) so the work in progress there is never touched · `w` jump to the longest-waiting
+  ring · `o` read plan.md / audit.md right in fleet (then the code diff, at diff review) · `r` kill
+  (asks first) · `b` hide a row or a repo (the process is left alone) · `h` show hidden · `space` fold
+  the repo list · `m` ring sound on/off, for every fleet you have open · `/` filter · `?` manual · `q`.
+
+  **Getting back.** fleet titles its tab `⌐■-■ fleet`. `fleet --focus` brings that tab to the front
+  from anywhere: bind it to a global hotkey (Raycast, Shortcuts, skhd) and it is the way back after a
+  jack in. With `--notify` and `terminal-notifier`, clicking a ring banner jumps straight to that
+  session's tab (`fleet --jack <session id>`).
 
 ### What fleet needs
 
@@ -595,9 +593,9 @@ missing; `fleet install --extras` installs the first two, `--with-tmux` the thir
 | tool | for | install |
 |---|---|---|
 | `glow` | `o` renders plan.md / audit.md as real markdown (else `less` with a light colouring) | `brew install glow` · `dnf install glow` · apt: [charm repo](https://github.com/charmbracelet/glow#installation) |
-| `terminal-notifier` | macOS desktop banners (`n`): reliable, listed in System Settings, click focuses fleet | `brew install terminal-notifier` |
+| `terminal-notifier` | macOS desktop banners (`--notify`): reliable, silent (the ring is `m`'s job), a click jumps to the session | `brew install terminal-notifier` |
 | `tmux` | `fleet --pane` / `--window` / `--tmux`, and ⏎ jack-in by pane | `brew install tmux` · `apt install tmux` · `dnf install tmux` |
-| `notify-send`, `paplay`/`aplay`, `xdg-open` | Linux: banners, ring sound, `O` open | usually there (`libnotify`, PulseAudio / ALSA) |
+| `notify-send`, `paplay`/`aplay` | Linux: banners, ring sound | usually there (`libnotify`, PulseAudio / ALSA) |
 
 `/anderson:fleet --extras` and `/anderson:fleet --with-tmux` pass the flags through.
 
@@ -608,8 +606,8 @@ prints what it moved from and to; restart Claude Code to apply it. The `~/.local
 newest cached version every time it runs, so it never needs re-installing after an update. Without the
 `claude` CLI on PATH, run `/plugin update anderson` from inside Claude Code instead.
 
-  **Five themes**, cycled live with `t` or set with `--theme <name>`, remembered per user in
-  `~/.claude/fleet/prefs.json` together with wording and motion:
+  **Five themes**, set with `--theme <name>`, remembered per user in `~/.claude/fleet/prefs.json`
+  together with wording, motion and sound:
 
   | theme | look | motion | winks |
   | --- | --- | --- | --- |
@@ -619,11 +617,10 @@ newest cached version every time it runs, so it never needs re-installing after 
   | `nebuchadnezzar` | cold cyan/blue console | one heartbeat dot | full |
   | `agent` | monochrome, red alerts | none | Smith's adversary lines only |
 
-  `p` (or `--plain`) swaps the header lingo (`zion · 3 jacked in · 1 ringing · 0 sentinels`) for
-  plain English (`fleet · 3 live · 1 waiting · 0 dead`); `--calm` removes motion from any theme.
-  `+` / `-` (or `--zoom 16`) grow the font while fleet runs and restore it on quit: Terminal.app
-  only, since it is the one terminal with a font-size API; iTerm2 and IDE terminals use ⌘+ / ⌘-.
-  The boot screen (0.7s of rain, then `Loading anderson…` and a line that rotates every launch) is
+  `--plain` swaps the header lingo (`zion · 3 jacked in · 1 ringing · 0 sentinels`) for plain
+  English (`fleet · 3 live · 1 waiting · 0 dead`); `--calm` removes motion from any theme. `--ring
+  NAME` picks the ring sound (`--rings` lists them, `--play all` auditions them), `--cost` shows the
+  api$ column on a subscription, `--notify` turns desktop banners on. The boot screen (0.7s of rain, then `Loading anderson…` and a line that rotates every launch) is
   skipped with `--no-intro`. `--demo` adds four fake rows, `--once` prints one plain frame,
   `--ascii` uses single-byte glyphs, `--selftest` proves every line equals the terminal width at
   40..300 columns in all five themes (wide/CJK/accents safe). Only the frame lines that changed are
@@ -634,8 +631,9 @@ newest cached version every time it runs, so it never needs re-installing after 
      (`~/.claude/projects/<cwd>/<sid>.jsonl`) gives last tool / last words / context tokens; the
      repo's `feature-research/*/state.md` gives stage → persona.
   2. **this plugin's hooks** (`hooks/fleet_event.py` on SessionStart / UserPromptSubmit /
-     PostToolUse / Notification / Stop / SessionEnd) write `~/.claude/fleet/<sid>.event.json`: the
-     exact waiting-on-you vs working signal, permission prompts included.
+     PreToolUse / PostToolUse / Notification / Stop / SessionEnd) write
+     `~/.claude/fleet/<sid>.event.json`: the exact waiting-on-you vs working signal, permission
+     prompts included, and when the wait began.
   3. **statusline heartbeat** (`bin/heartbeat.py`) writes `~/.claude/fleet/<sid>.status.json`: `$`
      cost, precise context %, model, lines ±, tmux pane, and your subscription windows (the `/usage`
      5-hour / 7-day percentages and reset times, shown in the footer). `$` is Claude Code's own
@@ -679,6 +677,7 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 
 ## Changelog
 
+- **0.62.0** — **Fleet, cleaned up: fewer keys, rings that mean it, ⏎ that lands.** Rings: the row no longer rings on every mid-turn line of text (the transcript guess overrode the hooks whenever the model wrote "Now let me check X" between tools); hooks are the truth now, a ring alerts once after 5 s so a Stop the scheduler blocks never rings, a `PreToolUse` hook clears it the moment the session moves on, `AskUserQuestion` / `ExitPlanMode` ring as questions, and the wait time survives the idle notification. A Ghostty session no longer counts as watched just because some Ghostty window is in front. `m` mutes every running fleet at once, and banners stop playing their own sound. Jack in asks only the app that owns the session (Terminal.app and iTerm2 no longer flash forward to be searched), finds Ghostty tabs by the directory claude started in when the tty mark misses, caches the tab per session, and a tmux session with no attached client opens in a new tab instead of taking over fleet's. Clicking a ring banner jumps to that session (`--jack`), `fleet --focus` brings fleet back. Layout: live sessions on top, the workspace's repos below for `N`; the repo/group tree, drill-in, auto-zoom and reorder are gone. Keys cut: `J`/`K`, `→`/`←`, `D` pop out, `O` open in IDE (and the auto-open on ⏎), `a` agent log, `c` copy resume, `R` rebase + force-push, `n` / `s` / `$` / `t` / `p` / `+` / `-` (the settings stay as flags; zoom is gone). `fleet` runs in place by default instead of wrapping itself in tmux. `--ascii` now actually switches the footer and markers to ASCII.
 - **0.61.0** — **Fleet: one row per session, worktrees under their repo, ⏎ past a stray Ghostty, shipped in red.** Sessions sharing a checkout no longer wear each other's task: a hooked session that touched no task shows its own prompt instead of borrowing the newest state.md (why three unrelated agents all read `ar-1432 · INTERROGATOR · grill`). A session in any linked worktree (`.claude/worktrees/`, `.worktrees/`, a sibling dir) rows under its main checkout, read off the worktree's `.git` file, instead of landing in `elsewhere`; sibling worktrees stop showing as idle repo rows. The branch is read live from the checkout's HEAD, so a session that moved into a worktree shows that worktree's branch, not the one its transcript started on. ⏎ into Ghostty talks to the instance that owns the session (JXA by pid): a second Ghostty an agent started with `ghostty -e` used to answer AppleScript and hide every real tab. A shipped (`done`) row renders red.
 - **0.60.0** — **The crew sits at plan review too.** SERAPH and NIOBE now judge the design before THE ORACLE, not only the finished code: a missing authorization check, unvalidated input, an N+1 query or an unbounded fetch is one plan edit at plan review and a full rework round at diff review. `bin/crew.py --plan plan.md` routes from the plan's Files touched and text (no diff exists yet); THE ORACLE reads the seats' `plan-review-<lens>.md` files, confirms or rejects each finding on merit, folds the confirmed ones into plan.md and logs `plan_tally:`, which `bin/runlog.py --summary` reports per seat. THE MEROVINGIAN stays diff-only: orphaned code needs a diff, and the blast-radius check already covers planned dead code. The diff crew is unchanged, so it verifies the code against a plan that was already security- and performance-reviewed.
 - **0.59.1** — **Fleet: ⏎ finds the right Ghostty tab when several agents share a repo.** Ghostty's AppleScript has no tty, so jack in matched tabs by working directory and gave up with "N tabs in <repo>, can't tell which" once two claude sessions ran in one checkout. It now writes a one-off title to the session's own tty, focuses the tab showing it, and puts the old title back: exact for any number of tabs. The directory match stays as the fallback.

@@ -14,6 +14,9 @@
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/fleet_event.py" } ] }
     ],
+    "PreToolUse": [
+      { "hooks": [ { "type": "command", "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/fleet_event.py" } ] }
+    ],
     "PostToolUse": [
       { "hooks": [ { "type": "command", "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/fleet_event.py" } ] }
     ],

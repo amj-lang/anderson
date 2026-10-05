@@ -2,9 +2,11 @@
 """
 fleet event hook — records the last lifecycle event of a Claude Code session in
 ~/.claude/fleet/<session_id>.event.json so bin/fleet.py (THE OPERATOR) can tell
-"waiting on you" (Stop / Notification) from "working" (UserPromptSubmit / PostToolUse)
+"waiting on you" (Stop / Notification) from "working" (UserPromptSubmit / PreToolUse / PostToolUse)
 without guessing from the transcript. Wired for SessionStart, UserPromptSubmit,
-PostToolUse, Notification, Stop, SessionEnd in hooks/hooks.json.
+PreToolUse, PostToolUse, Notification, Stop, SessionEnd in hooks/hooks.json. PreToolUse matters
+after a Stop that another hook blocked (scheduler.py chaining the next stage): the session carries
+on, often into a subagent whose PostToolUse is minutes away, and without it the row kept ringing.
 
 Emits nothing on stdout: this hook never steers the session. Never raises.
 """
@@ -52,6 +54,7 @@ def claude_pid(start):
 WAITING = {
     "SessionStart":     (False, "jacked in"),
     "UserPromptSubmit": (False, "prompt"),
+    "PreToolUse":       (False, "tool"),
     "PostToolUse":      (False, "tool"),
     "Notification":     (True,  "notification"),
     "Stop":             (True,  "turn done"),
@@ -71,11 +74,15 @@ def main():
     waiting, label = WAITING[ev]
     path = os.path.join(FLEET_DIR, f"{sid}.event.json")
     try:
-        prev = json.load(open(path)).get("task")
+        prev = json.load(open(path))
     except Exception:
-        prev = None
+        prev = {}
+    prev = prev if isinstance(prev, dict) else {}
+    now = time.time()
+    # still waiting (Stop, then the idle Notification a minute later): keep when the wait began
+    since = (prev.get("since") or prev.get("ts") or now) if (waiting and prev.get("waiting")) else now
     out = {
-        "task": session_task(d, prev),
+        "task": session_task(d, prev.get("task")),
         "session_id": sid,
         "cwd": d.get("cwd"),
         "transcript_path": d.get("transcript_path"),
@@ -84,10 +91,11 @@ def main():
         "waiting": waiting,
         "ended": ev == "SessionEnd",
         "notification": d.get("notification_type") or (d.get("message") if ev == "Notification" else None),
-        "tool": d.get("tool_name") if ev == "PostToolUse" else None,
+        "tool": d.get("tool_name") if ev in ("PreToolUse", "PostToolUse") else None,
         "tmux_pane": os.environ.get("TMUX_PANE"),
         "pid": claude_pid(int(os.environ.get("FLEET_PID") or os.getppid())),
-        "ts": time.time(),
+        "ts": now,
+        "since": since,
     }
     os.makedirs(FLEET_DIR, exist_ok=True)
     tmp = f"{path}.{os.getpid()}.tmp"

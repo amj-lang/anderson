@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.61.0-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.62.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -162,28 +162,26 @@ A zero-token python curses terminal that runs outside Claude. One row per Claude
 
 | Key         | Does                                            |
 | ----------- | ----------------------------------------------- |
-| `1`-`9`, `⏎` | jack into that session's pane, or spawn an agent into a repo row |
-| `w`         | jump to the oldest session waiting on you        |
-| `o`         | read the plan or audit right there              |
-| `n`         | desktop notification when a session rings       |
-| `m` / `s`   | ring sound on/off, next ring sound              |
-| `r`         | kill the session (asks first)                   |
-| `R`         | rebase this checkout onto main/master, force-push that branch (asks first) |
+| `1`-`9`, `⏎` | jump to that session's terminal tab; on a dead one, resume it in a new tab |
+| `N`         | start a new agent in a repo (bare, `/anderson:start` or `/anderson:auto`) |
+| `w`         | jump to the session waiting longest              |
+| `o`         | read the plan, audit and diff right there        |
+| `r` / `b`   | kill the session (asks first) / hide a row       |
+| `m`         | ring sound on/off                                |
 | `/`         | filter                                          |
 | `?`         | manual                                          |
 
+- Live sessions on top, ringing first; your workspace's repos below, where `N` starts work.
+- A session rings once, when it really waits on you: turn done, a permission prompt, a question.
 - Personas come from each repo's `feature-research/*/state.md`, so you see who is on the job across repos.
-- `⏎` on a dead session (`✝ sentinel`) revives it in a new window already running `claude --resume`.
-- `→` drills into a repo; with no agents in it, `⏎` still spawns one there.
-- `R` is the only force push fleet performs: `--force-with-lease`, on the branch it just rebased, never the base. It refuses on a dirty tree, on main/master itself, and when GitHub does not report the base branch as protected. Conflicts abort and stay yours.
+- `fleet --focus` brings fleet's tab back from anywhere: bind it to a hotkey.
 - The header shows your `/usage` windows as bars.
 - Needs nothing but python3. `glow`, `terminal-notifier` and `tmux` are optional.
 
 ```
 /anderson:fleet      # once: installs ~/.local/bin/fleet
-fleet                # outside tmux: attaches a per-workspace tmux session; inside: right here
-fleet --here         # always right here, tmux or not
-fleet --pane         # 45% tmux side pane
+fleet                # runs right here, in this tab
+fleet --focus        # bring the running fleet back to the front
 fleet --demo         # four fake rows to try it
 ```
 

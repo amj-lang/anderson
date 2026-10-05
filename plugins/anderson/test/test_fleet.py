@@ -1,6 +1,7 @@
 """stdlib unittest for bin/fleet.py (THE OPERATOR), bin/heartbeat.py, hooks/fleet_event.py.
 Alignment is the invariant: every rendered line is exactly the terminal width, at any width,
 with any content (CJK, accents, emoji, empty, overlong)."""
+from unittest import mock
 import importlib.util, json, os, pathlib, subprocess, sys, tempfile, time, unittest
 
 BIN = pathlib.Path(__file__).resolve().parents[1] / "bin"
@@ -366,13 +367,11 @@ class TestJackIn(unittest.TestCase):
             self.assertIsNone(fleet._dev_tty(bad))
 
     def test_focus_scripts_target_the_tty(self):
-        for app in ("iTerm2", "Terminal"):
-            sc = fleet._focus_script(app, "/dev/ttys042")
-            self.assertIn('"/dev/ttys042"', sc)
-            self.assertNotIn("{tty}", sc)
+        for sc in (fleet.FOCUS_ITERM, fleet.FOCUS_TERMINAL):
+            self.assertIn('"{tty}"', sc)
             self.assertTrue(sc.rstrip().endswith('return "miss"'))
-        self.assertIn("sessions of t", fleet._focus_script("iTerm2", "/dev/x"))
-        self.assertIn("selected tab of w", fleet._focus_script("Terminal", "/dev/x"))
+        self.assertIn("sessions of t", fleet.FOCUS_ITERM)
+        self.assertIn("selected tab of w", fleet.FOCUS_TERMINAL)
 
     def test_owner_app_never_raises(self):
         self.assertIn(type(fleet._owner_app(os.getpid())), (type(None), tuple))
@@ -381,27 +380,35 @@ class TestJackIn(unittest.TestCase):
 
     def test_jack_in_without_pane_or_pid_explains(self):
         msg = fleet.jack_in({"tmux_pane": None, "pid": None})
-        self.assertIn("tmux", msg)
+        self.assertIn("tmux" if sys.platform != "darwin" else "no process", msg)
 
     def test_jack_in_reports_each_focus_outcome(self):
         """A selected tab whose window stayed behind is not a jack in, and must not read like one."""
-        old = fleet._tty_of, fleet._focus_tty
-        try:
-            fleet._tty_of = lambda pid: "/dev/ttys999"
-            row = {"tmux_pane": None, "pid": 42}
+        row = {"tmux_pane": None, "pid": 42}
+        with mock.patch.object(fleet.sys, "platform", "darwin"), \
+             mock.patch.object(fleet, "_tty_of", return_value="/dev/ttys999"), \
+             mock.patch.object(fleet, "_owner_app", return_value=("Terminal", "/System/Applications/Utilities/Terminal.app", 5)):
+            with mock.patch.object(fleet, "_focus_tty", return_value="ok"):
+                self.assertEqual(fleet.jack_in(row), "Operator.")
+            with mock.patch.object(fleet, "_focus_tty", return_value="unraised"):
+                msg = fleet.jack_in(row)
+                self.assertIn("another Space", msg)
+                self.assertIn("workspaces-auto-swoosh", msg)
+            with mock.patch.object(fleet, "_focus_tty", return_value=None):
+                self.assertNotIn("Operator.", fleet.jack_in(row))
 
-            fleet._focus_tty = lambda tty: "ok"
+    def test_jack_in_only_asks_the_app_that_owns_the_session(self):
+        """A Ghostty session never makes Terminal.app or iTerm2 come forward to be searched."""
+        row = {"tmux_pane": None, "pid": 42, "cwd": "/ws/a"}
+        ran = []
+        with mock.patch.object(fleet.sys, "platform", "darwin"), \
+             mock.patch.object(fleet, "_owner_app", return_value=("Ghostty", "/Applications/Ghostty.app", 7)), \
+             mock.patch.object(fleet, "ghostty_tid", return_value=("T1", None)), \
+             mock.patch.object(fleet, "_focus_tty", side_effect=AssertionError("asked iTerm2/Terminal")), \
+             mock.patch.object(fleet.subprocess, "run", side_effect=lambda a, *x, **k: ran.append(a) or mock.Mock(returncode=0)):
             self.assertEqual(fleet.jack_in(row), "Operator.")
-
-            fleet._focus_tty = lambda tty: "unraised"
-            msg = fleet.jack_in(row)
-            self.assertIn("another Space", msg)
-            self.assertIn("workspaces-auto-swoosh", msg)
-
-            fleet._focus_tty = lambda tty: None          # no tab owns it: the old fallbacks apply
-            self.assertNotIn("Operator.", fleet.jack_in(row))
-        finally:
-            fleet._tty_of, fleet._focus_tty = old
+        self.assertIn('byId("T1")', ran[-1][-1])
+        self.assertIn("Application(7)", ran[-1][-1])
 
     def test_wait_focused_exits_early_and_gives_a_space_switch_room(self):
         """A raise across Spaces waits on a ~1s animation, so the budget has to outlast it, while a
@@ -427,7 +434,7 @@ class TestJackIn(unittest.TestCase):
 
     def test_jack_in_on_a_dead_row_revives_it_in_a_new_window(self):
         """⏎ on a sentinel opens a terminal already running its resume command, rather than
-        telling you to paste one."""
+        telling you to paste one. Off macOS under tmux: a detached tmux window; on macOS: a new tab."""
         row = {"tmux_pane": None, "pid": 999999, "status": "sentinel",
                "sid": "abcdef12-3456-7890-abcd-ef1234567890", "cwd": "/tmp/some repo"}
         old_run, old_env, calls = fleet.subprocess.run, os.environ.get("TMUX"), []
@@ -441,28 +448,29 @@ class TestJackIn(unittest.TestCase):
         try:
             fleet.subprocess.run = fake_run
             os.environ["TMUX"] = "/tmp/tmux-0/default,1,0"
-            self.assertIn("Operator", fleet.jack_in(row))
-            self.assertEqual(calls[0][:2], ["tmux", "new-window"])
-            self.assertIn("claude --resume abcdef12-3456-7890-abcd-ef1234567890", calls[0][2])
-            self.assertIn("'/tmp/some repo'", calls[0][2])         # a cwd with a space survives
-
-            calls.clear(); os.environ.pop("TMUX")
-            if sys.platform == "darwin":
+            with mock.patch.object(fleet.sys, "platform", "linux"):
                 self.assertIn("Operator", fleet.jack_in(row))
-                self.assertEqual(calls[0][0], "osascript")
-                self.assertIn("claude --resume", calls[0][2])
+            self.assertEqual(calls[0][:3], ["tmux", "new-window", "-d"])
+            self.assertIn("/tmp/some repo", calls[0])                # starts where the session lived
+            self.assertIn("claude --resume abcdef12-3456-7890-abcd-ef1234567890", calls[0][-1])
+
+            calls.clear()
+            with mock.patch.object(fleet.sys, "platform", "darwin"):
+                self.assertIn("Operator", fleet.jack_in(row))       # macOS: a tab, even under tmux
+            self.assertEqual(calls[0][0], "osascript")
+            self.assertIn("cd '/tmp/some repo' && claude --resume", calls[0][2])
         finally:
             fleet.subprocess.run = old_run
             os.environ.pop("TMUX", None)
             if old_env is not None:
                 os.environ["TMUX"] = old_env
 
-    def test_focus_scripts_activate_before_reordering_windows(self):
-        """The app has to be frontmost before its window order is changed, or its own front window
-        wins the raise. One tab per window (six Terminal windows) is where this shows up."""
-        for app in ("Terminal", "iTerm2"):
-            script = fleet._focus_script(app, "/dev/x")
-            self.assertLess(script.index("activate"), script.index("set index of w to 1"), app)
+    def test_focus_scripts_activate_only_on_a_hit_and_before_reordering(self):
+        """Activating before the search pulled a terminal you were not using to the front just to
+        look in it. On a hit, the app still has to be frontmost before its window order changes."""
+        for sc in (fleet.FOCUS_ITERM, fleet.FOCUS_TERMINAL):
+            self.assertGreater(sc.index("activate"), sc.index('is "{tty}"'))
+            self.assertLess(sc.index("activate"), sc.index("set index of w to 1"))
 
 
 class TestUsageLimits(unittest.TestCase):
@@ -507,29 +515,6 @@ class TestUsageLimits(unittest.TestCase):
                 self.assertIn("cost", {k for k, *_ in fleet.layout(200)})
             finally:
                 fleet.FLEET_DIR = old
-
-
-class TestZoom(unittest.TestCase):
-    def test_zoom_pref_roundtrip_and_bounds(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            old = fleet.FLEET_DIR, fleet.PREFS_FILE
-            fleet.FLEET_DIR = tmp; fleet.PREFS_FILE = os.path.join(tmp, "prefs.json")
-            try:
-                self.assertIsNone(fleet.load_prefs()["zoom"])
-                fleet.save_prefs(zoom=16); self.assertEqual(fleet.load_prefs()["zoom"], 16)
-                fleet.save_prefs(zoom=None); self.assertIsNone(fleet.load_prefs()["zoom"])   # None clears
-                fleet.save_prefs(zoom=999); self.assertIsNone(fleet.load_prefs()["zoom"])    # out of range ignored
-            finally:
-                fleet.FLEET_DIR, fleet.PREFS_FILE = old
-
-    def test_font_control_only_in_terminal_app(self):
-        self.assertIsNone(fleet._terminal_font(None))
-        old = os.environ.get("TERM_PROGRAM"); os.environ["TERM_PROGRAM"] = "iTerm.app"
-        try:
-            self.assertIsNone(fleet._terminal_font("/dev/ttys000", 14))     # never calls osascript elsewhere
-        finally:
-            if old is None: os.environ.pop("TERM_PROGRAM", None)
-            else: os.environ["TERM_PROGRAM"] = old
 
 
 class TestPidResolution(unittest.TestCase):

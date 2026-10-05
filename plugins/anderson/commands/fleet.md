@@ -14,83 +14,35 @@ curses, zero tokens); this command only installs the launcher and tells the huma
 ```
 ⌐■-■  THE OPERATOR — every Claude Code session on this machine, one row each
 
-  launch:   fleet                 outside tmux: attaches a per-workspace tmux session (status bar
-                                  on); inside tmux: right here in the current window
-            fleet --here          run right here regardless of tmux
-            fleet --tmux          outside tmux: the legacy persistent session "fleet", status bar hidden
-            fleet --pane          in tmux: 45% side pane        fleet --window   in tmux: new window
+  launch:   fleet                 right here, in this terminal tab
+            fleet --focus         bring the running fleet's tab back to the front (bind it to a hotkey)
+            fleet --tmux          a tmux session "fleet"   ·   --pane / --window inside tmux
             fleet --demo          four fake rows to try the UI   fleet --once     one plain frame
             fleet --theme zion    matrix · construct · zion · nebuchadnezzar · agent (saved)
-            fleet --plain         plain header wording (saved)  fleet --calm     no motion (saved)
-            fleet --zoom 16       Terminal.app: bigger font while fleet runs, restored on quit (saved)
+            fleet --plain · --calm · --cost · --notify · --ring NAME (all saved)
 
-  update:   fleet update          fetch the newest anderson (marketplace refresh + plugin update),
-                                  then restart Claude Code. The ~/.local/bin shim resolves the
-                                  newest cached version at run time, so no re-install needed.
+  update:   fleet update          fetch the newest anderson, then restart Claude Code
 
-  header:   matrix · session ▓▓▓▓░░░░░░ 42% · 3h39 left │ week ▓▓▓▓▓░░░░░ 52% · resets Fri 19:00
-            (the /usage windows, red past 90%: your plan is a flat fee, these percentages are the
-            cost; the api$ estimate is hidden, `$` or --cost shows it in the footer)
-
-  tree:     rows are the repos of the workspace fleet was launched from, one nested level: a repo
-            holding a rework loop is a row, a dir holding several repos is a collapsible group row,
-            live sessions nest under their repo, and sessions from elsewhere land in an `elsewhere`
-            group. `J`/`K` reorder a repo/group among its siblings, `space` folds one in place;
-            both persist per workspace. `→` drills into the selected repo/group so only its contents
-            fill the screen (the path shows in the header), `←` comes back out one level. A row only
-            rings for a ring you cannot see: expanded, the ringing session itself pulses, never its
-            parents. No repos found under the launch dir -> today's flat list.
-
+  screen:   top: every live session, ringing first. below: the workspace's repos, where N starts work
   row:      flags · repo · task · persona · stage n/max · tier · model · now · ctx · age
-            tier is how hard the pipeline decided the task is: triv · normal · HARD · CRITICAL
-            ☎ waits on you   ▶ working   ✝ process gone   ⟲ rework loop   red row: shipped (done)
-            ▲ ARCHITECT · ◇ INTERROGATOR · ◎ ORACLE · ● NEO · ✚ TRINITY · ▣ AGENT SMITH · ★ THE ONE · ○ no pipeline
+            ☎ waits on you (turn done, permission, question)   ▶ working   ✝ process gone   ⟲ rework loop
+  rings:    once, 5 s after a session starts waiting, never while its own tab is in front of you
 
-  keys:     ↑↓ tune · →/← drill into a repo/group or step back out · 1-9 / ⏎ jack in (session row)
-              or go in (repo/group row) · N spawn an agent · J/K reorder a repo/group · space collapse/expand
-              in place · D pop a session's window out into its own terminal · w oldest waiting
-              (zooms into its repo) · r kill (asks; hides the row) · R rebase this checkout's
-              branch onto main/master and force-push it (asks; refuses unless the base is protected) ·
-              b hide row, or a whole repo · h show hidden
-            ⏎ on a sentinel revives it in a new terminal · N opens a prompt box,
-              then p/a/A spawns a claude agent (bare / /anderson:start / /anderson:auto) into that
-              repo — or the workspace root, on a group — in a terminal of its own; fleet keeps the
-              window it is in, the agent never takes it over. Repo already on a feature branch? the
-              agent gets a worktree there (`.worktrees/<task>`, branch `anderson/<task>`, off the
-              default branch), so the work in progress sitting in that checkout is never touched
-            drilled into a repo with no agents in it there is no row to select, and N spawns into
-              that repo anyway — an empty repo is a starting point, not a dead end
-            R is the only force push fleet ever does: --force-with-lease on the one branch it just
-              rebased, never the base, never another ref. It refuses on main/master itself, on a
-              dirty tree, and when GitHub does not report the base as protected (unverifiable counts
-              as unprotected). Conflicts abort the rebase, push nothing, and stay yours to resolve
-            c copy `claude --resume` · n desktop notification on ring (skipped, with the
-              sound, when that session's terminal is already frontmost; fleet --ping tests the banner)
-            a new ring while you sit on the overview zooms you into the repo that rang; drilled into
-              a repo already, rings elsewhere leave your screen where it is
-            m sound on/off · s next ring sound (phone · snare · hitech · freeze · blip · rift · jump;
-              fleet --play all auditions them, --ring NAME picks, own .wav in ~/.claude/fleet/sounds/)
-            o read plan.md / audit.md right here (glow, else less; q returns)
-            a page the newest subagent's transcript as a readable log (running ones first)
-            O open them in your IDE (automatic when ⏎ lands on a human gate and an IDE applies;
-              editor: --editor code, else GUI $VISUAL/$EDITOR, else the IDE owning the session)
-            / filter · t theme · p wording · +/- zoom (Terminal.app; iTerm2/IDE: ⌘+) · ? manual · q
+  keys:     ↑↓ tune · ⏎/1-9 jack in (dead session: resume it in a new tab; repo: spawn box)
+            N new agent (p bare · a /anderson:start · A /anderson:auto; a repo on a feature branch
+              gets a worktree, so its work in progress is never touched)
+            w longest-waiting ring · o read plan / audit / diff · r kill · b hide · h hidden
+            space fold the repos · m sound on/off (every fleet at once) · / filter · ? manual · q
 
-  card:     task · who · verdicts · status · context · agents (sent / running, then one live line per
-            running subagent: type, task, current tool, age) · where
-            · prompt · last · next; footer pinned to the floor: keys line, then usage line
+  jack in:  finds the session's tab in the app that owns it: Ghostty (exact, by tty), iTerm2,
+            Terminal.app, a tmux pane, or the IDE. With --notify + terminal-notifier, clicking a
+            ring banner jumps there too.
 
-  jack in:  ⏎ switches tmux to the session's pane. No tmux? On macOS it focuses the iTerm2 /
-            Terminal.app tab that owns the session, or brings the owning IDE forward for
-            integrated terminals (WebStorm, VS Code, Cursor). tmux is optional:
-            fleet install --with-tmux adds it (brew / apt / dnf) if you want panes.
-
-  extras:   python3 + what the OS has is all it needs. Optional: glow (o renders markdown),
-            terminal-notifier (macOS banners), tmux. `/anderson:fleet --extras` installs the
-            first two, `--with-tmux` the third, `--all` everything; the setup line says which are missing.
+  extras:   python3 is all it needs. Optional: glow (o renders markdown), terminal-notifier (macOS
+            banners), tmux. `/anderson:fleet --extras` installs the first two, `--with-tmux` the third.
 
   data:     found with no setup (ps + transcripts + state.md). This plugin's hooks add the exact
-            waiting/working signal. $ and precise ctx need the statusline heartbeat: use
+            waiting/working signal. ctx and /usage need the statusline heartbeat: use
             bin/statusline.sh, or keep yours and wrap it in settings.json:
               "statusLine": { "type": "command",
                 "command": "bash $ROOT/bin/fleet-statusline.sh bash /ABS/PATH/your-statusline.sh" }
