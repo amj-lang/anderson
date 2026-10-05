@@ -2,20 +2,20 @@
 """
 ⌐■-■  THE OPERATOR — anderson fleet monitor.
 
-One terminal, every Claude Code session: repo · anderson task · persona (who is on the job)
-· stage · model · what it is doing right now · $ · context · age. Runs OUTSIDE Claude
-(plain python curses in a tmux pane, zero tokens). Sessions are the actors; this is the
-Operator watching the screens.
+One terminal tab, every Claude Code session on the machine: what each one is doing, which ones
+wait on you, a jump to its tab, and a place to start the next one. Runs OUTSIDE Claude (python
+stdlib curses, zero tokens).
 
-    python3 bin/fleet.py               # live TUI (needs a TTY; best inside tmux)
+    python3 bin/fleet.py               # live TUI (needs a TTY)
     python3 bin/fleet.py --once        # one plain-text frame, for scripts / non-TTY
-    python3 bin/fleet.py --demo        # add four synthetic sessions (try the UI, no Claude)
     python3 bin/fleet.py --selftest    # alignment invariant: every line == terminal width
     python3 bin/fleet.py --ascii       # single-byte glyphs (CJK locale / odd terminals)
     python3 bin/fleet.py --no-intro    # skip the digital-rain boot
-    python3 bin/fleet.py --theme zion  # matrix · construct · zion · nebuchadnezzar · agent (saved)
     python3 bin/fleet.py --plain       # plain wording instead of Matrix lingo (saved; --lingo reverts)
-    python3 bin/fleet.py --calm        # no motion in any theme (saved; --motion reverts)
+    python3 bin/fleet.py --calm        # no motion (saved; --motion reverts)
+    python3 bin/fleet.py --notify      # desktop banner when a session starts waiting (saved; --no-notify)
+    python3 bin/fleet.py --ring blip   # pick the ring sound, and turn sound on (saved; `m` toggles it)
+    python3 bin/fleet.py --cost        # show the api$ column on a subscription (saved; --no-cost)
     python3 bin/fleet.py --jack SID    # bring that session's terminal tab to the front (banner clicks run this)
     python3 bin/fleet.py --focus       # bring the running fleet's own tab back to the front
 
@@ -27,8 +27,8 @@ Data, richest first, each optional (the view degrades, never breaks):
   ps + lsof + tmux                    sessions with no hooks at all, and the pane to jack into
 
 Keys: ↑↓/jk tune · ⏎/1-9 jack in (revive, if dead; spawn, on a repo) · N new agent · w next ringing
-      o read plan · r kill · b hide · h show hidden · space fold repos · m sound · / filter · ? manual · q
-Prefs (theme, wording, motion, sound) persist in ~/.claude/fleet/prefs.json.
+      o read plan · r kill · b hide · h show hidden · space fold · m sound · / filter · ? manual · q
+Prefs (wording, motion, sound) persist in ~/.claude/fleet/prefs.json.
 """
 import glob, json, os, random, re, shutil, signal, subprocess, sys, time, unicodedata
 
@@ -272,7 +272,7 @@ def read_transcript(path, tail_bytes=262144):
                 out["title"] = txt.split("\n")[0][:120]
         if out["start"] and out["title"] and out["start_cwd"]:
             break
-    recs = []
+    recs, ai_title = [], None
     for ln in reversed(tail[1:] if size > tail_bytes else tail):
         if not ln.strip():
             continue
@@ -280,10 +280,14 @@ def read_transcript(path, tail_bytes=262144):
             d = json.loads(ln)
         except Exception:
             continue
+        if d.get("type") == "ai-title" and d.get("aiTitle") and not ai_title:
+            ai_title = str(d["aiTitle"]).strip()               # Claude's own name for the session (the tab title)
         if d.get("type") in ("assistant", "user"):
             recs.append(d)
-        if len(recs) >= 40:
+        if len(recs) >= 40 and ai_title:
             break
+    if ai_title:
+        out["title"] = ai_title
     if not recs:
         return out
     last = recs[0]
@@ -603,7 +607,7 @@ def enrich(s, now):
         "lines": (s.get("lines_added"), s.get("lines_removed")),
         "start": start, "last_seen": last_seen, "agents": subagents(s.get("transcript_path"), now),
         "idle": status == "ring" and bool(since) and now - since > IDLE_S, "since": since,
-        "start_cwd": tr.get("start_cwd"),
+        "start_cwd": tr.get("start_cwd"), "ended": bool(ev.get("ended")),
         "transcript_path": s.get("transcript_path"),
         "tmux_pane": s.get("tmux_pane"), "tmux_addr": s.get("tmux_addr"),
         "shipped": stage == "done", "hb_ts": s.get("hb_ts"),
@@ -718,7 +722,7 @@ _WS_BASE = dict(
     pid=None, cwd="", root="", task="", title="", stage="", persona="", pglyph="", mood="", model="",
     iteration=None, max_iter=None, plan_verdict=None, diff_verdict=None, branch=None, gate="", tier="",
     dejavu=False, text="", cost=None, ctx_pct=None, ctx_tokens=None, lines=(None, None),
-    start=None, last_seen=None, agents=(0, 0, ""), idle=False, transcript_path=None, since=None,
+    start=None, last_seen=None, agents=(0, 0, ""), idle=False, transcript_path=None, since=None, ended=False,
     start_cwd=None, tmux_pane=None, tmux_addr=None, shipped=False, hb_ts=None, hidden=False, status="work",
 )
 
@@ -742,12 +746,26 @@ def hides(h, name):
     return name == h or name.startswith(h + "/") or name.endswith("/" + h)
 
 
-def ws_rows(sessions, ws, filt="", folded=False, hidden=(), show_hidden=False):
-    """Two sections: every live session (discover()'s order, ringing first), then the workspace's
-    repos, the places N spawns a new agent. `hidden` names repos dismissed with `b`: left out of
-    the repos section until show_hidden. folded: the repos section is one header line."""
+DEAD_FOLD_S = 3600        # a crashed session stays in view this long, then folds into the `dead` line
+
+
+def ws_rows(sessions, ws, filt="", folded=False, hidden=(), show_hidden=False, dead_open=False, now=None):
+    """The screen, top to bottom: sessions (discover()'s order, ringing first), a folded `dead (n)`
+    line (dead_open unfolds it), then the workspace's repos,
+    the places N spawns a new agent. `hidden` names repos dismissed with `b`: left out until
+    show_hidden. folded: the repos section is one header line."""
+    now = time.time() if now is None else now
     fl = (filt or "").lower()
-    out = [s for s in sessions if not fl or fl in (s.get("repo", "") + " " + s.get("task", "") + " " + s.get("title", "")).lower()]
+    shown = [s for s in sessions if not fl or fl in (s.get("repo", "") + " " + s.get("task", "") + " " + s.get("title", "")).lower()]
+    # you closed it (SessionEnd): history at once. It died on you (crash, kill): news for an hour
+    old = lambda s: s.get("status") == "sentinel" and (s.get("ended") or now - (s.get("last_seen") or 0) > DEAD_FOLD_S)
+    out = [s for s in shown if not old(s)]
+    dead = [s for s in shown if old(s)]
+    if dead:
+        out.append({**_WS_BASE, "sid": "section:dead", "kind": "section", "repo": f"dead ({len(dead)})",
+                    "collapsed": not dead_open, "now": "closed, or gone for over an hour · ⏎ on one resumes it · b clears it"})
+        if dead_open:
+            out += dead
     hid = lambda name: any(hides(h, name) for h in hidden)
     repos = [r for r in scan_workspace(ws) if show_hidden or not hid(r["name"])]
     repos = [r for r in repos if not fl or fl in r["name"].lower()]
@@ -769,77 +787,21 @@ def ws_rows(sessions, ws, filt="", folded=False, hidden=(), show_hidden=False):
     return out
 
 
-# ───────────────────────────────────────────────────────────────────── demo
-def demo_rows():
-    now = time.time()
-    base = dict(pid=None, cwd="", root="", plan_verdict="ship", diff_verdict="pending", lines=(212, 48),
-                tmux_pane=None, tmux_addr=None, shipped=False, hb_ts=now, last_seen=now, sid="demo")
-    mk = lambda **k: {**base, **k}
-    st = lambda s: PERSONA[s]
-    return [
-        mk(sid="demo-1", repo="fashion-webapp-2", task="ar-2270-sku-images-lightbox", stage="diff_review",
-           persona=st("diff_review")[1], pglyph=PGLYPH["smith"], mood="adversary", model="opus/xhigh",
-           iteration="1", max_iter="2", dejavu=True, status="ring", now=f"{G['ring']} ring",
-           text="47 passed, 0 failed. Verdict: fix_first, one unproven criterion.", cost=1.42, ctx_pct=61,
-           start=now - 12 * 60, diff_verdict="fix_first", tier="hard"),
-        mk(sid="demo-2", repo="ai-shoot-service", task="remove-db-triggers", stage="implement",
-           persona=st("implement")[1], pglyph=PGLYPH["neo"], mood="action", model="sonnet/medium",
-           iteration="0", max_iter="2", dejavu=False, status="work", now=f"{G['run']} Edit orders.py",
-           text="Replacing the trigger with an explicit write in process_order().", cost=0.88, ctx_pct=34,
-           start=now - 4 * 60, tier="normal"),
-        mk(sid="demo-3", repo="claude-loop", task="readbility", stage="grill",
-           persona=st("grill")[1], pglyph=PGLYPH["grill"], mood="insight", model="you",
-           iteration="0", max_iter="2", dejavu=False, status="ring", now=f"{G['ring']} ring",
-           text="Question 3 of 7: should the What block cap at three lines or three sentences?", cost=0.12,
-           ctx_pct=9, start=now - 41 * 60, tier="trivial"),
-        mk(sid="demo-4", repo="fashion-webapp-2", task="sku-bulk-upload", stage="plan",
-           persona=st("plan")[1], pglyph=PGLYPH["arch"], mood="design", model="opus/medium",
-           iteration="2", max_iter="2", dejavu=True, status="sentinel", now=f"{G['dead']} sentinel",
-           text="", cost=0.31, ctx_pct=None, start=now - 2 * 3600, pid=None, tier="critical"),
-    ]
-
-
-# ────────────────────────────────────────────────────────────────── themes
-# Five looks. `t` cycles them live; --theme <name> sets one; the choice persists in
-# ~/.claude/fleet/theme. Motion is opt-in per theme: rain = header tail, pulse = ringing rows
-# breathe (1/s), spin = a quiet spinner in the header. --calm turns all motion off.
-THEMES = {
-    "matrix":   dict(desc="green phosphor, header rain, rings breathe",
-                     hdr="green", accent="green", ring="green", dead="dim", bar="green", quote="green",
-                     rain=True, pulse=True, spin=False, eggs="full"),
-    "construct": dict(desc="white void, no motion, quotes only",
-                     hdr="white", accent="white", ring="white", dead="dim", bar="white", quote="dim",
-                     rain=False, pulse=False, spin=False, eggs="quiet"),
-    "zion":     dict(desc="amber machine level, slow spinner",
-                     hdr="amber", accent="amber", ring="yellow", dead="dim", bar="amber", quote="amber",
-                     rain=False, pulse=False, spin=True, eggs="full"),
-    "nebuchadnezzar": dict(desc="cold blue ship console, heartbeat dot",
-                     hdr="cyan", accent="blue", ring="cyan", dead="dim", bar="blue", quote="cyan",
-                     rain=False, pulse=True, spin=False, eggs="full"),
-    "agent":    dict(desc="monochrome suit, red alerts, adversary lines",
-                     hdr="white", accent="dim", ring="red", dead="dim", bar="white", quote="red",
-                     rain=False, pulse=False, spin=False, eggs="smith"),
-}
-THEME_ORDER = list(THEMES)
-THEME = dict(THEMES["matrix"], name="matrix")
-PREFS_FILE = os.path.join(FLEET_DIR, "prefs.json")   # {theme, plain, calm}: chosen once, kept
-SPIN = "◐◓◑◒"
+# ────────────────────────────────────────────────────────────────── look
+# Matrix green. --calm turns the motion off: the header's rain tail and ringing rows breathing 1/s.
+THEME = dict(hdr="green", accent="green", ring="green", dead="dim", bar="green", quote="green", rain=True, pulse=True)
+PREFS_FILE = os.path.join(FLEET_DIR, "prefs.json")   # {plain, calm, sound, ...}: chosen once, kept
 PLAIN = False        # wording: False = Matrix lingo (zion / jacked in / ringing / sentinel), True = plain
 
 
-def set_theme(name, calm=False):
-    global THEME
-    name = name if name in THEMES else "matrix"
-    THEME = dict(THEMES[name], name=name)
-    if calm:
-        THEME.update(rain=False, pulse=False, spin=False)
-    return THEME
+def set_calm(calm):
+    THEME.update(rain=not calm, pulse=not calm)
 
 
 def load_prefs():
     d = jload(PREFS_FILE) or {}
     ws = d.get("workspaces")
-    return {"theme": d.get("theme") or "matrix", "plain": bool(d.get("plain")), "calm": bool(d.get("calm")),
+    return {"plain": bool(d.get("plain")), "calm": bool(d.get("calm")),
             "cost": bool(d.get("cost")), "notify": bool(d.get("notify")),
             "sound": bool(d.get("sound")), "ring": d.get("ring") or "phone",
             "workspaces": ws if isinstance(ws, dict) else {}}
@@ -938,11 +900,9 @@ def boot_line():
 
 def quote_for(row, t=None):
     t = time.time() if t is None else t
-    if THEME.get("eggs") == "quiet":
-        return ""
-    if row.get("stage") == "diff_review" and row.get("diff_verdict") == "fix_first" and THEME.get("eggs") != "quiet":
+    if row.get("stage") == "diff_review" and row.get("diff_verdict") == "fix_first":
         return "Mr. Anderson… did you think that test would pass?"
-    mood = "adversary" if THEME.get("eggs") == "smith" else (row.get("mood") or "")
+    mood = row.get("mood") or ""
     pool = QUOTES.get(mood, []) or [x for v in QUOTES.values() for x in v]
     if not pool:
         return ""
@@ -951,18 +911,15 @@ def quote_for(row, t=None):
 
 # ──────────────────────────────────────────────────────────────── rendering
 COLS = [  # key, title, width (None = elastic), align, min terminal width to show
-    ("flag",    "",        2,    "l", 0),
-    ("repo",    "repo",    None, "l", 0),
-    ("task",    "task",    None, "l", 0),
-    ("persona", "persona", 14,   "l", 0),
-    ("stage",   "stage",   15,   "l", 0),
-    ("tier",    "tier",    8,    "l", 110),
-    ("model",   "model",   13,   "l", 140),
-    ("now",     "now",     22,   "l", 85),
-    ("cost",    "api$",    6,    "r", 100),
-    ("ctx",     "ctx",     15,   "l", 120),
-    ("ctxp",    "ctx",     4,    "r", 0),      # compact ctx, only when the bar is hidden
-    ("age",     "age",     4,    "r", 100),
+    ("flag",     "",         2,    "l", 0),
+    ("repo",     "repo",     None, "l", 0),
+    ("task",     "task",     None, "l", 0),
+    ("pipeline", "pipeline", 24,   "l", 100),   # persona glyph · stage n/max · tier, blank without anderson
+    ("now",      "now",      32,   "l", 0),
+    ("cost",     "api$",     6,    "r", 110),
+    ("ctx",      "ctx",      15,   "l", 130),
+    ("ctxp",     "ctx",      4,    "r", 0),     # compact ctx, only when the bar is hidden
+    ("age",      "age",      4,    "r", 90),
 ]
 PREFIX = 3   # margin + cursor + space
 
@@ -979,14 +936,14 @@ def layout(width):
     fixed = sum(c[2] for c in cols if c[2]) + 2 * (len(cols) - 1) + PREFIX
     free = width - fixed
     while free < 20 and len(cols) > 4:                 # too narrow: shed from the right
-        drop = [c for c in cols if c[0] not in ("flag", "repo", "task", "persona", "stage")]
+        drop = [c for c in cols if c[0] not in ("flag", "repo", "task", "now")]
         if not drop:
             break
         cols.remove(drop[-1])
         fixed = sum(c[2] for c in cols if c[2]) + 2 * (len(cols) - 1) + PREFIX
         free = width - fixed
     free = max(free, 4)
-    rw = max(2, min(28, int(free * 0.4))); tw = max(2, min(56, free - rw))   # caps: wide terminals stay readable
+    rw = max(2, min(24, int(free * 0.35))); tw = max(2, min(60, free - rw))   # caps: wide terminals stay readable
     return [(k, t, (rw if k == "repo" else tw if k == "task" else w), a) for k, t, w, a, _ in cols]
 
 
@@ -1059,19 +1016,15 @@ def cell(row, key, frame):
     if key == "task":
         if row["task"]:
             return row["task"]
-        # the title survives death: you need it to know what a sentinel was, to resume it
-        return f"\"{row['title']}\"" if row.get("title") else ("(no anderson task)" if row["status"] != "sentinel" else "")
-    if key == "persona":
-        return f"{row['pglyph']} {row['persona']}"
-    if key == "stage":
-        s = row["stage"] or "—"
-        if row.get("iteration") is not None and row.get("max_iter"):
-            s += f" {row['iteration']}/{row['max_iter']}"
-        return s
-    if key == "tier":
-        return TIER_LABEL.get(row.get("tier") or "", "")
-    if key == "model":
-        return row["model"]
+        # Claude's own title for the session (else its first prompt); it survives death, so a
+        # sentinel still says what it was
+        return row.get("title") or ""
+    if key == "pipeline":
+        if not row.get("stage"):
+            return ""
+        it = f" {row['iteration']}/{row['max_iter']}" if row.get("iteration") is not None and row.get("max_iter") else ""
+        tier = TIER_LABEL.get(row.get("tier") or "", "")
+        return f"{row['pglyph']} {row['stage']}{it}" + (f" {tier}" if tier else "")
     if key == "now":
         return row["now"]
     if key == "cost":
@@ -1088,8 +1041,6 @@ def cell(row, key, frame):
 def header_tail(frame):
     if THEME.get("rain"):
         return "  " + G["rain"][frame % 4]
-    if THEME.get("spin"):
-        return "  " + (SPIN[frame % 4] if not is_ascii() else "|/-\\"[frame % 4])
     if THEME.get("pulse"):
         return "  " + ("·" if frame % 2 else " ")
     return ""
@@ -1238,7 +1189,7 @@ def render(rows, width, sel=0, frame=0, filt="", toast="", burst=(), t=None, hei
     lines.append(("hdr", fit(fit(left, max(0, W - dw(right) - 1)) + " " + right, W)))
     lim = usage_limits(bars=True)
     if lim:                                      # the plan's windows: the number to keep an eye on, so it lives up here
-        lines.append(("usage_hot" if usage_hot() else "usage", fit(f"{G['det']} {THEME['name']} · {lim}", W)))
+        lines.append(("usage_hot" if usage_hot() else "usage", fit(f"{G['det']} {lim}", W)))
     foot = footer(rows, W, filt, all_rows=all_rows)
     off, vis_n = _row_window(rows, W, filt, height, sel)
     view = rows[off:off + vis_n]
@@ -1321,7 +1272,7 @@ def footer(rows, W, filt="", all_rows=None):
         keys = f"/{filt}_   (esc clears)"
     usage = ""
     if not lim:
-        usage = f"{THEME['name']} · api est ${fleet:.2f}"
+        usage = f"api est ${fleet:.2f}"
     elif SHOW_COST:
         usage = f"api est ${fleet:.2f} (the plan is a flat fee; this is what the tokens would cost on the API)"
     out = [("rule", rule(W))]
@@ -1408,7 +1359,8 @@ MANUAL = """
                  how long. It rings once, 5 s after it starts waiting, so a turn that carries on
                  by itself never rings. After 5 minutes the row goes white and still
   ▶  work        model thinking, or a tool / subagent running
-  ✝  sentinel    the process is gone; the row stays until you hide it with b
+  ✝  sentinel    the process died without exiting. After an hour it folds into the `dead (n)` line,
+                 where sessions you closed go straight away; b clears one
   ⟲  déjà vu     the loop repeated (iteration > 0)
   red ctx        context past 80%: /compact before the next review eats the budget
 
@@ -1432,15 +1384,15 @@ MANUAL = """
   r         kill         SIGTERM the session (asks first); the row goes with it
   b         hide         hide a row or a repo (the process is left alone); on a hidden one: show it
   h         hidden       list the hidden rows and repos too, dim
-  space     fold         fold / unfold the repo list (saved)
+  space     fold         fold / unfold the repo list (saved), or the `dead` line under the cursor
   m         sound        ring sound on/off, for every running fleet at once (saved)
   /         filter       substring on repo · task ; esc clears
   ?         this         any key closes
   q         quit
 
   back to fleet from a session: `fleet --focus` brings this tab forward (bind it to a hotkey).
-  flags: --theme NAME · --plain · --calm · --cost · --notify · --ring NAME · --rings · --play all
-         --ping · --demo · --once · --ascii · --no-intro.  prefs: ~/.claude/fleet/prefs.json
+  flags: --plain · --calm · --cost · --notify · --ring NAME · --once · --ascii · --no-intro
+         (saved in ~/.claude/fleet/prefs.json)
 """
 
 
@@ -1886,6 +1838,11 @@ FLEET_TITLE = "⌐■-■ fleet"      # this tab's title while fleet runs: finda
 RING_SETTLE_S = 5               # a ring alerts only once it has lasted this long: a turn that carries on by itself never rings
 
 
+def spawned_row(rows, root, before):
+    """The session N just started: in that repo (worktrees count as their repo), and not in `before`."""
+    return next((r for r in rows if r["sid"] not in before and not r.get("kind") and session_root(r) == root), None)
+
+
 def due_rings(rows, rung, now):
     """(rows to alert for now, new `rung`). A ring alerts once, and only after RING_SETTLE_S: a Stop
     another hook blocks (the scheduler chaining a stage) is followed by tool events within seconds,
@@ -1897,7 +1854,6 @@ def due_rings(rows, rung, now):
 
 def run_tui(args):
     import curses
-    demo = "--demo" in args
     intro = "--no-intro" not in args
     tty = _own_tty()
     try:
@@ -1946,6 +1902,8 @@ def run_tui(args):
         hidden_repos, folded = set(wp["hidden"]), wp["folded"]
         prompt_mode, menu_mode, prompt_row, prompt_buf = False, False, None, ""
         pending_sel_sid = None
+        dead_open = False
+        spawn_watch = None     # (repo root, sids before the spawn, when): select the new agent once it shows up
 
         def say(msg, secs=3):
             nonlocal toast, toast_until
@@ -1959,15 +1917,20 @@ def run_tui(args):
             prompt_mode, prompt_row, prompt_buf = True, (row if row.get("kind") == "repo" else repo_target(session_root(row))), ""
             return ""
 
-        def toggle_fold():
-            nonlocal folded, last_scan
-            folded = not folded
-            save_ws_prefs(ws, folded=folded); last_scan = 0
+        def toggle_fold(row=None):
+            """space / ⏎ on a section line: fold or unfold it. Anywhere else, space folds the repos."""
+            nonlocal folded, dead_open, last_scan
+            if row and row["sid"] == "section:dead":
+                dead_open = not dead_open
+            else:
+                folded = not folded
+                save_ws_prefs(ws, folded=folded)
+            last_scan = 0
 
         def activate(row):
-            """`⏎` / `1`-`9`: a session jacks in, a repo opens the spawn box, the section folds."""
+            """`⏎` / `1`-`9`: a session jacks in, a repo opens the spawn box, a section folds."""
             if row.get("kind") == "section":
-                toggle_fold(); return ""
+                toggle_fold(row); return ""
             if row.get("kind") == "repo":
                 return spawn_into(row)
             return jack_in(row)
@@ -1994,8 +1957,14 @@ def run_tui(args):
                 p = load_prefs()                      # live: `m` in another fleet mutes this one too
                 SOUND, NOTIFY, RING = p["sound"], p["notify"], p["ring"]
                 all_rows = discover()
-                if demo:
-                    all_rows = demo_rows() + all_rows
+                if spawn_watch:
+                    root, before, t0 = spawn_watch
+                    new = spawned_row(all_rows, root, before)
+                    if new:
+                        pending_sel_sid, spawn_watch = new["sid"], None
+                        say(f"new agent up in {new['repo']}: selected, ⏎ jumps to it.", 6)
+                    elif now - t0 > 180:
+                        spawn_watch = None
                 fresh, rung = due_rings(all_rows, rung, now)
                 fresh = fresh if last_scan else []    # first scan: whatever rings already is old news
                 fresh = [r for r in fresh if not ((NOTIFY or SOUND) and looking_at(r))]  # you're on it already
@@ -2003,7 +1972,7 @@ def run_tui(args):
                     if NOTIFY:
                         notify(label(r), r["now"], r["sid"])
                 if fresh:
-                    say(f"Wake up, Neo…  {label(fresh[0])} needs you." if THEME["eggs"] != "quiet" else f"{label(fresh[0])} needs you.", 5)
+                    say(f"Wake up, Neo…  {label(fresh[0])} needs you.", 5)
                     if SOUND:
                         ring_sound()                  # once, however many rang together
                 new_hot = hot_rows(all_rows)
@@ -2018,10 +1987,9 @@ def run_tui(args):
                 for sid in new_ship - shipped:
                     if last_scan:
                         burst[sid] = now + 1.2
-                        if THEME["eggs"] != "quiet":
-                            say("He is The One.", 4)
+                        say("He is The One.", 4)
                 shipped = new_ship
-                rows = ws_rows(all_rows, ws, filt, folded, hidden_repos, SHOW_HIDDEN)
+                rows = ws_rows(all_rows, ws, filt, folded, hidden_repos, SHOW_HIDDEN, dead_open, now)
                 if pending_sel_sid:
                     sel = next((i for i, rr in enumerate(rows) if rr["sid"] == pending_sel_sid), sel)
                     pending_sel_sid = None
@@ -2111,7 +2079,10 @@ def run_tui(args):
                 if k == 27:
                     menu_mode, prompt_row, prompt_buf = False, None, ""
                 elif k in (ord("p"), ord("a"), ord("A")):
-                    say(launch_agent(prompt_row, prompt_buf, chr(k)), 6)
+                    msg = launch_agent(prompt_row, prompt_buf, chr(k))
+                    if msg.startswith("Operator."):
+                        spawn_watch = (os.path.realpath(prompt_row["path"]), {x["sid"] for x in all_rows}, time.time())
+                    say(msg, 6)
                     menu_mode, prompt_row, prompt_buf = False, None, ""
                 continue
             if confirm:
@@ -2177,7 +2148,7 @@ def run_tui(args):
                 SHOW_HIDDEN = not SHOW_HIDDEN; last_scan = 0
                 say(f"hidden rows and repos shown ({G['hid']} dim) · b on one brings it back" if SHOW_HIDDEN else "hidden rows hidden.", 5)
             elif k == ord(" "):
-                toggle_fold()
+                toggle_fold(r if r and r.get("kind") == "section" else None)
             elif k == ord("m"):
                 SOUND = not SOUND; save_prefs(sound=SOUND)
                 if SOUND:
@@ -2565,8 +2536,8 @@ def selftest():
     tree_words = ["autoretouch", "日本語のタスク", "a-very-long-repository-name-that-goes-on-and-on-and-on", "x"]
     tree_rows_fuzz = [{**_WS_BASE, "sid": "section:repos", "kind": "section", "repo": "repos (4)", "now": "N spawns"}]
     tree_rows_fuzz += [{**repo_target(f"/tmp/ws/{nm}", nm), "now": "2 agents"} for nm in tree_words]
-    for theme in THEME_ORDER:
-        set_theme(theme)
+    for calm in (False, True):
+        set_calm(calm)
         for width in list(range(60, 221, 7)) + [40, 300]:
             rows = list(tree_rows_fuzz)
             for i in range(12):
@@ -2586,8 +2557,8 @@ def selftest():
                 for kind, ln in lines:
                     if dw(ln) != max(40, width):
                         fails += 1
-                        print(f"MISALIGNED theme={theme} width={width} kind={kind} got={dw(ln)}: {ln!r}")
-    set_theme("matrix")
+                        print(f"MISALIGNED calm={calm} width={width} kind={kind} got={dw(ln)}: {ln!r}")
+    set_calm(False)
     assert dw(fit("日本語", 4)) == 4
     assert dw(fit("éx", 3)) == 3
     # viewport: more rows than the terminal has lines -> the footer and the selected row must
@@ -2605,7 +2576,7 @@ def selftest():
         fails += 1; print("VIEWPORT: footer is not the last line")
     if not any(kind.endswith("_sel") for kind, _ in vlines):
         fails += 1; print("VIEWPORT: selected row not painted")
-    print("alignment selftest:", "FAIL" if fails else "ok", f"({fails} bad lines, {len(THEME_ORDER)} themes)")
+    print("alignment selftest:", "FAIL" if fails else "ok", f"({fails} bad lines)")
     return 1 if fails else 0
 
 
@@ -2621,94 +2592,24 @@ def main(argv):
         return 0
     if "--ascii" in args or (os.environ.get("LANG", "").lower()[:2] in ("ja", "zh", "ko") and "--unicode" not in args):
         use_ascii()
-    global PLAIN
+    global PLAIN, SHOW_COST, NOTIFY, SOUND, RING
     prefs = load_prefs()
-    theme = prefs["theme"]
-    for a in args:
-        if a.startswith("--theme="):
-            theme = a.split("=", 1)[1]
-    if "--theme" in args and args.index("--theme") + 1 < len(args):
-        theme = args[args.index("--theme") + 1]
-    if "--plain" in args:
-        prefs["plain"] = True
-    if "--lingo" in args:
-        prefs["plain"] = False
-    if "--calm" in args:
-        prefs["calm"] = True
-    if "--motion" in args:
-        prefs["calm"] = False
-    if "--cost" in args:
-        prefs["cost"] = True
-    if "--no-cost" in args:
-        prefs["cost"] = False
-    if "--notify" in args:
-        prefs["notify"] = True
-    if "--no-notify" in args:
-        prefs["notify"] = False
-    if "--sound" in args:
-        prefs["sound"] = True
-    if "--no-sound" in args:
-        prefs["sound"] = False
+    for on, off, key in (("--plain", "--lingo", "plain"), ("--calm", "--motion", "calm"), ("--cost", "--no-cost", "cost"),
+                         ("--notify", "--no-notify", "notify"), ("--sound", "--no-sound", "sound")):
+        if on in args:
+            prefs[key] = True
+        if off in args:
+            prefs[key] = False
     if "--ring" in args and len(args) > args.index("--ring") + 1:
-        prefs["ring"] = args[args.index("--ring") + 1]; prefs["sound"] = True
-    for a in args:
-        if a.startswith("--ring="):
-            prefs["ring"] = a.split("=", 1)[1]; prefs["sound"] = True
-    global SHOW_COST, NOTIFY, SOUND, RING
-    SHOW_COST = prefs["cost"]; NOTIFY = prefs["notify"]; SOUND = prefs["sound"]; RING = prefs["ring"]
-    if "--rings" in args:
-        for n in sound_names():
-            print(f"  {n:8} {'◂ current' if n == RING else ''}  {sound_file(n)}")
-        print("  hear one: fleet --play NAME   ·   pick: fleet --ring NAME")
-        return 0
-    if "--ping" in args:
-        print("sending a test banner through every channel; note which ones you actually see:")
-        if sys.platform == "darwin":
-            tn = shutil.which("terminal-notifier")
-            if tn:
-                r = subprocess.run([tn, "-title", "THE OPERATOR", "-subtitle", "ping 1/2", "-message", "terminal-notifier channel",
-                                    "-group", "anderson-fleet-ping"], capture_output=True, text=True)
-                print(f"  1. terminal-notifier   rc {r.returncode}  {r.stderr.strip() or r.stdout.strip() or 'no output'}")
-                print("     not shown? System Settings › Notifications › terminal-notifier: Allow Notifications ON, style Banners or Alerts")
-            else:
-                print("  1. terminal-notifier   not installed (brew install terminal-notifier); it is the reliable channel")
-            r = subprocess.run(["osascript", "-e", 'display notification "osascript channel" with title "THE OPERATOR" subtitle "ping 2/2"'],
-                               capture_output=True, text=True, timeout=10)
-            print(f"  2. osascript           rc {r.returncode}  {r.stderr.strip() or 'no output'}")
-            print("     not shown? System Settings › Notifications › Script Editor: Allow Notifications ON")
-            print("  also: a Focus mode (Do Not Disturb) hides both; the fleet ring sound is independent of all this")
-        elif shutil.which("notify-send"):
-            r = subprocess.run(["notify-send", "THE OPERATOR", "ping"], capture_output=True, text=True)
-            print(f"  notify-send rc {r.returncode} {r.stderr.strip()}")
-        else:
-            print("  no notification channel on this platform")
-        return 0
-    if "--play" in args:
-        i = args.index("--play")
-        name = args[i + 1] if len(args) > i + 1 and not args[i + 1].startswith("-") else RING
-        if name != "all":
-            names = [name]
-        else:
-            names = sound_names()
-        for n in names:
-            f = sound_file(n)
-            if not f:
-                print(f"no sound named '{n}'  (fleet --rings lists them)"); return 1
-            print(f"  ▶ {n}")
-            for player in (["afplay"], ["paplay"], ["aplay", "-q"]):
-                if shutil.which(player[0]):
-                    subprocess.run(player + [f]); break
-            else:
-                print("no player found (afplay / paplay / aplay)"); return 1
-        return 0
-    PLAIN = prefs["plain"]
-    if theme in THEMES and "--selftest" not in args and "--once" not in args:
-        save_prefs(theme=theme, plain=prefs["plain"], calm=prefs["calm"], cost=prefs["cost"], notify=prefs["notify"], sound=prefs["sound"], ring=prefs["ring"])
-    set_theme(theme or "matrix", calm=prefs["calm"])
-    if "--themes" in args:
-        for n, t in THEMES.items():
-            print(f"  {n:16} {t['desc']}")
-        return
+        name = args[args.index("--ring") + 1]
+        if name not in sound_names():
+            print(f"no ring sound '{name}'. pick one of: {' · '.join(sound_names())}  (or drop a .wav in {SOUNDS_USER})")
+            return 1
+        prefs["ring"], prefs["sound"] = name, True
+    PLAIN, SHOW_COST, NOTIFY, SOUND, RING = prefs["plain"], prefs["cost"], prefs["notify"], prefs["sound"], prefs["ring"]
+    if "--selftest" not in args and "--once" not in args:
+        save_prefs(**{k: prefs[k] for k in ("plain", "calm", "cost", "notify", "sound", "ring")})
+    set_calm(prefs["calm"])
     if "--selftest" in args:
         sys.exit(selftest())
     width = shutil.get_terminal_size((120, 30)).columns
@@ -2717,8 +2618,6 @@ def main(argv):
             width = int(a.split("=", 1)[1])
     if "--once" in args or not sys.stdout.isatty():
         all_rows = discover()
-        if "--demo" in args:
-            all_rows = demo_rows() + all_rows
         ws = workspace_root(os.getcwd())
         wp = ws_prefs(ws)
         rows = ws_rows(all_rows, ws, "", wp["folded"], set(wp["hidden"]))

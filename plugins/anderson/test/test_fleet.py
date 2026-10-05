@@ -4,6 +4,9 @@ with any content (CJK, accents, emoji, empty, overlong)."""
 from unittest import mock
 import importlib.util, json, os, pathlib, subprocess, sys, tempfile, time, unittest
 
+import sys as _sys; _sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from fleet_fixtures import demo_rows
+
 BIN = pathlib.Path(__file__).resolve().parents[1] / "bin"
 HOOKS = pathlib.Path(__file__).resolve().parents[1] / "hooks"
 
@@ -40,7 +43,7 @@ class TestWidth(unittest.TestCase):
 
 class TestRender(unittest.TestCase):
     def test_every_line_is_terminal_width(self):
-        rows = fleet.demo_rows()
+        rows = demo_rows(fleet)
         for width in list(range(40, 240, 9)) + [300]:
             for lines in (fleet.render(rows, width, sel=1, frame=3, toast="Wake up, Neo…", burst={"demo-2"}),
                           fleet.render([], width), fleet.render(rows, width, filt="fash")):
@@ -50,10 +53,10 @@ class TestRender(unittest.TestCase):
     def test_layout_sheds_columns_when_narrow(self):
         wide = {k for k, *_ in fleet.layout(200)}
         narrow = {k for k, *_ in fleet.layout(80)}
-        self.assertIn("model", wide); self.assertIn("ctx", wide)
-        self.assertNotIn("model", narrow); self.assertNotIn("ctx", narrow)
+        self.assertIn("pipeline", wide); self.assertIn("ctx", wide)
+        self.assertNotIn("pipeline", narrow); self.assertNotIn("ctx", narrow)
         self.assertIn("ctxp", narrow)                  # compact ctx replaces the bar
-        for k in ("repo", "task", "persona", "stage"):
+        for k in ("repo", "task", "now"):              # what it is and what it is doing never go
             self.assertIn(k, narrow)
 
     def test_empty_fleet_has_no_spoon(self):
@@ -134,12 +137,14 @@ class TestState(unittest.TestCase):
             d = pathlib.Path(tmp) / "feature-research" / "t"; d.mkdir(parents=True)
             (d / "state.md").write_text("task: t\nstage: implement\ntier: critical\n")
             self.assertEqual(fleet.anderson_state(tmp)["tier"], "critical")
-        self.assertEqual(fleet.cell({"tier": "critical"}, "tier", 0), "CRITICAL")
-        self.assertEqual(fleet.cell({"tier": "trivial"}, "tier", 0), "triv")
-        self.assertEqual(fleet.cell({"tier": ""}, "tier", 0), "")          # no pipeline: blank, not a guess
-        head = next(ln for kind, ln in fleet.render(fleet.demo_rows(), 160) if kind == "colhdr")
-        self.assertIn("tier", head)
-        self.assertTrue(any("CRITICAL" in ln for _, ln in fleet.render(fleet.demo_rows(), 160)))
+        row = {"stage": "implement", "pglyph": "●", "iteration": "1", "max_iter": "2"}
+        self.assertEqual(fleet.cell({**row, "tier": "critical"}, "pipeline", 0), "● implement 1/2 CRITICAL")
+        self.assertEqual(fleet.cell({**row, "tier": "trivial"}, "pipeline", 0), "● implement 1/2 triv")
+        self.assertEqual(fleet.cell({**row, "tier": ""}, "pipeline", 0), "● implement 1/2")
+        self.assertEqual(fleet.cell({"stage": ""}, "pipeline", 0), "")       # no pipeline: blank, not a guess
+        head = next(ln for kind, ln in fleet.render(demo_rows(fleet), 160) if kind == "colhdr")
+        self.assertIn("pipeline", head)
+        self.assertTrue(any("CRITICAL" in ln for _, ln in fleet.render(demo_rows(fleet), 160)))
 
     def test_enc_cwd_matches_claude_projects_dir(self):
         self.assertEqual(fleet.enc_cwd("/Users/alex_mj/workspace/claude-loop"), "-Users-alex-mj-workspace-claude-loop")
@@ -292,30 +297,27 @@ class TestPrefsAndWording(unittest.TestCase):
             fleet.FLEET_DIR = tmp; fleet.PREFS_FILE = os.path.join(tmp, "prefs.json")
             try:
                 p0 = fleet.load_prefs()
-                self.assertEqual((p0["theme"], p0["plain"], p0["calm"]), ("matrix", False, False))
-                fleet.save_prefs(theme="zion", plain=True)
+                self.assertEqual((p0["plain"], p0["calm"]), (False, False))
+                fleet.save_prefs(plain=True)
                 p1 = fleet.load_prefs()
-                self.assertEqual((p1["theme"], p1["plain"], p1["calm"]), ("zion", True, False))
+                self.assertEqual((p1["plain"], p1["calm"]), (True, False))
                 fleet.save_prefs(calm=True)                        # partial update keeps the rest
-                self.assertEqual(fleet.load_prefs()["theme"], "zion")
+                self.assertTrue(fleet.load_prefs()["plain"])
                 fleet.PLAIN = True
-                hdr = fleet.render(fleet.demo_rows(), 120)[0][1]
+                hdr = fleet.render(demo_rows(fleet), 120)[0][1]
                 self.assertIn("fleet ·", hdr); self.assertIn("waiting", hdr); self.assertNotIn("zion", hdr)
                 fleet.PLAIN = False
-                hdr = fleet.render(fleet.demo_rows(), 120)[0][1]
+                hdr = fleet.render(demo_rows(fleet), 120)[0][1]
                 self.assertIn("zion ·", hdr); self.assertIn("jacked in", hdr)
             finally:
                 fleet.FLEET_DIR, fleet.PREFS_FILE, fleet.PLAIN = old_dir, old_prefs, old_plain
 
-    def test_every_theme_renders_aligned(self):
-        for name in fleet.THEME_ORDER:
-            fleet.set_theme(name)
-            for kind, ln in fleet.render(fleet.demo_rows(), 100, frame=1):
-                self.assertEqual(fleet.dw(ln), 100, (name, kind))
-        fleet.set_theme("matrix")
-
-    def test_unknown_theme_falls_back(self):
-        self.assertEqual(fleet.set_theme("neo-tokyo")["name"], "matrix")
+    def test_calm_and_motion_render_aligned(self):
+        for calm in (True, False):
+            fleet.set_calm(calm)
+            self.assertEqual(fleet.THEME["pulse"], not calm)
+            for kind, ln in fleet.render(demo_rows(fleet), 100, frame=1):
+                self.assertEqual(fleet.dw(ln), 100, (calm, kind))
 
 
 class TestLauncher(unittest.TestCase):
@@ -326,7 +328,7 @@ class TestLauncher(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
             shim = os.path.join(tmp, "fleet")
             self.assertTrue(os.access(shim, os.X_OK))
-            r = subprocess.run(["bash", shim, "--once", "--demo", "--width=90"], env=env, capture_output=True, text=True)
+            r = subprocess.run(["bash", shim, "--once", "--width=90"], env=env, capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertIn("T H E  O P E R A T O R", r.stdout)
             for ln in r.stdout.rstrip("\n").split("\n"):
@@ -500,7 +502,7 @@ class TestUsageLimits(unittest.TestCase):
                     self.assertIn("cost", {k for k, *_ in fleet.layout(200)})
                 finally:
                     fleet.SHOW_COST = False
-                for kind, ln in fleet.render(fleet.demo_rows(), 140):
+                for kind, ln in fleet.render(demo_rows(fleet), 140):
                     self.assertEqual(fleet.dw(ln), 140)
             finally:
                 fleet.FLEET_DIR = old
@@ -541,8 +543,8 @@ class TestPidResolution(unittest.TestCase):
 
     def test_layout_caps_elastic_columns(self):
         widths = {k: w for k, _, w, _ in fleet.layout(300)}
-        self.assertLessEqual(widths["repo"], 28); self.assertLessEqual(widths["task"], 56)
-        for kind, ln in fleet.render(fleet.demo_rows(), 300):
+        self.assertLessEqual(widths["repo"], 24); self.assertLessEqual(widths["task"], 60)
+        for kind, ln in fleet.render(demo_rows(fleet), 300):
             self.assertEqual(fleet.dw(ln), 300)
 
 

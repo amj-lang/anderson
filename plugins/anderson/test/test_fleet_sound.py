@@ -1,6 +1,9 @@
 """fleet.py: the synthesized ring, the sound pref, and the usage staleness marker."""
 import importlib.util, json, os, pathlib, tempfile, time, unittest, wave
 
+import sys as _sys; _sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from fleet_fixtures import demo_rows
+
 BIN = pathlib.Path(__file__).resolve().parents[1] / "bin"
 _spec = importlib.util.spec_from_file_location("fleet_sound", BIN / "fleet.py")
 fleet = importlib.util.module_from_spec(_spec)
@@ -103,7 +106,7 @@ class TestUsageStaleness(unittest.TestCase):
     def test_usage_line_sits_under_the_title_with_bars(self):
         tmp = self._with_limits(10)
         def go():
-            lines = fleet.render(fleet.demo_rows(), 140, height=40)
+            lines = fleet.render(demo_rows(fleet), 140, height=40)
             kinds = [k for k, _ in lines]
             self.assertEqual(kinds[0], "hdr"); self.assertEqual(kinds[1], "usage")
             self.assertIn("session " + fleet.G["bar"] * 4 + fleet.G["trk"] * 6 + " 42%", lines[1][1])
@@ -117,7 +120,7 @@ class TestUsageStaleness(unittest.TestCase):
     def test_no_limits_means_api_estimate_in_the_footer_only(self):
         tmp = tempfile.mkdtemp()
         def go():
-            lines = fleet.render(fleet.demo_rows(), 140, height=30)
+            lines = fleet.render(demo_rows(fleet), 140, height=30)
             self.assertNotIn("usage", [k for k, _ in lines])
             self.assertIn("api est $", lines[-1][1])
         self._run(tmp, go)

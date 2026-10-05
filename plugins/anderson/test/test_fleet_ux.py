@@ -2,6 +2,9 @@
 from unittest import mock
 import importlib.util, json, os, pathlib, subprocess, tempfile, unittest
 
+import sys as _sys; _sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from fleet_fixtures import demo_rows
+
 BIN = pathlib.Path(__file__).resolve().parents[1] / "bin"
 _spec = importlib.util.spec_from_file_location("fleet_ux", BIN / "fleet.py")
 fleet = importlib.util.module_from_spec(_spec)
@@ -29,6 +32,14 @@ class TestUxBatch(unittest.TestCase):
         self.assertEqual(t["title"], "fix the lightbox flicker")
         self.assertEqual(t["branch"], "feat/lightbox")
 
+    def test_claude_ai_title_beats_the_first_prompt(self):
+        """Claude names each session (the tab title); that says what it is on better than prompt one."""
+        tp = self._write([{"type": "user", "timestamp": "2026-09-09T10:00:00Z", "message": {"role": "user", "content": "it feels like feel has become too complicated"}},
+                          {"type": "ai-title", "aiTitle": "First guess"},
+                          {"type": "assistant", "timestamp": "2026-09-09T10:00:05Z", "message": {"role": "assistant", "content": [{"type": "text", "text": "ok"}]}},
+                          {"type": "ai-title", "aiTitle": "Fleet refactor and cleanup"}])
+        self.assertEqual(fleet.read_transcript(tp)["title"], "Fleet refactor and cleanup")
+
     def test_summary_record_wins_as_title(self):
         p = self._write([{"type": "summary", "summary": "Lightbox flicker fix"},
                          {"type": "user", "message": {"content": "hello"}}])
@@ -37,7 +48,7 @@ class TestUxBatch(unittest.TestCase):
     def test_ctx_span_and_cell_index_are_cell_accurate(self):
         span = fleet.ctx_span(150)
         self.assertIsNotNone(span)
-        lines = fleet.render(fleet.demo_rows(), 150)
+        lines = fleet.render(demo_rows(fleet), 150)
         top = [k for k, _ in lines].index("colhdr") + 1
         line = lines[top][1]
         i0 = fleet.cell_index(line, span[0]); i1 = fleet.cell_index(line, span[0] + span[1])
@@ -46,7 +57,7 @@ class TestUxBatch(unittest.TestCase):
         self.assertIsNone(fleet.ctx_span(60))                 # hidden when narrow
 
     def test_rows_are_numbered(self):
-        lines = fleet.render(fleet.demo_rows(), 150)
+        lines = fleet.render(demo_rows(fleet), 150)
         top = [k for k, _ in lines].index("colhdr") + 1
         self.assertTrue(lines[top][1].startswith("1"))
         self.assertTrue(lines[top + 1][1].startswith("2"))
@@ -58,20 +69,20 @@ class TestUxBatch(unittest.TestCase):
         self.assertEqual(cmd, "claude --resume 8596c744-4f19-48ac-ac12-7f4445578e3d")   # revive() passes the cwd
 
     def test_hot_rows_ignore_sentinels_and_unknown_ctx(self):
-        rows = fleet.demo_rows()
+        rows = demo_rows(fleet)
         rows[0]["ctx_pct"] = 85; rows[1]["ctx_pct"] = None
         rows[3]["ctx_pct"] = 99                              # demo row 3 is the sentinel
         self.assertEqual(fleet.hot_rows(rows), {rows[0]["sid"]})
 
     def test_title_kept_on_sentinel_rows(self):
-        row = dict(fleet.demo_rows()[3], task="", title="old work")
-        self.assertEqual(fleet.cell(row, "task", 0), '"old work"')
+        row = dict(demo_rows(fleet)[3], task="", title="old work")
+        self.assertEqual(fleet.cell(row, "task", 0), "old work")
 
 
 class TestPinnedFooter(unittest.TestCase):
     def test_footer_sits_on_the_last_lines_and_keys_never_truncate(self):
         for W, H in ((150, 40), (80, 24), (60, 20)):
-            lines = fleet.render(fleet.demo_rows(), W, sel=1, height=H)
+            lines = fleet.render(demo_rows(fleet), W, sel=1, height=H)
             self.assertEqual(len(lines), H, (W, H))
             kinds = [k for k, _ in lines]
             self.assertEqual(kinds[-1] in ("foot", "foot_hot"), True)
@@ -82,7 +93,7 @@ class TestPinnedFooter(unittest.TestCase):
                 self.assertEqual(fleet.dw(ln), W)
 
     def test_no_height_means_no_filler(self):
-        lines = fleet.render(fleet.demo_rows(), 120)
+        lines = fleet.render(demo_rows(fleet), 120)
         self.assertLess(len(lines), 30)
         self.assertEqual(lines[-1][0], "foot")
 
@@ -104,7 +115,7 @@ class TestSubagents(unittest.TestCase):
             self.assertEqual(fleet.subagents(tp)[1], 1)
 
     def test_card_shows_agents_line_only_when_any(self):
-        r = {**fleet.demo_rows()[1], "agents": (4, 1, "anderson:reviewer (fable)")}
+        r = {**demo_rows(fleet)[1], "agents": (4, 1, "anderson:reviewer (fable)")}
         card = " ".join(ln for _, ln in fleet.detail_card(r, 140, "", 0, airy=True))
         self.assertIn("agents", card); self.assertIn("4 sent · 1 running · last anderson:reviewer (fable)", card)
         r["agents"] = (0, 0, "")
@@ -130,7 +141,7 @@ class TestDismiss(unittest.TestCase):
                 fleet.FLEET_DIR = old
 
     def test_footer_uses_plain_words(self):
-        foot = " ".join(ln for k, ln in fleet.footer(fleet.demo_rows(), 160) if k == "foot")
+        foot = " ".join(ln for k, ln in fleet.footer(demo_rows(fleet), 160) if k == "foot")
         self.assertIn("r kill", foot); self.assertIn("b hide", foot); self.assertNotIn("pill", foot)
 
 
@@ -158,9 +169,9 @@ class TestShowHidden(unittest.TestCase):
 
     def test_footer_keeps_width_and_lists_only_the_kept_keys(self):
         for W in (200, 120, 80, 50):
-            for _, ln in fleet.footer(fleet.demo_rows(), W):
+            for _, ln in fleet.footer(demo_rows(fleet), W):
                 self.assertEqual(fleet.dw(ln), W)
-        wide = " ".join(ln for k, ln in fleet.footer(fleet.demo_rows(), 200) if k == "foot")
+        wide = " ".join(ln for k, ln in fleet.footer(demo_rows(fleet), 200) if k == "foot")
         for key in ("r kill", "b hide", "m sound", "h hidden", "space fold", "w next ring"):
             self.assertIn(key, wide)
         for gone in ("R rebase", "J/K", "D pop", "O in IDE", "a agent", "c resume", "zoom", "t theme", "$ cost"):
@@ -228,7 +239,7 @@ class TestLookingAt(unittest.TestCase):
 
 class TestBreathingRoom(unittest.TestCase):
     def test_tall_terminal_gets_spacers_short_one_does_not(self):
-        rows = fleet.demo_rows()
+        rows = demo_rows(fleet)
         tall = [k for k, _ in fleet.render(rows, 140, sel=1, height=45)]
         i = tall.index("colhdr")
         self.assertEqual(tall[i - 1], "empty"); self.assertEqual(tall[i - 2], "rule"); self.assertEqual(tall[i - 3], "empty")
@@ -243,7 +254,7 @@ class TestBreathingRoom(unittest.TestCase):
 
 class TestIdleGoesWhite(unittest.TestCase):
     def test_old_ring_is_idle_kind_fresh_ring_still_rings(self):
-        rows = fleet.demo_rows()
+        rows = demo_rows(fleet)
         fresh, old = rows[0], rows[2]
         self.assertEqual(fresh["status"], "ring"); self.assertEqual(old["status"], "ring")
         fresh["idle"], old["idle"] = False, True
