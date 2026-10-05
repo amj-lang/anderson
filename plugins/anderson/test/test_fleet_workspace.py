@@ -113,6 +113,29 @@ class TestWorkspaceScan(unittest.TestCase):
         rows = fleet.ws_rows([], self.tmp, hidden={"autoretouch"})
         self.assertEqual([r["repo"] for r in rows if r.get("kind") == "repo"], ["claude-loop"])
 
+    def test_long_dead_sessions_fold_into_one_line(self):
+        repo = os.path.join(self.tmp, "claude-loop")
+        now = time.time()
+        live, fresh_dead, old_dead = (make_session(repo, sid="live"), make_session(repo, sid="d1", status="sentinel"),
+                                      make_session(repo, sid="d2", status="sentinel"))
+        old_dead["last_seen"] = now - fleet.DEAD_FOLD_S - 1
+        rows = fleet.ws_rows([live, fresh_dead, old_dead], self.tmp, now=now)
+        sids = [r["sid"] for r in rows]
+        self.assertEqual(sids[:3], ["live", "d1", "section:dead"])          # a fresh death is still news
+        self.assertNotIn("d2", sids)
+        self.assertEqual(rows[2]["repo"], "dead (1)")
+        opened = [r["sid"] for r in fleet.ws_rows([live, fresh_dead, old_dead], self.tmp, dead_open=True, now=now)]
+        self.assertEqual(opened[:4], ["live", "d1", "section:dead", "d2"])
+        self.assertNotIn("section:dead", [r["sid"] for r in fleet.ws_rows([live], self.tmp, now=now)])
+        closed = {**fresh_dead, "ended": True}                               # you exited it: history at once
+        self.assertNotIn("d1", [r["sid"] for r in fleet.ws_rows([live, closed], self.tmp, now=now)])
+
+    def test_spawned_row_is_the_new_session_in_that_repo(self):
+        repo = os.path.realpath(os.path.join(self.tmp, "claude-loop"))
+        old, other, new = make_session(repo, sid="old"), make_session("/elsewhere", sid="x"), make_session(repo, sid="new")
+        self.assertEqual(fleet.spawned_row([old, other, new], repo, {"old"})["sid"], "new")
+        self.assertIsNone(fleet.spawned_row([old, other], repo, {"old"}))
+
     def test_hides_matches_what_ws_rows_hides(self):
         """`b` unhides by the same rule ws_rows hides by, or an old `x` hide could never be undone."""
         for h in ("autoretouch", "ai-shoot-service", "autoretouch/ai-shoot-service"):

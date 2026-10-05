@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.62.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.63.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -553,14 +553,15 @@ Optional flourishes in `bin/` — run them in a real terminal (the in-loop banne
   right there. `fleet --tmux` (a tmux session named `fleet`), `--pane` / `--window` (inside tmux) are
   there if you want them.
 
-  Two sections. On top, every Claude Code session on the machine, ringing first: repo · anderson task
-  · **persona on the job** (▲ ARCHITECT, ◇ INTERROGATOR, ◎ ORACLE, ● NEO, ✚ TRINITY, ▣ AGENT SMITH,
-  ★ THE ONE, ○ T. ANDERSON = no pipeline yet) · stage `n/max` · **tier** (`triv` · `normal` · `HARD` ·
-  `CRITICAL`, from state.md) · model · **now** (`▶ Bash pytest -q`, `☎ ring 12m` = waits on you,
-  `☎ permission Bash`, `☎ question`, `✝ sentinel` = process gone, `⟲` = rework loop) · context bar ·
-  age. Below, the repos of the workspace fleet was launched from (`dir/repo` when nested), each with
-  its live agent count: the places `N` starts a new agent. Runs **outside** Claude (python stdlib
-  curses, zero tokens).
+  On top, every live Claude Code session on the machine, ringing first: repo · **task** (the anderson
+  task, else Claude's own title for the session, the one on its tab) · **pipeline** (persona glyph,
+  stage `n/max` and tier when the session runs anderson: ▲ plan, ◇ grill, ◎ plan review, ● implement,
+  ✚ repair, ▣ diff review, ★ shipped; tier `triv` · `normal` · `HARD` · `CRITICAL`) · **now**
+  (`▶ Bash pytest -q`, `☎ ring 12m` = waits on you, `☎ permission Bash`, `☎ question`, `✝ sentinel` =
+  the process died, `⟲` = rework loop) · context bar · age. Sessions you closed, and ones dead for over
+  an hour, fold into one `dead (n)` line. Below, the repos of the workspace fleet was launched from
+  (`dir/repo` when nested), each with its live agent count: the places `N` starts a new agent, which
+  gets selected as soon as it shows up. Runs **outside** Claude (python stdlib curses, zero tokens).
 
   **When it rings.** The plugin's hooks are the truth: a Stop, a permission prompt or a question
   (`AskUserQuestion`, `ExitPlanMode`) means the session waits on you; every prompt and tool event means
@@ -606,24 +607,14 @@ prints what it moved from and to; restart Claude Code to apply it. The `~/.local
 newest cached version every time it runs, so it never needs re-installing after an update. Without the
 `claude` CLI on PATH, run `/plugin update anderson` from inside Claude Code instead.
 
-  **Five themes**, set with `--theme <name>`, remembered per user in `~/.claude/fleet/prefs.json`
-  together with wording, motion and sound:
-
-  | theme | look | motion | winks |
-  | --- | --- | --- | --- |
-  | `matrix` | green phosphor | header rain tail, ringing rows breathe 1/s | full |
-  | `construct` | white void | none | quotes and toasts off |
-  | `zion` | amber machine level | slow spinner | full |
-  | `nebuchadnezzar` | cold cyan/blue console | one heartbeat dot | full |
-  | `agent` | monochrome, red alerts | none | Smith's adversary lines only |
-
-  `--plain` swaps the header lingo (`zion · 3 jacked in · 1 ringing · 0 sentinels`) for plain
-  English (`fleet · 3 live · 1 waiting · 0 dead`); `--calm` removes motion from any theme. `--ring
-  NAME` picks the ring sound (`--rings` lists them, `--play all` auditions them), `--cost` shows the
-  api$ column on a subscription, `--notify` turns desktop banners on. The boot screen (0.7s of rain, then `Loading anderson…` and a line that rotates every launch) is
-  skipped with `--no-intro`. `--demo` adds four fake rows, `--once` prints one plain frame,
-  `--ascii` uses single-byte glyphs, `--selftest` proves every line equals the terminal width at
-  40..300 columns in all five themes (wide/CJK/accents safe). Only the frame lines that changed are
+  **Settings**, saved in `~/.claude/fleet/prefs.json`: `--plain` swaps the Matrix lingo
+  (`zion · 3 jacked in · 1 ringing · 0 sentinels`) for plain English (`fleet · 3 live · 1 waiting ·
+  0 dead`); `--calm` stops the motion (header rain, ringing rows breathing); `--ring NAME` picks the
+  ring sound (phone · snare · hitech · freeze · blip · rift · jump, or your own `.wav` in
+  `~/.claude/fleet/sounds/`) and turns sound on; `--notify` turns desktop banners on; `--cost` shows
+  the api$ column on a subscription. One-offs: `--no-intro` skips the boot rain, `--once` prints one
+  plain frame, `--ascii` uses single-byte glyphs, `--selftest` proves every line equals the terminal
+  width at 40..300 columns (wide/CJK/accents safe). Only the frame lines that changed are
   repainted, so an idle monitor emits nothing.
 
   Data, richest first, each optional (the view degrades, never breaks):
@@ -677,6 +668,7 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 
 ## Changelog
 
+- **0.63.0** — **Fleet, focused on following your agents.** Each row shows Claude's own title for the session (the one on its tab) instead of a cut-off first prompt. Persona, stage, tier and model merge into one `pipeline` cell, blank for sessions without anderson, so the `now` column (what it is doing) gets the room. Sessions you closed, and ones dead for over an hour, fold into one `dead (n)` line. After `N`, the new agent is selected as soon as it appears, so `⏎` follows it. Cut: the four extra themes (matrix stays; `--calm` is the motion switch), `--theme`, `--demo`, `--rings`, `--play`, `--ping`. The README says what anderson and fleet do in plainer words.
 - **0.62.0** — **Fleet, cleaned up: fewer keys, rings that mean it, ⏎ that lands.** Rings: the row no longer rings on every mid-turn line of text (the transcript guess overrode the hooks whenever the model wrote "Now let me check X" between tools); hooks are the truth now, a ring alerts once after 5 s so a Stop the scheduler blocks never rings, a `PreToolUse` hook clears it the moment the session moves on, `AskUserQuestion` / `ExitPlanMode` ring as questions, and the wait time survives the idle notification. A Ghostty session no longer counts as watched just because some Ghostty window is in front. `m` mutes every running fleet at once, and banners stop playing their own sound. Jack in asks only the app that owns the session (Terminal.app and iTerm2 no longer flash forward to be searched), finds Ghostty tabs by the directory claude started in when the tty mark misses, caches the tab per session, and a tmux session with no attached client opens in a new tab instead of taking over fleet's. Clicking a ring banner jumps to that session (`--jack`), `fleet --focus` brings fleet back. Layout: live sessions on top, the workspace's repos below for `N`; the repo/group tree, drill-in, auto-zoom and reorder are gone. Keys cut: `J`/`K`, `→`/`←`, `D` pop out, `O` open in IDE (and the auto-open on ⏎), `a` agent log, `c` copy resume, `R` rebase + force-push, `n` / `s` / `$` / `t` / `p` / `+` / `-` (the settings stay as flags; zoom is gone). `fleet` runs in place by default instead of wrapping itself in tmux. `--ascii` now actually switches the footer and markers to ASCII.
 - **0.61.0** — **Fleet: one row per session, worktrees under their repo, ⏎ past a stray Ghostty, shipped in red.** Sessions sharing a checkout no longer wear each other's task: a hooked session that touched no task shows its own prompt instead of borrowing the newest state.md (why three unrelated agents all read `ar-1432 · INTERROGATOR · grill`). A session in any linked worktree (`.claude/worktrees/`, `.worktrees/`, a sibling dir) rows under its main checkout, read off the worktree's `.git` file, instead of landing in `elsewhere`; sibling worktrees stop showing as idle repo rows. The branch is read live from the checkout's HEAD, so a session that moved into a worktree shows that worktree's branch, not the one its transcript started on. ⏎ into Ghostty talks to the instance that owns the session (JXA by pid): a second Ghostty an agent started with `ghostty -e` used to answer AppleScript and hide every real tab. A shipped (`done`) row renders red.
 - **0.60.0** — **The crew sits at plan review too.** SERAPH and NIOBE now judge the design before THE ORACLE, not only the finished code: a missing authorization check, unvalidated input, an N+1 query or an unbounded fetch is one plan edit at plan review and a full rework round at diff review. `bin/crew.py --plan plan.md` routes from the plan's Files touched and text (no diff exists yet); THE ORACLE reads the seats' `plan-review-<lens>.md` files, confirms or rejects each finding on merit, folds the confirmed ones into plan.md and logs `plan_tally:`, which `bin/runlog.py --summary` reports per seat. THE MEROVINGIAN stays diff-only: orphaned code needs a diff, and the blast-radius check already covers planned dead code. The diff crew is unchanged, so it verifies the code against a plan that was already security- and performance-reviewed.

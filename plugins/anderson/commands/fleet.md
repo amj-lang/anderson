@@ -17,14 +17,14 @@ curses, zero tokens); this command only installs the launcher and tells the huma
   launch:   fleet                 right here, in this terminal tab
             fleet --focus         bring the running fleet's tab back to the front (bind it to a hotkey)
             fleet --tmux          a tmux session "fleet"   ·   --pane / --window inside tmux
-            fleet --demo          four fake rows to try the UI   fleet --once     one plain frame
-            fleet --theme zion    matrix · construct · zion · nebuchadnezzar · agent (saved)
+            fleet --once          one plain frame
             fleet --plain · --calm · --cost · --notify · --ring NAME (all saved)
 
   update:   fleet update          fetch the newest anderson, then restart Claude Code
 
-  screen:   top: every live session, ringing first. below: the workspace's repos, where N starts work
-  row:      flags · repo · task · persona · stage n/max · tier · model · now · ctx · age
+  screen:   top: every live session, ringing first; closed / long-dead ones fold into one `dead` line.
+            below: the workspace's repos, where N starts work (the new agent is selected once it appears)
+  row:      flags · repo · task (Claude's session title) · pipeline (persona · stage n/max · tier) · now · ctx · age
             ☎ waits on you (turn done, permission, question)   ▶ working   ✝ process gone   ⟲ rework loop
   rings:    once, 5 s after a session starts waiting, never while its own tab is in front of you
 
@@ -32,7 +32,7 @@ curses, zero tokens); this command only installs the launcher and tells the huma
             N new agent (p bare · a /anderson:start · A /anderson:auto; a repo on a feature branch
               gets a worktree, so its work in progress is never touched)
             w longest-waiting ring · o read plan / audit / diff · r kill · b hide · h hidden
-            space fold the repos · m sound on/off (every fleet at once) · / filter · ? manual · q
+            space fold the repos or the dead line · m sound on/off (every fleet at once) · / filter · ? manual · q
 
   jack in:  finds the session's tab in the app that owns it: Ghostty (exact, by tty), iTerm2,
             Terminal.app, a tmux pane, or the IDE. With --notify + terminal-notifier, clicking a

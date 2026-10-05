@@ -16,7 +16,7 @@
 #   fleet update          update the anderson plugin to its latest release (needs the `claude`
 #                         CLI; restart Claude Code to apply)
 #   fleet uninstall       remove that shim
-#   fleet --demo | --theme zion | --plain | --calm | --notify | --no-intro | --once | --jack SID   -> fleet.py flags
+#   fleet --plain | --calm | --notify | --ring NAME | --no-intro | --once | --jack SID   -> fleet.py flags
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
