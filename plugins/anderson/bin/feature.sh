@@ -16,7 +16,7 @@
 set -euo pipefail
 ROOT="feature-research"; slug="${2:-}"
 if [ "${1:-}" = "seed" ]; then           # seed <slug> [goal words…]: slug = first non-flag word
-  slug=""; for _a in "${@:2}"; do case "$_a" in --*) ;; *) slug="$_a"; break ;; esac; done
+  slug=""; for _a in "${@:2}"; do case "$_a" in --*) ;; *) slug="${_a%%[[:space:]]*}"; break ;; esac; done
 fi
 # Task key = last `/`-segment: a pasted branch name (Linear: user/ar-123-title) keeps the state
 # dir flat, which is what the statusline, scheduler and fleet monitor glob. The full slug, when it
