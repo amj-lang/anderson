@@ -12,7 +12,7 @@ const SPIN = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
 export const C = { green: '#3cff7a', cyan: '#5fe3ff', yellow: 'warning', red: 'error', blue: '#8fb7ff', grey: '#9aa59f', dim: 'dim', bold: 'bold' }
 
 // Persona per agent; model/effort come from agents/<name>.md frontmatter, not from here.
-// Same names as bin/fleet.py PERSONA and bin/crew.py PERSONA (test/test_band_personas.py keeps them in step).
+// Same names as bin/statusline.sh (test/test_band_personas.py keeps them in step).
 export const PERSONA: Record<string, string> = {
   planner: 'THE ARCHITECT',
   'plan-reviewer': 'THE ORACLE',
@@ -34,9 +34,11 @@ export function persona(subagentType: string, prompt: string, model: string, eff
   const file = agentFile(subagentType)
   const kind = file?.replace(/-(xhigh|medium)$/, '')
   const who = kind ? (PERSONA[kind] ?? kind.toUpperCase()) : subagentType
-  // Crew prompts open with "You are <PERSONA>, the <lens> lens seat ..." (commands/approve-plan.md).
-  const crew = /You are ([A-Z][A-Z' ]+?), the ([a-z]+) lens seat/.exec(prompt)
-  return { name: crew?.[1] ?? who, model: effort ? `${fam}/${effort}` : fam, why: crew?.[2] }
+  // Crew prompts open with "You are <PERSONA>, the <lens> lens seat ..." (commands/approve-plan.md);
+  // a hand-written brief ("You are seated as SERAPH, the security lens of ...") must land the same seat.
+  const crew = /You are (?:seated as )?([A-Z][A-Z' ]+?),/.exec(prompt)
+  const lens = crew ? /([a-z-]+) lens\b/.exec(prompt) : null
+  return { name: crew?.[1] ?? who, model: effort ? `${fam}/${effort}` : fam, why: lens?.[1] }
 }
 
 /** One-line verdict from a finished seat's answer. */

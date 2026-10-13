@@ -269,11 +269,7 @@ class TestRepairPersona(unittest.TestCase):
                "stage": "repair", "gate": "none", "status": "work"}
         self.assertIn("TRINITY", fleet.next_step(row))
 
-    def test_banner_and_statusline_carry_it(self):
-        out = subprocess.run(["bash", str(BIN / "banner.sh"), "repair"], capture_output=True, text=True)
-        self.assertIn("TRINITY", out.stdout)
-        self.assertIn("test-fixer", out.stdout)
-        self.assertIn("opus", out.stdout)
+    def test_statusline_carries_it(self):
         self.assertIn('repair)      who="TRINITY \u00b7 opus/high" ;;',
                       (BIN / "statusline.sh").read_text())
 

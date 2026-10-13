@@ -64,7 +64,10 @@ step. NEVER force-push; never touch an existing branch destructively.
    - Else (already on a feature branch): commit on current branch, as-is.
 
 3. Commit cleanly (your git identity — no Claude co-author trailer in your repo):
-   - `git add -A` (scratch dir is gitignored, so only real code is staged).
+   - Stage ONLY the files the run touched: the union of audit.md "Files changed" and repair.md
+     "Outside the plan's files" (when it exists), `git add -- <each path>`. Never `git add -A`:
+     the tree may hold other tasks' edits or an untracked `.env`. Refuse any path that looks like a
+     secret (`.env*`, `*.pem`, `*.key`, `id_rsa*`, `*credentials*`) and tell me instead.
    - If nothing staged (`git diff --cached --quiet` succeeds): skip commit, note
      "nothing to commit (already committed?)", continue.
    - Else: `git commit -m "<subject>" -m "<PR body>"`.
@@ -82,10 +85,12 @@ step. NEVER force-push; never touch an existing branch destructively.
    - No remote: skip the network; local commit stands. Print the PR body.
 
 5. Post visual proofs as a PR comment (guarded — do ONLY when a PR was opened AND
-   `feature-research/$ARGUMENTS/evidence/`*`.png` exist AND `gh` is ready; else skip silently,
-   the gate-2 text note in the table stands):
+   `feature-research/<key>/evidence/`*`.png` exist AND `gh` is ready AND the repo is public:
+   `gh repo view --json visibility -q .visibility` prints `PUBLIC`; else skip silently, the
+   gate-2 text note in the table stands. A "secret" gist is readable by anyone with the URL,
+   so screenshots of a private repo never go there):
    - `gh` cannot inline-upload an image, so host the PNGs on a secret gist:
-     `gh gist create --secret feature-research/$ARGUMENTS/evidence/*.png` (one gist; capture its id).
+     `gh gist create --secret feature-research/<key>/evidence/*.png` (one gist; capture its id).
    - Build a comment body: per image `### proof: <criterion #/name>` + `![](<raw-url>)`, where
      raw-url = `https://gist.githubusercontent.com/<user>/<gist-id>/raw/<file>`.
    - `gh pr comment "<pr-url>" --body-file <tmp>`, capture + print the comment URL.
@@ -110,8 +115,9 @@ step. NEVER force-push; never touch an existing branch destructively.
    Then set this slice's Status to `shipped` (+ PR url).
 
 6. Log the run, THEN remove disposable scratch (the log reads state.md, so order matters):
-   `python3 "${CLAUDE_PLUGIN_ROOT}/bin/runlog.py" "feature-research/$ARGUMENTS" --mode gated --outcome shipped --pr <PR url, or none>`
-   (a local file, never sent anywhere), then `rm -rf "feature-research/$ARGUMENTS"`.
+   `python3 "${CLAUDE_PLUGIN_ROOT}/bin/runlog.py" "feature-research/<key>" --mode gated --outcome shipped --pr <PR url, or none>`
+   (a local file, never sent anywhere), then `rm -rf "feature-research/<key>"` — only when
+   `<key>` is non-empty and contains no `/` or `..`; otherwise leave the scratch and say so.
    (Git history + PR are the durable record; the plan's durable sections — what & why, criteria,
    design, scorecard, blast radius, error handling — are embedded in the PR body at step 1,
    e2e output at step 1's item 5, visual proof at step 5, and the 🛠 How lives in the diff, so

@@ -225,10 +225,11 @@ def subagents(transcript_path, now=None):
         return (0, 0, "")
     now = now or time.time()
     d = os.path.join(os.path.dirname(transcript_path), os.path.basename(transcript_path)[:-6], "subagents")
-    files = sorted(glob.glob(os.path.join(d, "agent-*.jsonl")), key=os.path.getmtime)
+    mt = {f: os.path.getmtime(f) for f in glob.glob(os.path.join(d, "agent-*.jsonl"))}
+    files = sorted(mt, key=mt.get)
     if not files:
         return (0, 0, "")
-    running = sum(1 for f in files if now - os.path.getmtime(f) < 20)
+    running = sum(1 for f in files if now - mt[f] < 20)
     meta = jload(files[-1][:-6] + ".meta.json") or {}
     last = meta.get("agentType") or ""
     if meta.get("description"):
@@ -238,8 +239,26 @@ def subagents(transcript_path, now=None):
     return (len(files), running, last.strip())
 
 
+_TR_CACHE = {}   # path -> (size, mtime, parsed): a transcript nobody wrote to since last refresh is not re-parsed
+
+
 def read_transcript(path, tail_bytes=262144):
     """Tail-parse a session .jsonl -> dict(state, tool, tool_arg, text, ctx_tokens, model, ts, start)."""
+    try:
+        st = os.stat(path)
+        key = (st.st_size, st.st_mtime_ns)
+    except Exception:
+        key = None
+    hit = _TR_CACHE.get(path)
+    if key and hit and hit[0] == key:
+        return dict(hit[1])
+    out = _parse_transcript(path, tail_bytes)
+    if key:
+        _TR_CACHE[path] = (key, dict(out))
+    return out
+
+
+def _parse_transcript(path, tail_bytes):
     out = dict(state=None, tool=None, tool_arg="", text="", ctx_tokens=None, model=None, ts=None, start=None,
                title="", branch=None, start_cwd=None)
     if not path or not os.path.isfile(path):
@@ -377,12 +396,18 @@ def _under_claude(pid, parents, claude_pids):
     return False
 
 
+_CWD = {}   # pid -> cwd; lsof costs ~20 ms a call. discover() drops pids that left ps, so a reused pid is re-asked
+
+
 def _cwd_of(pid):
+    if pid in _CWD:
+        return _CWD[pid]
     try:
         r = subprocess.run(["lsof", "-a", "-p", str(pid), "-d", "cwd", "-Fn"],
                            capture_output=True, text=True, timeout=3)
         for ln in r.stdout.splitlines():
             if ln.startswith("n"):
+                _CWD[pid] = ln[1:]
                 return ln[1:]
     except Exception:
         pass
@@ -421,10 +446,18 @@ def dismiss(sid, clean=False):
         with open(os.path.join(FLEET_DIR, "dismissed"), "a") as f:
             f.write(sid + "\n")
         if clean:
-            for f in glob.glob(os.path.join(FLEET_DIR, sid + ".*.json")):
-                os.remove(f)
+            forget(sid)
     except Exception:
         pass
+
+
+def forget(sid):
+    """Remove a session's heartbeat/event files: it is gone and nobody will read them again."""
+    for f in glob.glob(os.path.join(FLEET_DIR, sid + ".*.json")):
+        try:
+            os.remove(f)
+        except OSError:
+            pass
 
 
 def unhide(sid):
@@ -455,6 +488,8 @@ def discover(include_ps=True, hidden=None):
     for p in glob.glob(os.path.join(FLEET_DIR, "*.status.json")) + glob.glob(os.path.join(FLEET_DIR, "*.event.json")):
         d = jload(p)
         if not d or not d.get("session_id"):
+            if os.path.getmtime(p) < now - 7 * 86400:   # junk nobody can attribute: gone after a week
+                forget(os.path.basename(p).split(".")[0])
             continue
         s = sess.setdefault(d["session_id"], {"sid": d["session_id"], "src": set()})
         kind = "status" if p.endswith(".status.json") else "event"
@@ -469,6 +504,10 @@ def discover(include_ps=True, hidden=None):
         else:
             s["ev"] = d
     ps = _ps() if include_ps else []
+    if ps:
+        live = {pid for pid, _, _ in ps}
+        for pid in [k for k in _CWD if k not in live]:
+            del _CWD[pid]
     parents = {pid: ppid for pid, ppid, _ in ps}
     claude_pids = {pid for pid, _, cmd in ps if _is_claude(cmd)}
     # a session whose process descends from another claude is that session's machinery (the bg
@@ -521,9 +560,12 @@ def discover(include_ps=True, hidden=None):
         if s["sid"] in dismissed and not hidden:
             continue
         r = enrich(s, now)
-        if r is not None:
-            r["hidden"] = s["sid"] in dismissed
-            rows.append(r)
+        if r is None:
+            if "ps" not in s["src"]:
+                forget(s["sid"])   # rotation: stale and dead, its files only slow the next scan
+            continue
+        r["hidden"] = s["sid"] in dismissed
+        rows.append(r)
     rows.sort(key=lambda r: (r["hidden"], {"ring": 0, "work": 1, "sentinel": 2}.get(r["status"], 1), r["repo"], r["task"]))
     return rows
 
@@ -567,14 +609,19 @@ def row_status(ev, tr, dead, now):
 
 
 def enrich(s, now):
-    tr = read_transcript(s.get("transcript_path"))
     if not s.get("transcript_path") and s.get("cwd") and s.get("sid") and not s["sid"].startswith("pid:"):
         s["transcript_path"] = os.path.join(PROJECTS, enc_cwd(s["cwd"]), s["sid"] + ".jsonl")
-        tr = read_transcript(s["transcript_path"])
+    tp = s.get("transcript_path")
     ev = s.get("ev") or {}
-    last_seen = max([x for x in (s.get("hb_ts"), ev.get("ts"), tr.get("ts")) if x] or [0])
-    if now - last_seen > STALE_S and not alive(s.get("pid")):
+    try:
+        seen = max([x for x in (s.get("hb_ts"), ev.get("ts"), os.path.getmtime(tp) if tp else None) if x] or [0])
+    except OSError:
+        seen = max([x for x in (s.get("hb_ts"), ev.get("ts")) if x] or [0])
+    # the transcript's mtime bounds every timestamp inside it: a stale, dead session is dropped unparsed
+    if now - seen > STALE_S and not alive(s.get("pid")):
         return None
+    tr = read_transcript(tp)
+    last_seen = max([x for x in (s.get("hb_ts"), ev.get("ts"), tr.get("ts")) if x] or [0])
     root = repo_root(s.get("cwd"))
     st = anderson_state(root, ev.get("task"), guess=not ev)
     stage = (st.get("stage") or "").lower()
@@ -1347,13 +1394,30 @@ def _reset_str(ts):
 USAGE_HOT = 90   # % of a subscription window past which the footer paints red: credits are next
 
 
-def usage_hot():
-    """True when any /usage window is past USAGE_HOT."""
+_LIMITS = (None, None)   # (fleet dir, dir mtime_ns) -> cached (limits, ts); any write to the dir renames a file into it
+
+
+def _best_limits():
+    """The freshest heartbeat's limits: (limits, ts). Rescans only when the fleet dir changed."""
+    global _LIMITS
+    try:
+        key = (FLEET_DIR, os.stat(FLEET_DIR).st_mtime_ns)
+    except OSError:
+        return None, 0
+    if _LIMITS[0] == key:
+        return _LIMITS[1]
     best, best_ts = None, 0
     for p in glob.glob(os.path.join(FLEET_DIR, "*.status.json")):
         d = jload(p) or {}
         if d.get("limits") and (d.get("ts") or 0) > best_ts:
             best, best_ts = d["limits"], d["ts"]
+    _LIMITS = (key, (best, best_ts))
+    return best, best_ts
+
+
+def usage_hot():
+    """True when any /usage window is past USAGE_HOT."""
+    best, _ = _best_limits()
     return bool(best) and any((w or {}).get("pct") is not None and w["pct"] >= USAGE_HOT for w in best.values())
 
 
@@ -1365,11 +1429,7 @@ def usage_limits(bars=False):
     session = the rolling 5-hour window /usage calls "Current session"; week = the 7-day window
     for all models. Claude Code does not expose the per-model weekly number. Empty when no
     heartbeat has limits (API-key users)."""
-    best, best_ts = None, 0
-    for p in glob.glob(os.path.join(FLEET_DIR, "*.status.json")):
-        d = jload(p) or {}
-        if d.get("limits") and (d.get("ts") or 0) > best_ts:
-            best, best_ts = d["limits"], d["ts"]
+    best, best_ts = _best_limits()
     if not best:
         return ""
     age = time.time() - best_ts

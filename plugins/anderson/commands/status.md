@@ -18,7 +18,7 @@ critique always runs at least one rung above the opus/medium planner:
   | hard     | high        | xhigh       |
   | critical | xhigh       | xhigh       |
 A missing or `pending` tier means the tier has not been computed yet (it is derived from the
-plan Scorecard at plan-review time) or the run predates tiering — report it as `hard`. Both review stages run on opus;
+plan Scorecard at plan-review time) or the run predates tiering — report it as `normal` (high/high). Both review stages run on opus;
 an older state.md may still carry a `review_model:` field — ignore it.
 If `CLAUDE_CODE_SUBAGENT_MODEL` is set, report it as the override in effect over the
 stage's declared model, not as an error to clear. One short block, no padding. If stage is

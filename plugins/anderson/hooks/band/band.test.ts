@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { act, agentFile, band, effortOf, nextStep, parseState, persona, verdict } from './band'
+import { tasksOf } from './register'
 import { frame, portraitFor, SIZE, SPRITES } from './portraits'
 
 const text = (ls: [string, string][][]) => ls.map(l => l.map(s => s[0]).join('').trimEnd())
@@ -10,6 +11,9 @@ test('persona: anderson agents, crew seats, effort twins, others', () => {
   expect(persona('anderson:reviewer-xhigh', 'review', 'claude-opus-5-5', 'xhigh')).toEqual({ name: 'AGENT SMITH', model: 'opus/xhigh', why: undefined })
   expect(persona('anderson:reviewer-medium', 'You are NIOBE, the performance lens seat on the diff review', 'claude-opus-5-5', 'medium'))
     .toEqual({ name: 'NIOBE', model: 'opus/medium', why: 'performance' })
+  expect(persona('anderson:reviewer-medium', "You are seated as SERAPH, the security lens of anderson's crew.", 'claude-opus-5-5', 'medium'))
+    .toEqual({ name: 'SERAPH', model: 'opus/medium', why: 'security' })
+  expect(persona('anderson:reviewer-medium', 'You are THE MEROVINGIAN, the leftovers lens seat on the diff review', 'claude-opus-5-5', 'medium').name).toBe('THE MEROVINGIAN')
   expect(persona('Explore', 'find x', 'claude-haiku-5-5', '')).toEqual({ name: 'Explore', model: 'haiku', why: undefined })
   expect(agentFile('anderson:reviewer-xhigh')).toBe('reviewer-xhigh')
   expect(effortOf('---\nname: reviewer\nmodel: opus\neffort: high\n---')).toBe('high')
@@ -31,6 +35,14 @@ test('state.md parse and gate step', () => {
   const s = parseState('<!-- STATE:START -->\ntask:            ar-1-x\nstage:           diff_review\ndiff_verdict:    blocking\n')
   expect(s.stage).toBe('diff_review')
   expect(nextStep({ task: 'ar-1-x', stage: s.stage ?? '', diffVerdict: s.diff_verdict ?? '', seenAt: 0 })).toBe('/anderson:rework')
+})
+
+test('tasksOf: the session pins its task from its own prompts', () => {
+  expect(tasksOf('/anderson:start user/ar-123-title "add csv export"')).toEqual(['ar-123-title'])
+  expect(tasksOf('/anderson:approve-plan demo-task')).toEqual(['demo-task'])
+  // Every path is a candidate; pin() keeps the first whose state.md exists, so a doc example never wins.
+  expect(tasksOf('resolves to `feature-research/ar-123-title/`; execute feature-research/ar-9-x/plan.md')).toEqual(['ar-123-title', 'ar-9-x'])
+  expect(tasksOf('plain prompt')).toEqual([])
 })
 
 test('band: crew grid, stall, verdict, and shrink when crowded', () => {

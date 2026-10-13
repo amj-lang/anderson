@@ -36,6 +36,17 @@ def claude_pid(start):
     return None
 
 
+def pid_of(prev, fresh=False):
+    """The pid recorded last time, when that process still lives: the ps walk costs ~10 ms per hook run."""
+    try:
+        if not fresh and prev and int(prev) > 1:
+            os.kill(int(prev), 0)
+            return int(prev)
+    except Exception:
+        pass
+    return claude_pid(int(os.environ.get("FLEET_PID") or os.getppid()))
+
+
 def main():
     raw = sys.stdin.read()
     if not raw.strip():
@@ -56,6 +67,11 @@ def main():
     rl = d.get("rate_limits") or {}          # subscription windows, same numbers as /usage
     limits = {k: {"pct": (rl.get(k) or {}).get("used_percentage"), "resets_at": (rl.get(k) or {}).get("resets_at")}
               for k in ("five_hour", "seven_day", "spend_limit") if rl.get(k)}
+    path = os.path.join(FLEET_DIR, f"{sid}.status.json")
+    try:
+        prev_pid = json.load(open(path)).get("pid")
+    except Exception:
+        prev_pid = None
     out = {
         "session_id": sid,
         "cwd": d.get("cwd") or (d.get("workspace") or {}).get("current_dir"),
@@ -68,12 +84,11 @@ def main():
         "ctx_pct": ctx_pct,
         "ctx_tokens": ctx_tokens or None,
         "tmux_pane": os.environ.get("TMUX_PANE"),
-        "pid": claude_pid(int(os.environ.get("FLEET_PID") or os.getppid())),
+        "pid": pid_of(prev_pid, False),
         "ts": time.time(),
         "limits": limits or None,
     }
     os.makedirs(FLEET_DIR, exist_ok=True)
-    path = os.path.join(FLEET_DIR, f"{sid}.status.json")
     tmp = f"{path}.{os.getpid()}.tmp"
     with open(tmp, "w") as f:
         json.dump(out, f)
