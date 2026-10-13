@@ -3,6 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Pipe, Seat } from '../../types/band'
 import { act, agentFile, band, C, effortOf, parseState, persona, verdict } from './band'
+import { frame, portraitFor, SIZE } from './portraits'
 
 const seatsA = atom({ plugin: 'anderson', key: 'seats' } as const, {})
 const pipeA = atom({ plugin: 'anderson', key: 'pipe' } as const, null)
@@ -46,10 +47,10 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const r = await next(e)
     await refresh($)
-    // Animate spinners and age stall timers only while a seat is live.
+    // Animate spinners, stall timers and the portrait while the band shows anything.
     $.clock.every(250, async () => {
-      const seats = await read($, seatsA)
-      if (Object.values(seats).some(s => s.doneAt === undefined)) await update($, tickA, n => n + 1)
+      const seats = Object.values(await read($, seatsA))
+      if (seats.length || (await read($, pipeA))) await update($, tickA, n => n + 1)
     })
     return r
   })
@@ -122,11 +123,15 @@ export const register: Register = on => {
     const pipe = await read($, pipeA)
     const tick = await read($, tickA)
     const tok = await read($, tokA)
-    const lines = band({ seats, pipe, now: await $.clock.now(), cols: e.props.bodyColumns, tick, tok, working: e.props.isWorking })
+    // The persona's portrait sits at the right edge, 8 cols x 4 rows; dropped on narrow terminals.
+    const cols = e.props.bodyColumns
+    const face = cols >= 80 ? portraitFor(seats, pipe) : undefined
+    const lines = band({ seats, pipe, now: await $.clock.now(), cols: face ? cols - 9 : cols, tick, tok, working: e.props.isWorking })
     if (!lines.length) return next(e)
-    const { Box, Text } = $.ui.resolve(e)
-    return (
-      <Box flexDirection="column">
+    const ui = $.ui.resolve(e)
+    const { Box, Text } = ui
+    const text = (
+      <Box flexDirection="column" flexGrow={1}>
         {lines.map(l => (
           <Text wrap="truncate">
             {l.map(([t, c]) =>
@@ -134,6 +139,18 @@ export const register: Register = on => {
             )}
           </Text>
         ))}
+      </Box>
+    )
+    // Pixels only where the surface draws an Image (terminal); elsewhere the band alone.
+    if (!face || !('Image' in ui)) return text
+    const { Image } = ui
+    const rgba = (frame(face, tick) as Uint8Array & { toBase64(): string }).toBase64()
+    return (
+      <Box flexDirection="row">
+        {text}
+        <Box marginLeft={1}>
+          <Image source={{ rgba, width: SIZE, height: SIZE }} columns={8} rows={4} alt={face.replace(/^(THE|AGENT) /, '')} />
+        </Box>
       </Box>
     )
   })

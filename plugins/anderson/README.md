@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.69.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.70.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -682,6 +682,7 @@ The grill and the token slicing come from [Matt Pocock](https://github.com/mattp
 
 ## Changelog
 
+- **0.70.0** — **Animated persona portraits in the band.** NES-style 24×24 pixel portraits (`hooks/band/portraits.ts`) sit at the band's right edge, 8 cols × 4 rows, drawn as real pixels where the terminal can (Ghostty, kitty) and the persona's name elsewhere. Who shows: the newest live seat with a portrait, else the stage's persona. Each moves on the band's 250 ms tick over Matrix rain: NEO's shades glint, SMITH's earpiece blinks and he glitches into a copy, TRINITY looks around, THE ORACLE smokes, THE ARCHITECT has code in his glasses. Hidden under 80 columns.
 - **0.69.0** — **Band replaces the stage banners.** The `╭─ ⌐■-■ STAGE · n/5 · PERSONA` banners and their quote pools are gone from every command (start, approve-plan, rework, approve-diff, auto, proto): the band above the prompt already shows stage, persona and model live. Gate cards keep every line, minus the art (`🔴 GATE 1 · YOUR TURN`). `/anderson:demo` now previews the band; `bin/demo.sh` removed. Band boxes back to a fixed 34 columns; the header rule still spans the terminal.
 - **0.68.2** — Band box: gap between a long model name (`sonnet/medium`) and the timer.
 - **0.68.1** — Band no longer repeats `your turn ▸ answer the grill`: the grill's own card already asks.
