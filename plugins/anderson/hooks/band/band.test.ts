@@ -41,16 +41,19 @@ test('band: crew grid, stall, verdict, and shrink when crowded', () => {
     seat('MEROVINGIAN', { lastAt: 200_000 }),
   ]
   const pipe = { task: 'ar-412-rate-limit', stage: 'diff_review', diffVerdict: 'pending', seenAt: 0 }
-  const wide = text(band({ seats, pipe, now: 230_000, cols: 144, tick: 1, usd: 1.19, working: true }))
+  const wide = text(band({ seats, pipe, now: 230_000, cols: 144, tick: 1, tok: { i: 1_234_567, o: 34_500 }, working: true }))
   expect(wide[0]).toContain('●●●●●◐○ diff_review 6/7')
+  expect(wide[0]).toContain('I: 1.2M / O: 35k')
+  // Full width: header and every box row span the terminal.
+  for (const l of wide) expect([...l].length >= 140 && [...l].length <= 144).toBe(true)
   expect(wide.join('\n')).toContain('✗ 1 blocking')
   expect(wide.join('\n')).toContain('⚠ stalled 3:50')
   expect(wide.join('\n')).toContain('▸ Read a.py')
-  const narrow = text(band({ seats, pipe, now: 230_000, cols: 80, tick: 1, usd: 1.19, working: true }))
+  const narrow = text(band({ seats, pipe, now: 230_000, cols: 80, tick: 1, tok: { i: 1_234_567, o: 34_500 }, working: true }))
   expect(narrow.join('\n')).toContain('[ SMITH ✗ 1 blocking ]')
   for (const l of narrow) expect([...l].length <= 81).toBe(true)
   // Idle at the gate: header names the next command.
-  const gate = text(band({ seats: [], pipe, now: 1000, cols: 144, tick: 1, usd: 1, working: false }))
+  const gate = text(band({ seats: [], pipe, now: 1000, cols: 144, tick: 1, working: false }))
   expect(gate[0]).toContain('your turn ▸ /anderson:approve-diff')
   expect(band({ seats: [], pipe: null, now: 0, cols: 144, tick: 0, working: false })).toEqual([])
 })

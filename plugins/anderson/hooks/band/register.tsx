@@ -7,6 +7,7 @@ import { act, agentFile, band, C, effortOf, parseState, persona, verdict } from 
 const seatsA = atom({ plugin: 'anderson', key: 'seats' } as const, {})
 const pipeA = atom({ plugin: 'anderson', key: 'pipe' } as const, null)
 const tickA = atom({ plugin: 'anderson', key: 'tick' } as const, 0)
+const tokA = atom({ plugin: 'anderson', key: 'tokens' } as const, { i: 0, o: 0 })
 
 // ponytail: tasks untouched for 6h are stale and hidden; make it an option if someone parks a task longer.
 const STALE_MS = 6 * 3600_000
@@ -87,6 +88,9 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     const r = await next(e)
     try {
+      // Session tokens: every turn, main loop and subagents alike.
+      const u = e.usage
+      if (u) await update($, tokA, t => ({ i: t.i + u.input_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0), o: t.o + u.output_tokens }))
       const id = e.agentId
       if (id) {
         const seats = await read($, seatsA)
@@ -117,8 +121,8 @@ export const register: Register = on => {
     const seats = Object.values(await read($, seatsA)).sort((a, b) => a.startedAt - b.startedAt)
     const pipe = await read($, pipeA)
     const tick = await read($, tickA)
-    const usd = (await $.session.usage()).cost?.usd
-    const lines = band({ seats, pipe, now: await $.clock.now(), cols: e.props.bodyColumns, tick, usd, working: e.props.isWorking })
+    const tok = await read($, tokA)
+    const lines = band({ seats, pipe, now: await $.clock.now(), cols: e.props.bodyColumns, tick, tok, working: e.props.isWorking })
     if (!lines.length) return next(e)
     const { Box, Text } = $.ui.resolve(e)
     return (

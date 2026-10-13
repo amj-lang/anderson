@@ -21,6 +21,6 @@ export type Pipe = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'anderson': { seats: Record<string, Seat>; pipe: Pipe | null; tick: number }
+    'anderson': { seats: Record<string, Seat>; pipe: Pipe | null; tick: number; tokens: { i: number; o: number } }
   }
 }
