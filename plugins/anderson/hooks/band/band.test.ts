@@ -1,6 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { act, agentFile, band, effortOf, nextStep, parseState, persona, verdict } from './band'
+import { frame, portraitFor, SIZE, SPRITES } from './portraits'
 
 const text = (ls: [string, string][][]) => ls.map(l => l.map(s => s[0]).join('').trimEnd())
 
@@ -57,4 +58,20 @@ test('band: crew grid, stall, verdict, and shrink when crowded', () => {
   expect(gate[0]).toContain('your turn ▸ /anderson:approve-diff')
   expect(nextStep({ ...pipe, stage: 'grill' })).toBeUndefined()
   expect(band({ seats: [], pipe: null, now: 0, cols: 144, tick: 0, working: false })).toEqual([])
+})
+
+test('portraits: every sprite 24x24, live seat beats stage, frames animate', () => {
+  for (const [name, rows] of Object.entries(SPRITES)) {
+    expect(rows.length).toBe(SIZE)
+    for (const r of rows) expect(r.length).toBe(SIZE)
+    expect(frame(name, 0).length).toBe(SIZE * SIZE * 4)
+    // Movement: some tick within 8 s draws a different frame.
+    expect([...Array(32).keys()].some(t => frame(name, t).join() !== frame(name, 0).join())).toBe(true)
+  }
+  const pipe = { task: 'x', stage: 'diff_review', diffVerdict: '', seenAt: 0 }
+  const seat = (name: string, startedAt: number, doneAt?: number) => ({ id: name, name, model: 'opus', startedAt, lastAt: 0, doneAt })
+  expect(portraitFor([], pipe)).toBe('AGENT SMITH')
+  expect(portraitFor([seat('NEO', 1), seat('TRINITY', 2)], pipe)).toBe('TRINITY')
+  expect(portraitFor([seat('TRINITY', 2, 5), seat('SERAPH', 3)], pipe)).toBe('AGENT SMITH')
+  expect(portraitFor([], null)).toBeUndefined()
 })
