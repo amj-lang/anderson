@@ -92,6 +92,23 @@ step. NEVER force-push; never touch an existing branch destructively.
    - Any command here fails → drop it, ship still stands (never fail the ship for a screenshot).
    <!-- ponytail: leaves one orphan gist per ship. Add a cleanup/retention step if they pile up. -->
 
+5b. RIPPLE — only when state.md has `slices:` (skip silently otherwise). Cheap and inline, no
+   agent: read the slices file's `**Contracts:**`, then plan.md `## ✅ Decisions` for
+   `Contract change:` rows and the committed diff (`git show --stat HEAD` + grep it for each
+   contract name) for a contract this slice reshaped.
+   - None changed → `ripple · slice <k> · contracts unchanged ✓`.
+   - Changed → pause and ask:
+     ```
+     ripple · slice <k> changed <c> contract(s)
+       <name>: <old> → <new>
+       affects: <slice # name> (criterion <i>) · …       ← only todo slices that depend on it
+       → update those slices + comment on <their issues>? (y / edit / n)
+     ```
+     `y`/`edit` → rewrite the contract line (append `✎ slice <k>`) and the affected slices'
+     Criteria in the slices file; post a COMMENT on each affected sub-issue (never edit a
+     description). `n` → leave the file, note it under the PR's open questions.
+   Then set this slice's Status to `shipped` (+ PR url).
+
 6. Log the run, THEN remove disposable scratch (the log reads state.md, so order matters):
    `python3 "${CLAUDE_PLUGIN_ROOT}/bin/runlog.py" "feature-research/$ARGUMENTS" --mode gated --outcome shipped --pr <PR url, or none>`
    (a local file, never sent anywhere), then `rm -rf "feature-research/$ARGUMENTS"`.
@@ -109,3 +126,13 @@ step. NEVER force-push; never touch an existing branch destructively.
    Pool (24 endings): "Green is not understood; read what you merged." / "The gate is not an obstacle; it is the point." / "Review is how respect for the future is spelled." / "You can hand someone the key, but the lock is theirs to turn." / "Ship it, then watch it — shipping is the start of knowing." / "The work is done when the next person needs no story to follow it." / "Every merge is a promise the next outage will test." / "Walk away clean: no scratch, no secrets, no surprises." / "What you shipped is now the truth; make sure it tells no lies." / "The loop ends where your judgement begins." / "Because I choose to." / "Where we go from there is a choice I leave to you." / "I know you're out there; I can feel you now." / "A world where anything is possible." / "Everything that has a beginning has an end." / "There's no escaping reason, no denying purpose." / "I'm going to show them a world without rules and controls." / "The body cannot live without the mind." / "Some things change; some things never do." / "Free minds." / "One clean commit; one honest history." / "Read what you shipped before the user does." / "Clean branch, clean history, clean conscience." / "The key is yours now; turn it knowingly."
    Then the done line, filled in with what actually happened (branch + PR URL, or
    fallback): `✓ [anderson · DONE] $ARGUMENTS shipped on <branch> · <PR url | committed locally, PR body above> · scratch cleaned · loop stopped — nothing runs in the background; /anderson:start to begin again.`
+
+8. NEXT SLICE — only when step 5b ran. Next = the first `todo` row whose Depends-on are all
+   `shipped`. None left and every row shipped → delete the slices file, comment on the Linear
+   parent `all <n> slices shipped: <PR urls>`, print `slices · all <n> shipped ✓`, stop. None
+   unblocked yet → print what is still running, stop.
+   Else check this session's size: `cat ~/.claude/fleet/${CLAUDE_SESSION_ID}.status.json`
+   (written by the statusline; `ctx_tokens`). Under 150k →
+   `next: <issue> <slice> · go?` and on my "go" invoke the `anderson:start` skill with
+   `<Branch> <slice name>`. Over 150k, or the file is missing (budget unknown) → hand off:
+   `session ctx <N>k > 150k · next in a fresh session:  /anderson:start <Branch> <slice name>`.

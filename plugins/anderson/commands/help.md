@@ -40,6 +40,10 @@ ANDERSON — gated build loop: plan → grill → plan-review 🛑 → implement
             critical), diff-review/arbiter high (xhigh at hard/critical).
             See docs/tiering.md.
 
+  slices:   planner sizes the job (~tokens / 150k). 2+ slices → Gate 1 offers a split: Linear
+            sub-issues (blockedBy), contracts between slices, slice 1 runs now. Each later slice
+            re-grills only new questions; after each ship a ripple check flags contract changes,
+            then offers the next slice (fresh session once ctx > 150k).
   slug:     a pasted branch name works (user/ar-123-title): dir = last segment, ship branch = the slug.
   state:    feature-research/<slug>/{state.md,plan.md,audit.md} — every command reads state.md,
             so a running flow also answers plain text: "approved, go" / "ship it" / "rework".
