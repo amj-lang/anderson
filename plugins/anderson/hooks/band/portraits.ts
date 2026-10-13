@@ -147,10 +147,12 @@ const STAGE_FACE: Record<string, string> = {
   plan: 'THE ARCHITECT', plan_review: 'THE ORACLE', implement: 'NEO', repair: 'TRINITY', diff_review: 'AGENT SMITH', done: 'NEO',
 }
 
-/** The portrait to show: the newest live seat that has one, else the stage's persona, else none. */
+/** The portrait to show: the newest live seat's, if it has one (a seat without a sprite shows no face rather
+ *  than the stage's: SERAPH must never wear THE ORACLE); no live seat → the stage's persona; else none. */
 export function portraitFor(seats: Seat[], pipe: Pipe | null): string | undefined {
-  const live = seats.filter(s => s.doneAt === undefined && SPRITES[s.name]).sort((a, b) => b.startedAt - a.startedAt)
-  return live[0]?.name ?? (pipe ? STAGE_FACE[pipe.stage] : undefined)
+  const live = seats.filter(s => s.doneAt === undefined).sort((a, b) => b.startedAt - a.startedAt)
+  if (live[0]) return SPRITES[live[0].name] ? live[0].name : undefined
+  return pipe ? STAGE_FACE[pipe.stage] : undefined
 }
 
 type Px = (number | undefined)[][] // 0xRRGGBB, or undefined for transparent; alpha in the top byte when set
