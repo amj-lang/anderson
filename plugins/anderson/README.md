@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.67.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.68.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -682,6 +682,7 @@ The grill and the token slicing come from [Matt Pocock](https://github.com/mattp
 
 ## Changelog
 
+- **0.68.0** — **Band spans the terminal; tokens instead of `$`.** The band header ends in a rule to the terminal's full width and crew boxes stretch to fill each row. The header shows this session's tokens, `I: 1.2M / O: 35k` (main loop and subagents; input counts cache reads/writes), in place of the dollar figure.
 - **0.67.0** — **Crew band above the prompt.** A Claude Code mod (function hooks, `hooks/band/`) draws the live crew just above the input: one box per running subagent with persona, model/effort (read from the agent's frontmatter), elapsed time, and what it is doing right now (its last tool call). A finished seat shows its verdict (`✓ 0 blocking · 1 nit`, `✗ 1 blocking` in red) and stays on screen through the gate; a seat with no tool call for 2 minutes turns yellow as stalled. The header carries stage dots (`●●●●●◐○`), the stage, and at a gate the exact command to type next. When the crew is too wide, finished seats shrink to one-line cells. Needs a Claude Code build with mods (function hooks); the statusline and fleet are unchanged. Persona names stay in step with the statusline (`test/test_band_personas.py`).
 - **0.66.0** — **Prototypes: pick by looking.** New `/anderson:proto <what>` and the `prototyper` agent (THE CONSTRUCT, sonnet/medium): 2-3 throwaway variants that differ on a core axis (layout, hierarchy, interaction), never three shades of one idea. Terminal targets get ASCII at the real width, through the repo's own renderer when it has one; web targets get self-contained HTML using the repo's design tokens, opened in the browser. Pick a letter, ask for a mix, or `again <steer>`. Inside a task the pick is copied into `design/`, its exact strings go to `inventory.md`, and the grill folds it in as a `source: design` criterion, so the diff review checks the build against what you picked. The grill flags 🎨 visual questions and offers the prototype instead of asking in words. Never runs in auto mode. Storybook as a UI-first slice comes later.
 

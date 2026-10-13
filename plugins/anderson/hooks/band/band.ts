@@ -82,9 +82,12 @@ const pad = (l: Line, w: number): Line => (len(l) < w ? [...l, [' '.repeat(w - l
 const cut = (s: string, w: number) => (W(s) > w ? [...s].slice(0, w - 1).join('') + '…' : s)
 const clock = (ms: number) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
 const tok = (n?: number) => (n ? `${Math.round(n / 1000)}k tok` : '')
-export const money = (x?: number) => (x === undefined ? '' : `$${x.toFixed(2)}`)
+const k = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n))
+/** Session tokens as "I: 1.2M / O: 34k"; input counts cache reads and writes, as the API bills them. */
+export const tokens = (t?: Tokens) => (t ? `I: ${k(t.i)} / O: ${k(t.o)}` : '')
 
-export type View = { seats: Seat[]; pipe: Pipe | null; now: number; cols: number; tick: number; usd?: number; working: boolean }
+export type Tokens = { i: number; o: number }
+export type View = { seats: Seat[]; pipe: Pipe | null; now: number; cols: number; tick: number; tok?: Tokens; working: boolean }
 
 function dots(p: Pipe): Line {
   const at = STAGES.indexOf(p.stage)
@@ -104,13 +107,15 @@ function header(v: View): Line {
     else h.push([p.stage, p.stage === 'repair' ? C.yellow : C.bold], [` ${STAGES.indexOf(p.stage) + 1}/${STAGES.length} · `, C.dim])
     h.push([`${clock(v.now - p.seenAt)} · `, C.dim])
   } else h.push(['crew · ', C.dim])
-  h.push([money(v.usd), C.green])
+  h.push([tokens(v.tok), C.green])
   if (live) h.push([`  ${live} live`, C.dim])
-  return h
+  // Span the terminal: a rule fills the rest of the line.
+  return [...h, [' ' + '─'.repeat(Math.max(0, v.cols - len(h) - 1)), C.dim]]
 }
 
-function box(s: Seat, v: View): Line[] {
-  const w = 34
+const MIN_W = 34
+
+function box(s: Seat, v: View, w = MIN_W): Line[] {
   const done = s.doneAt !== undefined
   const stalled = !done && v.now - s.lastAt > STALL_MS
   const edge = stalled ? C.yellow : done && s.bad ? C.red : C.dim
@@ -138,17 +143,18 @@ function compact(s: Seat): Line {
 
 /** Lay boxes left to right, wrapping when full; when crowded, finished seats shrink to one-line cells. */
 function grid(v: View): Line[] {
-  const full = v.seats.map(s => box(s, v))
-  const total = full.reduce((n, b) => n + len(b[0] ?? []) + 1, 0)
+  const total = v.seats.length * (MIN_W + 1)
   const shrink = total > v.cols && v.seats.some(s => s.doneAt) && v.seats.some(s => !s.doneAt)
-  const items = shrink
-    ? [...v.seats.filter(s => !s.doneAt).map(s => box(s, v)), v.seats.filter(s => s.doneAt).map(compact)]
-    : full
+  const boxed = shrink ? v.seats.filter(s => !s.doneAt) : v.seats
+  // Boxes stretch so each full row spans the terminal.
+  const n = Math.max(1, Math.min(boxed.length, Math.floor((v.cols + 1) / (MIN_W + 1))))
+  const w = Math.max(MIN_W, Math.floor((v.cols + 1) / n) - 1)
+  const items = [...boxed.map(s => box(s, v, w)), ...(shrink ? [v.seats.filter(s => s.doneAt).map(compact)] : [])]
   const rows: Line[][][] = []
   let cur: Line[][] = [], curW = 0
   for (const b of items) {
     const bw = Math.max(...b.map(len)) + 1
-    if (curW + bw > v.cols && cur.length) { rows.push(cur); cur = []; curW = 0 }
+    if (curW + bw - 1 > v.cols && cur.length) { rows.push(cur); cur = []; curW = 0 }
     cur.push(b); curW += bw
   }
   if (cur.length) rows.push(cur)
