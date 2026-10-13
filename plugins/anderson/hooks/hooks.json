@@ -1,4 +1,5 @@
 {
+  "modules": ["./band/register.tsx"],
   "hooks": {
     "SubagentStop": [
       { "hooks": [ { "type": "command", "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/scheduler.py" } ] }
