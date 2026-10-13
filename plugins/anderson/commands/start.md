@@ -164,6 +164,13 @@ the one exception: they all read the same finished plan and each writes only its
        🔴 ARCH — the answer changes the architecture, data model, or scope
        🟡 BEHAVIOR — edge cases, error handling, UX semantics
        🟢 PREF — naming, defaults, cosmetics; safe to auto-resolve with your recommendation
+     Then flag 🎨 VISUAL any question (whatever its grade) whose real answer is how something
+     LOOKS: layout, screen or output shape, which states show, terminal/CLI rendering. Words
+     settle these badly. Ask 🎨 questions right after the 🔴 ones (one picked screen settles
+     several 🟡 at once), each with a fourth line `🎨 prototype it? (y / answer in words)`;
+     `y` → invoke the `anderson:proto` skill with `<question> --task <task>` and fold its pick
+     like any answer (a `source: design` criterion + a ✓ Decisions row). The tally adds
+     `<v>🎨` when any are flagged. Never prototype in auto mode.
    - Print the manifest as the FIRST thing after the GRILL banner — ONE header line + a rule,
      nothing else, so I see the grilling level at a glance (substitute real counts; omit a
      grade from the tally when its count is 0):
@@ -175,8 +182,8 @@ the one exception: they all read the same finished plan and each writes only its
      (answers cascade); independent 🟡 may pair 2–3 per message when no answer affects
      another; 🟢 one batch. Wait for my answer before the next message. EACH question
      carries your recommended answer so I can just confirm; never restate plan.md content.
-   - Print each question in EXACTLY this shape — three lines, the grade dot (🔴/🟡/🟢) the ONLY
-     emoji, the bar 10 cells (▰ filled / ▱ empty) with filled = round((n−1)/N × 10) so it grows
+   - Print each question in EXACTLY this shape — three lines (four for 🎨), the grade dot (🔴/🟡/🟢) the ONLY
+     emoji (plus 🎨 opening the fourth line), the bar 10 cells (▰ filled / ▱ empty) with filled = round((n−1)/N × 10) so it grows
      as answers land (empty at the first question), the recommendation the only follow-on line:
      ```
      🔴 <n>/<N>  ▰▰▱▱▱▱▱▱▱▱

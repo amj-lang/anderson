@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.65.2-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.66.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -336,6 +336,7 @@ then restart fully. If it doesn't take, `/plugin marketplace remove dodge-this` 
 | `/anderson:approve-diff <slug>` | Pass **Gate 2** = **SHIP for real**: branch `anderson/<slug>` + commit + push + open PR (all guarded), then clean scratch. | Branch + PR URL, or a local-commit fallback if no remote/`gh`. **Never force-pushes.** |
 | `/anderson:rework <slug>` | Diff review said `fix_first` — loop the implementer on the "Still open" blockers only, then re-review. | Back to 🛑 **Gate 2**. Bounded by `max_iterations`. |
 | `/anderson:status <slug>` | Dashboard / sanity check. | Current stage, next agent + model/effort, both verdicts, iteration vs max, and the `CLAUDE_CODE_SUBAGENT_MODEL` override check. Read-only. |
+| `/anderson:proto <what> [--task <slug>]` | A visual question words won't settle (a screen, a terminal row). | THE CONSTRUCT (`prototyper`, sonnet/medium) builds 2-3 variants that differ on layout, hierarchy or interaction: ASCII for terminal UIs (driving the repo's own renderer when it has one), self-contained HTML for web (using the repo's tokens). You pick, mix, or say `again <steer>`. Inside a task the pick lands in `design/` and becomes a `source: design` criterion. The grill offers it on every 🎨 question. |
 | `/anderson:demo` | Zero-token dry-run of the whole pipeline. | All stage banners + both gate lines + ship banner. No agents, no files, no tokens. |
 | `/anderson:auto <id> <title> [body\|@file]` | **Autonomous mode** — no gates: plan → plan-gate → RED test → implement → CI-veto + panel diff-gate → **draft PR**. | Terminal SHIP (draft PR) or abort + `report.md`. Review the PR — auto mode is experimental. |
 | `/anderson:help` | Static quick-reference card: every command, arguments, gates, tiers. | One printed card. Reads nothing, no agents, no state — for the live dashboard use `:status`. |
@@ -677,9 +678,11 @@ the clone traffic in [`metrics/traffic.json`](../../metrics/traffic.json). The c
 
 ## Credits
 
-The grill and the token slicing come from [Matt Pocock](https://github.com/mattpocock/skills) (`grill-me`, `to-tickets`). anderson adapts them to its gated loop.
+The grill and the token slicing come from [Matt Pocock](https://github.com/mattpocock/skills) (`grill-me`, `to-tickets`, and throwaway prototypes for questions a grill can't settle). anderson adapts them to its gated loop.
 
 ## Changelog
+
+- **0.66.0** — **Prototypes: pick by looking.** New `/anderson:proto <what>` and the `prototyper` agent (THE CONSTRUCT, sonnet/medium): 2-3 throwaway variants that differ on a core axis (layout, hierarchy, interaction), never three shades of one idea. Terminal targets get ASCII at the real width, through the repo's own renderer when it has one; web targets get self-contained HTML using the repo's design tokens, opened in the browser. Pick a letter, ask for a mix, or `again <steer>`. Inside a task the pick is copied into `design/`, its exact strings go to `inventory.md`, and the grill folds it in as a `source: design` criterion, so the diff review checks the build against what you picked. The grill flags 🎨 visual questions and offers the prototype instead of asking in words. Never runs in auto mode. Storybook as a UI-first slice comes later.
 
 - **0.65.2** — **Docs catch up with slicing.** The root README explains big-task slicing and the fleet `✂` tag; the plugin README's Pipeline section documents the Size line, the split, slice mode and the ripple check; the plugin and marketplace descriptions mention it.
 - **0.65.1** — **Fleet reads only real slices files.** `slices:` in state.md must name a regular `*.slices.md` directly in the repo's `feature-research` dir; an absolute path, `..`, a device or a FIFO is ignored, and the read is capped. Before, a crafted state.md could make fleet read any file or hang on `/dev/zero`.

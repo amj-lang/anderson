@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.65.2-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.66.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -170,6 +170,7 @@ Needs nothing but python3. `glow`, `terminal-notifier` and `tmux` are optional. 
 | `approve-diff` | Ship: branch, commit, push, PR. Never force-pushes.               |
 | `rework`       | Loop the implementer on the blockers, re-review. Back to Gate 2.  |
 | `status`       | Where a run is: stage, next agent, verdicts, iteration.           |
+| `proto`        | 2-3 throwaway variants of a visual question; you pick one.        |
 | `demo`         | Zero-token dry run of every banner and both gates.                |
 | `auto`         | Non-halting pipeline to a draft PR. Experimental.                 |
 | `help`         | Quick-reference card. Reads nothing.                              |
@@ -185,7 +186,7 @@ Commands are namespaced `/anderson:<command>`. The first word is the task's slug
 
 ## Credits
 
-The grill and the token slicing come from [Matt Pocock](https://github.com/mattpocock/skills): his `grill-me` interview that settles every decision before code exists, and his rule of sizing work by tokens and dividing by 150k so each ticket fits one fresh session (the "smart zone", a term he credits to Dex Horthy). anderson adapts both to its gated loop.
+The grill and the token slicing come from [Matt Pocock](https://github.com/mattpocock/skills): his `grill-me` interview, the throwaway prototypes it hands off to when a question is visual, that settles every decision before code exists, and his rule of sizing work by tokens and dividing by 150k so each ticket fits one fresh session (the "smart zone", a term he credits to Dex Horthy). anderson adapts both to its gated loop.
 
 ## More
 
