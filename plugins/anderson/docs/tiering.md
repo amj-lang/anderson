@@ -114,3 +114,7 @@ Opus 5.5 and Claude Fable 5.1 is narrower than these scores suggest." Even at pa
 What is not measured: no public head-to-head code-review benchmark exists, and these stages do
 single-pass critique, not the long agentic runs the benchmarks score. If reviews start missing
 things, lift effort in the thinnest seat first (NORMAL diff review) before reaching for a model.
+
+## Model IDs
+
+Use bare model-ID strings, no date suffixes; pricing lives in the API docs, not here.

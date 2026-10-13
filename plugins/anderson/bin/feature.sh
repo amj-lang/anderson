@@ -11,7 +11,8 @@
 #   ./feature.sh --approve-plan <task>      # implement -> diff_review, halt
 #   ./feature.sh --approve-diff <task>      # ship: branch + commit + push + PR (guarded)
 #   ./feature.sh --rework <task>            # loop implement on checker findings
-# Models are fixed per stage (docs/tiering.md); the review agents size effort from state.md `tier`.
+# Minimal pipeline: no grill, no crew seats, no TRINITY repair, review effort fixed at high
+# (effort is agent frontmatter, not read from state.md `tier`). The slash commands run the full loop.
 set -euo pipefail
 ROOT="feature-research"; slug="${2:-}"
 if [ "${1:-}" = "seed" ]; then           # seed <slug> [goal words…]: slug = first non-flag word
@@ -67,6 +68,18 @@ TPL
 }
 get() { grep -E "^$1:" "$state" | head -1 | sed -E "s/^$1:[[:space:]]*//; s/[[:space:]]*#.*//" || true; }
 set_field() { sed -i.bak -E "s|^($1:[[:space:]]*).*|\1$2|" "$state" && rm -f "$state.bak"; }
+# Paths under "## Files changed" (audit.md) and "Outside the plan's files" (repair.md); secrets refused.
+stage_scoped() {
+  local f p
+  for f in "$@"; do
+    [ -f "$f" ] || continue
+    sed -n '/^## Files changed/,/^## /p; /Outside the plan.s files/,/^## /p' "$f" | grep -oE '`[^`]+`' | tr -d '`'
+  done | sort -u | while read -r p; do
+    [ -e "$p" ] || continue
+    case "$p" in *.env|*.env.*|*.pem|*.key|*id_rsa*|*credentials*|*.p12) echo ">>> refused to stage secret-looking path: $p" >&2; continue ;; esac
+    git add -- "$p"
+  done
+}
 run() { claude -p "$3" --model "$1" --permission-mode "$2" --output-format json | tee -a "$dir/run.log"; }
 
 _tty=1; [ -t 1 ] || _tty=0; case "${TERM:-}" in dumb|"") _tty=0 ;; esac
@@ -96,7 +109,7 @@ diff_review() { run opus acceptEdits "Use the reviewer subagent on task '$task'.
 # remote + gh are present — pushes and opens the PR. Degrades gracefully: no git repo / no
 # remote / no gh -> does as much as it safely can and prints the rest. Never force-pushes.
 ship() {
-  set_field diff_verdict ship; set_field stage done
+  set_field diff_verdict ship; set_field stage 'done'
   local title subj bodyfile current default branch url
   title="$(sed -n 's/^# //p' "$dir/plan.md" 2>/dev/null | head -1 || true)"
   subj="${title:-$task} (review: ship)"
@@ -126,7 +139,8 @@ ship() {
   fi
   echo ">>> Branch: $branch (base: $default)"
 
-  git add -A
+  # Stage only what the audit lists (never `add -A`: a stray .env or another task's edits must not ship).
+  stage_scoped "$dir/audit.md" "$dir/repair.md"
   if git diff --cached --quiet; then
     echo ">>> Nothing to commit (already committed?)."
   else

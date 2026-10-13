@@ -35,7 +35,7 @@ This is the crew band that sits just above the prompt during a live run (colors 
 ── 5. repair: TRINITY stalled (only when tests go red)
 ⌐■-■ ●●●●◐○○ repair 5/7 · 18:30 · I: 4.1M / O: 102k  1 live ──────────────────────────────────────────────────
 ┌ TRINITY ⚠ ─────────────────────┐
-│ sonnet/high   18:30            │
+│ opus/high     18:30            │
 └ ⚠ stalled 2:30 · Bash pytest …─┘
 
 ── 6. diff_review: crew of 4, mixed

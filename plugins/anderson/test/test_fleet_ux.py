@@ -140,6 +140,28 @@ class TestDismiss(unittest.TestCase):
             finally:
                 fleet.FLEET_DIR = old
 
+    def test_stale_dead_session_is_forgotten_without_parsing_its_transcript(self):
+        import time
+        with tempfile.TemporaryDirectory() as tmp:
+            old = fleet.FLEET_DIR, fleet.read_transcript
+            fleet.FLEET_DIR = tmp
+            tp = os.path.join(tmp, "old.jsonl"); open(tp, "w").write("{}\n")
+            os.utime(tp, (1, 1))
+            json.dump({"session_id": "old", "cwd": tmp, "pid": None, "ts": time.time() - 2 * fleet.STALE_S,
+                       "transcript_path": tp}, open(os.path.join(tmp, "old.status.json"), "w"))
+            json.dump({"session_id": "live", "cwd": tmp, "pid": None, "ts": time.time()},
+                      open(os.path.join(tmp, "live.status.json"), "w"))
+            def boom(path, *a, **k):
+                self.assertNotEqual(path, tp, "stale session parsed its transcript")
+                return old[1](path, *a, **k)
+            fleet.read_transcript = boom
+            try:
+                self.assertEqual([r["sid"] for r in fleet.discover(include_ps=False)], ["live"])
+                self.assertFalse(os.path.exists(os.path.join(tmp, "old.status.json")))   # rotated away
+                self.assertTrue(os.path.exists(os.path.join(tmp, "live.status.json")))
+            finally:
+                fleet.FLEET_DIR, fleet.read_transcript = old
+
     def test_footer_uses_plain_words(self):
         foot = " ".join(ln for k, ln in fleet.footer(demo_rows(fleet), 160) if k == "foot")
         self.assertIn("r kill", foot); self.assertIn("b hide", foot); self.assertNotIn("pill", foot)

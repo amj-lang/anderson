@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 """
-Optional autonomous scheduler. With this hook enabled, after each agent finishes
-the loop advances state.md and emits hook JSON to chain the next agent (or a HALT
-notice at a human gate) — so you can run hands-off between gates instead of
-issuing each /anderson:* command. Leave it out to drive purely via slash commands
-or the headless feature.sh.
+Gate notices. After each agent finishes, this hook reads the newest state.md and
+emits hook JSON: the grill prompt after the plan, a HALT notice at a human gate.
+It never chains implement -> diff_review: /anderson:approve-plan self-sequences
+those (crew seats, effort twins, TRINITY on red), so a directive here would race it.
+Drop the scheduler entries from hooks.json to drive every step by hand.
 """
 import glob, json, os, re, sys
 
 NEXT = {
     "plan":        ("grill",       "grill", None),
     "plan_review": ("plan_review", True,    None),
-    "implement":   ("diff_review", False,   "Use the reviewer subagent. stage=diff_review."),
-    "repair":      ("diff_review", False,   "Use the reviewer subagent. stage=diff_review."),
     "diff_review": ("diff_review", True,    None),
 }
 # 'grill' is deliberately NOT a key: once stage=grill the hook exits silently and
@@ -54,6 +52,8 @@ def main():
         sys.exit(0)
     stage, task = field(t, "stage"), field(t, "task")
     if stage in (None, "done") or stage not in NEXT: sys.exit(0)
+    # state.md is repo content: a crafted task name would ride into the notice Claude acts on.
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", task or ""): sys.exit(0)
     if stage == "implement" and int(field(t, "iteration") or 0) > int(field(t, "max_iterations") or 2):
         notice = f"EXIT: {task} hit max_iterations. Escalating to you."
         emit({"hookSpecificOutput": {"hookEventName": hook_event, "additionalContext": notice}})

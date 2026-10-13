@@ -7,28 +7,38 @@ import { frame, portraitFor, SIZE } from './portraits'
 
 const seatsA = atom({ plugin: 'anderson', key: 'seats' } as const, {})
 const pipeA = atom({ plugin: 'anderson', key: 'pipe' } as const, null)
+const taskA = atom({ plugin: 'anderson', key: 'task' } as const, null)
 const tickA = atom({ plugin: 'anderson', key: 'tick' } as const, 0)
 const tokA = atom({ plugin: 'anderson', key: 'tokens' } as const, { i: 0, o: 0 })
 
-// ponytail: tasks untouched for 6h are stale and hidden; make it an option if someone parks a task longer.
-const STALE_MS = 6 * 3600_000
+// state.md is written by tools (sed, Edit) that raise no event, so the band re-reads it on the clock.
+const POLL_TICKS = 8 // x 250 ms = 2 s
 
-/** Newest feature-research/<task>/state.md under the project root, or null. */
-async function loadPipe($: EngineInterface): Promise<Pipe | null> {
+/** Task slugs a prompt names: `/anderson:<cmd> <slug>` first, then every `feature-research/<task>/` path. */
+export function tasksOf(text: string): string[] {
+  const out: string[] = []
+  const cmd = /\/anderson:(?:start|approve-plan|approve-diff|rework|status|auto)\s+(\S+)/.exec(text)
+  if (cmd?.[1]) out.push(cmd[1])
+  for (const m of text.matchAll(/feature-research\/([A-Za-z0-9._-]+)\//g)) if (m[1]) out.push(m[1])
+  return out.map(t => t.split('/').pop() ?? '').filter(Boolean)
+}
+
+/** Pin this session to the first task the text names whose scratch dir exists (doc examples name none). */
+async function pin($: EngineInterface, text: string) {
   const root = await $.session.root()
-  const dir = `${root}/feature-research`
-  if (!(await $.fs.exists(dir))) return null
-  let best: { path: string; mtime: number } | null = null
-  for (const ent of await $.fs.list(dir)) {
-    if (ent.kind !== 'dir') continue
-    const path = `${dir}/${ent.name}/state.md`
-    if (!(await $.fs.exists(path))) continue
-    const { mtimeMs } = await $.fs.stat(path)
-    if (!best || mtimeMs > best.mtime) best = { path, mtime: mtimeMs }
+  for (const t of tasksOf(text)) {
+    if (await $.fs.exists(`${root}/feature-research/${t}/state.md`)) { await update($, taskA, () => t); return }
   }
+}
+
+/** The state.md of this session's own task, or null: another session's task is never shown. */
+async function loadPipe($: EngineInterface): Promise<Pipe | null> {
+  const mine = await read($, taskA)
+  if (!mine) return null
+  const path = `${await $.session.root()}/feature-research/${mine}/state.md`
+  if (!(await $.fs.exists(path))) return null // shipped: approve-diff removed the scratch
   const now = await $.clock.now()
-  if (!best || now - best.mtime > STALE_MS) return null
-  const s = parseState(await $.fs.read(best.path))
+  const s = parseState(await $.fs.read(path))
   const prev = await read($, pipeA)
   return {
     task: s.task ?? '?',
@@ -44,12 +54,16 @@ async function refresh($: EngineInterface) {
 }
 
 export const register: Register = on => {
+  let timer: { cancel(): void } | undefined
   on('session.start', async ($, e, next) => {
     const r = await next(e)
     await refresh($)
-    // Animate spinners, stall timers and the portrait while the band shows anything.
-    $.clock.every(250, async () => {
+    // Animate spinners, stall timers and the portrait while the band shows anything; poll state.md.
+    timer?.cancel()
+    timer = $.clock.every(250, async () => {
       const seats = Object.values(await read($, seatsA))
+      const tick = await read($, tickA)
+      if (tick % POLL_TICKS === 0) await refresh($)
       if (seats.length || (await read($, pipeA))) await update($, tickA, n => n + 1)
     })
     return r
@@ -60,6 +74,7 @@ export const register: Register = on => {
     if (r.deny || !r.agentId) return r
     const id = r.agentId
     try {
+      await pin($, e.prompt)
       const now = await $.clock.now()
       const file = agentFile(e.subagentType)
       const md = file ? await $.fs.read(`${$.plugin.root}/agents/${file}.md`).catch(() => '') : ''
@@ -111,6 +126,7 @@ export const register: Register = on => {
   // A new prompt from the person: finished seats have been read, clear them.
   on('prompt.submit', async ($, e, next) => {
     try {
+      await pin($, e.text)
       await update($, seatsA, s => Object.fromEntries(Object.entries(s).filter(([, x]) => x.doneAt === undefined)))
       await refresh($)
     } catch {}

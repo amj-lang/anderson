@@ -50,6 +50,17 @@ def claude_pid(start):
         pid = parts[0]
     return None
 
+
+def pid_of(prev, fresh=False):
+    """The pid recorded last time, when that process still lives: the ps walk costs ~10 ms per hook run."""
+    try:
+        if not fresh and prev and int(prev) > 1:
+            os.kill(int(prev), 0)
+            return int(prev)
+    except Exception:
+        pass
+    return claude_pid(int(os.environ.get("FLEET_PID") or os.getppid()))
+
 # event -> (waiting on the human?, short label)
 WAITING = {
     "SessionStart":     (False, "jacked in"),
@@ -93,7 +104,7 @@ def main():
         "notification": d.get("notification_type") or (d.get("message") if ev == "Notification" else None),
         "tool": d.get("tool_name") if ev in ("PreToolUse", "PostToolUse") else None,
         "tmux_pane": os.environ.get("TMUX_PANE"),
-        "pid": claude_pid(int(os.environ.get("FLEET_PID") or os.getppid())),
+        "pid": pid_of(prev.get("pid"), ev == "SessionStart"),
         "ts": now,
         "since": since,
     }

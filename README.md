@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.70.0-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.71.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -172,7 +172,7 @@ Needs nothing but python3. `glow`, `terminal-notifier` and `tmux` are optional. 
 | `rework`       | Loop the implementer on the blockers, re-review. Back to Gate 2.  |
 | `status`       | Where a run is: stage, next agent, verdicts, iteration.           |
 | `proto`        | 2-3 throwaway variants of a visual question; you pick one.        |
-| `demo`         | Zero-token dry run of every banner and both gates.                |
+| `demo`         | Zero-token dry run of the band at every stage and both gates.     |
 | `auto`         | Non-halting pipeline to a draft PR. Experimental.                 |
 | `help`         | Quick-reference card. Reads nothing.                              |
 | `fleet`        | Install the `fleet` terminal command.                             |

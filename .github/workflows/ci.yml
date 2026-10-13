@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write   # the release job creates the tag + GitHub release
+  contents: read
 
 jobs:
   test:
@@ -24,8 +24,7 @@ jobs:
       - name: Compile the hook
         run: python3 -m py_compile plugins/anderson/hooks/scheduler.py
 
-      - name: Shellcheck (advisory until bin/ is fully clean)
-        continue-on-error: true
+      - name: Shellcheck
         run: shellcheck -S warning plugins/anderson/bin/*.sh
 
       - name: Version sync (plugin.json == marketplace.json == README badges)
@@ -52,7 +51,7 @@ jobs:
           # (`claude-[a-z]+-[0-9]+-[0-9]+`) does discriminate a stale `claude-opus-4-8` from a
           # bare `claude-opus-5` — but it also bans real versioned IDs (`claude-haiku-4-5`,
           # `claude-sonnet-4-5`), so the ID convention stays prose ("no date suffixes",
-          # docs/auto-mode-handoff.md). Ceiling: a stale-but-undated ID still slips through.
+          # docs/tiering.md). Ceiling: a stale-but-undated ID still slips through.
           if git grep -InE '\$[0-9][0-9.]*[[:space:]]*/[[:space:]]*\$[0-9][0-9.]*'; then
             echo "::error::per-token prices rot -- cite the API docs instead"
             exit 1
@@ -82,6 +81,8 @@ jobs:
   release:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write   # creates the tag + GitHub release
     runs-on: ubuntu-24.04  # pinned: ubuntu-latest moves to Ubuntu 26 on 2026-10-19; bump once CI passes there
     steps:
       - uses: actions/checkout@v4
