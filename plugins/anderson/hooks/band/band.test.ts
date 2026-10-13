@@ -55,5 +55,6 @@ test('band: crew grid, stall, verdict, and shrink when crowded', () => {
   // Idle at the gate: header names the next command.
   const gate = text(band({ seats: [], pipe, now: 1000, cols: 144, tick: 1, working: false }))
   expect(gate[0]).toContain('your turn ▸ /anderson:approve-diff')
+  expect(nextStep({ ...pipe, stage: 'grill' })).toBeUndefined()
   expect(band({ seats: [], pipe: null, now: 0, cols: 144, tick: 0, working: false })).toEqual([])
 })
