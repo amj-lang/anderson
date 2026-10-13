@@ -14,13 +14,8 @@ are optional; the rest is the question, e.g. "pause screen" or "fleet row for a 
    the settled decisions are whatever this conversation already fixed. Target: terminal when the
    question is about CLI/TUI/terminal output or the repo's UI is a terminal app, web when it is a
    page/screen/component; ask me in one line only when it is genuinely ambiguous.
-3. Print this banner as the LAST line before the agent call, then invoke the **prototyper**
+3. Invoke the **prototyper**
    subagent with: the question, target, n, out dir, the settled decisions, and the repo root.
-   ```
-     ╭─ ⌐■-■  PROTO · THE CONSTRUCT · sonnet/medium · <n> variants · <target>
-     │  "Many paths, one door: look before you walk it."
-     ╰─
-   ```
 4. SHOW — print the variant table from `<out>/README.md`. Terminal target: `cat` each `<X>.txt`
    under a `── A · <axis> ──` rule, verbatim, in a code block. Web target: `open` (macOS) or
    `xdg-open` each `<X>.html`, and print the paths. Then ask:

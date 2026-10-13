@@ -53,13 +53,8 @@ re-computed, rewrite the `**Tier:**` line directly under the plan.md H1 (`# <tas
 exactly:
   `**Tier:** <TIER> — plan_review opus/<effort> · implement sonnet/medium · diff_review opus/<effort>`
 (planner is always opus/medium and already ran.) It sits at the top of the plan, above 🎯 What, so the tier is the
-first thing read; it is echoed again on the PLAN_REVIEW banner and the Gate 1 card, so you see the
+first thing read; it is echoed again on the Gate 1 card, so you see the
 bill before you approve it. `/anderson:approve-plan` and `/anderson:rework` rewrite it on re-tier.
-
-BANNER RULE: finish setup and state.md edits, then print the banner as the last line before
-the agent call.
-
-QUOTE: pick one line from the stage's pool; vary it across stages.
 
 SEQUENCING: stages are sequential because each reads the previous stage's file output
 (the reviewer reads the diff + audit.md the implementer just wrote). Invoke one subagent
@@ -71,7 +66,7 @@ the one exception: they all read the same finished plan and each writes only its
    `feature-research/<task>/state.md` exists (`state: … seeded` or `… already there`). Do NOT
    recreate it. ADOPTED: when that line says `ADOPTED for this session, use task key <t>`, the
    work already has a task dir under a different slug (same slug modulo a ticket prefix) — `<t>`
-   is the task key for EVERYTHING from here on (state.md, plan.md, every banner, the Gate cards).
+   is the task key for EVERYTHING from here on (state.md, plan.md, the Gate cards).
    Never create the slug you were invoked with: one session, one task dir, or fleet shows two
    agents on the same task. Only when that line reports an error or is missing, do steps 1-2 by hand:
    append `feature-research/` to `.gitignore` if absent, and create state.md as in step 2.
@@ -124,33 +119,15 @@ the one exception: they all read the same finished plan and each writes only its
      row's Status to `doing`, and run SLICE MODE: tell the planner the slices file + k.
    Pass to the planner: goal + ticket criteria (verbatim) + the `design/` path when present.
 
-3. Print this PLAN banner as the LAST line before
-   invoking the planner, so it sits right above the agent:
-   ```
-     ╭─ ⌐■-■  PLAN · 1/5 · THE ARCHITECT · opus/medium
-     │  "[one quote from the pool]"
-     ╰─
-   ```
-   Pool (24): "Design twice, so reality only has to happen once." / "The most dangerous flaw is the one the blueprint calls a feature." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it." / "A plan is a promise you make to your future self at 3 a.m." / "Every line you don't write is a line you never debug." / "Decide the hard things on paper, where erasing is cheap." / "The shape of the solution hides in the shape of the problem." / "Cut the scope until it bleeds, then ship the part that lived." / "A blueprint nobody questions is a blueprint nobody read." / "Denial is the most predictable of all human responses." / "Hope: your greatest strength and your greatest weakness." / "As you adequately put, the problem is choice." / "Your life is the sum of a remainder of an unbalanced equation." / "Ergo: vis-à-vis, concordantly." / "There are levels of survival we are prepared to accept." / "I can only show you the door; you are the one who has to walk through it." / "You have to let it all go — fear, doubt, and disbelief." / "You take the red pill, and I show you how deep the rabbit hole goes." / "What you know you can't explain, but you feel it." / "The blueprint is cheaper than the rebuild." / "Name the blast radius before it names you." / "A plan survives contact only if it expected the contact." / "Erase on paper; never in production."
-   Then immediately invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md. Set stage=grill.
-4. Print this GRILL banner as the LAST line before
-   your FIRST grilling question:
-   ```
-     ╭─ ⌐■-■  GRILL · 2/5 · THE INTERROGATOR · you
-     │  "[one quote from the pool]"
-     ╰─
-   ```
-   Pool (24): "Every unanswered question is a bug with a delay." / "The plan you cannot defend out loud is not yet a plan." / "Decide it now in words, or discover it later in an outage." / "An assumption spoken is an assumption you can kill." / "The question you are avoiding is the one that matters." / "Pin every fork before the code picks one for you." / "Vague is just expensive spelled slowly." / "If two answers both sound fine, you haven't found the real question." / "Name the trade-off, or the trade-off names you." / "Shared understanding is cheaper than shared blame." / "What is real? How do you define real?" / "You think that's air you're breathing now?" / "What good is a phone call if you are unable to speak?" / "You have a problem with authority, Mr. Anderson." / "Choice is an illusion created between those with power and those without." / "There is only one constant, one universal: causality." / "Why, Mr. Anderson? Why do you persist?" / "You've been living in a dream world, Neo." / "We are all here to do what we are all here to do." / "Do you believe you are fighting for more than your survival?" / "Every fork you skip, the code picks for you." / "The answer you dodge becomes the outage you explain." / "Defend it out loud, or it isn't decided." / "Do not just hear the plan; interrogate it."
-   SLICE MODE (state.md has `slice:`): print this instead of the GRILL banner, then grill as
+3. Invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md. Set stage=grill.
+4. GRILL.
+   SLICE MODE (state.md has `slice:`): first print this one line
+   `slice <k>/<n> · <ticket id> <slice name> · parent <parent id> · contracts in: <name> ✓ …`
+   (✎ instead of ✓ when a ripple changed a contract, with the slice that did), then grill as
    below but drop every question the slices file's `## Settled decisions` or `**Contracts:**`
    already answer (the parent grill settled them once; never re-ask). A `Contract change:` LB
    row is always 🔴. Manifest reads `grill · <N> new questions (parent settled <M>) · …`; with
    N = 0 print `grill · 0 new questions (parent settled <M>) · skipped` and go to step 5.
-   ```
-     ╭─ ⌐■-■  SLICE <k>/<n> · <ticket id> <slice name> · parent <parent id>
-     │  contracts in: <name> ✓ … (✎ when a ripple changed it, with the slice that did)
-     ╰─
-   ```
    Then GRILL the plan yourself, inline in this session (self-contained — no external skill):
    - TRIAGE FIRST (before question 1): enumerate every question in ONE pass, drawn ONLY from
      what plan.md already puts on the table — each open branch of its decision tree, every
@@ -171,7 +148,7 @@ the one exception: they all read the same finished plan and each writes only its
      `y` → invoke the `anderson:proto` skill with `<question> --task <task>` and fold its pick
      like any answer (a `source: design` criterion + a ✓ Decisions row). The tally adds
      `<v>🎨` when any are flagged. Never prototype in auto mode.
-   - Print the manifest as the FIRST thing after the GRILL banner — ONE header line + a rule,
+   - Print the manifest as the FIRST thing in the grill — ONE header line + a rule,
      nothing else, so I see the grilling level at a glance (substitute real counts; omit a
      grade from the tally when its count is 0):
      ```
@@ -239,14 +216,6 @@ the one exception: they all read the same finished plan and each writes only its
    here; THE MEROVINGIAN needs a diff. Record `plan_crew: <PERSONA + … | none>` in the state.md
    STATE block.
 
-   Print this PLAN-REVIEW banner as the LAST line before the first seat or plan-reviewer call
-   (substitute `<review_effort>` with the table value):
-   ```
-     ╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · opus/<review_effort> · tier <TIER> · crew <PERSONA + … | none>
-     │  "[one quote from the pool]"
-     ╰─
-   ```
-   Pool (24): "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does." / "The second pair of eyes sees the assumption the first pair made." / "Improve the plan, not the planner's feelings." / "A good review changes the plan; a great one changes the question." / "Disagree on paper now, or apologize in the incident channel later." / "The cheapest place to be wrong is before the first commit." / "Trust the plan less than the reasons behind it." / "You've already made the choice; now you have to understand it." / "What's really going to bake your noodle is, would you still have broken it if I hadn't said anything?" / "We can never see past the choices we don't understand." / "You have a good soul — and I'm tough on souls." / "I hate giving good people bad news." / "Being the One is like being in love: no one can tell you, you just know it." / "I'd ask you to sit down, but you're not going to anyway." / "Candy?" / "You have the gift, but it looks like you're waiting for something." / "I only ever tell you what you need to hear." / "The assumption nobody stated is the one that breaks." / "Improve the plan, not the planner's mood." / "A second pair of eyes is the cheapest insurance you'll buy." / "I can't make the choice for you; I can make you see it."
    Then, unless the plan crew is `none`, invoke one subagent per crew line IN ONE MESSAGE, using
    the agent the line names, framing each: "You are <PERSONA>, the <lens> lens seat on the PLAN
    review of task <task>. Scope: <Files touched>. Review plan.md through your lens only; do NOT
@@ -259,14 +228,14 @@ the one exception: they all read the same finished plan and each writes only its
    real verdict, real counts — copy-pasteable, no literal `<task>`); omit zero-count entries
    from the criteria line. The card is the TL;DR — open plan.md only when a line raises doubt:
    ```
-   ﾊﾐﾐ 0ｺ1  🔴 G A T E  1 · YOUR TURN  1ｺ0 ﾐﾐﾊ
-     ⌐■-■  <plan.md ## 🎯 What, first line>
-           criteria <N> (<t> ticket · <d> design · <x> derived · <n> contract) · proof: <a> test · <b> visual · <c> e2e · <p> contract · <m> manual
-           assumptions: <n> load-bearing · all confirmed ✓   (each criterion has its own proof)
-           scorecard: Risk <r> · Confidence <c> · Coupling <k> · Reversibility <v>
-           tier <TIER> · plan_review opus/<effort> · implement sonnet/medium · diff_review opus/<effort>
-           plan crew <PERSONA + … | none><, plan_tally line — or "">
-           verdict <plan_verdict> → /anderson:approve-plan <task> — or "approved, go" · full plan: feature-research/<task>/plan.md
+   🔴 GATE 1 · YOUR TURN
+     <plan.md ## 🎯 What, first line>
+     criteria <N> (<t> ticket · <d> design · <x> derived · <n> contract) · proof: <a> test · <b> visual · <c> e2e · <p> contract · <m> manual
+     assumptions: <n> load-bearing · all confirmed ✓   (each criterion has its own proof)
+     scorecard: Risk <r> · Confidence <c> · Coupling <k> · Reversibility <v>
+     tier <TIER> · plan_review opus/<effort> · implement sonnet/medium · diff_review opus/<effort>
+     plan crew <PERSONA + … | none><, plan_tally line — or "">
+     verdict <plan_verdict> → /anderson:approve-plan <task> — or "approved, go" · full plan: feature-research/<task>/plan.md
    ```
    SPLIT CARD: when plan.md has a `## 🔪 Slices` section (Size ≥ 2 slices, never in slice mode),
    the card gains the size + slices + contracts lines right under the What line, and its verdict

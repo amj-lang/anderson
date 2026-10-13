@@ -13,11 +13,7 @@ sonnet/medium; test-fixer opus/high; diff panel sonnet/high at TRIVIAL/NORMAL, o
 HARD/CRITICAL; arbiter opus/high at TRIVIAL/NORMAL, opus/xhigh at HARD/CRITICAL (see MODEL
 TIERING in 7f). No stage runs on Fable.
 
-BANNER RULE (every stage below): finish ALL setup and state.md edits for stage FIRST,
-then print stage's banner as LAST line before stage's work begins (immediately
-above agent invocation or action). Nothing between banner and work. Never
-skip banner; never print two banners back-to-back. Unlike gated commands, this command
-NEVER prints a GATE line and NEVER halts for a human — self-sequences all 9 steps in one turn.
+Unlike gated commands, this command NEVER prints a GATE line and NEVER halts for a human — self-sequences all 9 steps in one turn.
 Terminal states: SHIP (stage: done, draft PR) or abort (stage: aborted with structured report).
 
 SANDBOX: auto runs unattended and finishes the task. Its own branch + draft PR are the
@@ -40,95 +36,9 @@ BEFORE any scratch cleanup: `python3 "${CLAUDE_PLUGIN_ROOT}/bin/runlog.py" featu
 <shipped | aborted:<reason>> --pr <url or none>`. Local only, never sent anywhere; it is the evidence
 for tuning tiers and crew patterns (`runlog.py --summary`).
 
-BANNER POOL — auto stages use these Matrix-flavoured banners in framed `╭─ ⌐■-■` format.
-In the two review banners (PLAN GATE, DIFF GATE) `<review_effort>` is a placeholder: substitute
-the tier's effort (steps 4e and 7f) when printing.
-
-INGEST banner (stage offset 1):
-```
-  ╭─ ⌐■-■  INGEST · 1/9 · THE OPERATOR · auto
-  │  "[quote from INGEST pool]"
-  ╰─
-```
-INGEST pool (14): "Every run starts with a question you can't answer yet." / "Feed it everything; it will tell you what matters." / "A task without a lock is a collision waiting to happen." / "The spec is a promise — read it before you make one." / "Before the first line compiles, the brief must." / "Wake the machine; give it something real to chew on." / "Context is the only thing that separates signal from noise." / "The job isn't real until it's written down." / "Lock it or lose it." / "Derive what you can; flag what you can't." / "Read the brief twice; build once." / "An untyped task is a guess with a deadline." / "Normalize the noise before you chase the signal." / "Wake up, Neo — the work has found you."
-
-BASELINE banner (stage offset 2):
-```
-  ╭─ ⌐■-■  BASELINE · 2/9 · THE GUARDIAN · auto
-  │  "[quote from BASELINE pool]"
-  ╰─
-```
-BASELINE pool (14): "Never build a fix on a broken tree." / "Green at the start, green at the end — or you fixed nothing." / "A red baseline is not your bug to own." / "Fetch first; stale refs have ended careers." / "The suite tells no lies if you ask it correctly." / "Trust the test run you ran, not the one you remember." / "A clean branch is the only safe foundation." / "If it was already broken, say so and stop." / "The ground must be solid before you add a floor." / "Run it now, so you can prove it later." / "Prove the floor before you trust the floor." / "A baseline you didn't run is a baseline you don't have." / "Inherit no failure you did not cause." / "Measure on green so you can prove on red."
-
-PLAN banner (stage offset 3):
-```
-  ╭─ ⌐■-■  PLAN · 3/9 · THE ARCHITECT · opus/medium
-  │  "[quote from PLAN pool]"
-  ╰─
-```
-PLAN pool (14): "Design twice, so reality only has to happen once." / "The most dangerous flaw is the one the blueprint calls a feature." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it." / "Every line you don't write is a line you never debug." / "Decide the hard things on paper, where erasing is cheap." / "The shape of the solution hides in the shape of the problem." / "Cut the scope until it bleeds, then ship the part that lived." / "A blueprint nobody questions is a blueprint nobody read." / "Denial is the most predictable of all human responses." / "The blueprint is cheaper than the rebuild." / "Name the blast radius before it names you." / "A plan survives contact only if it expected the contact." / "I can only show you the door; the plan is how you walk through it."
-
-PLAN GATE banner (stage offset 4):
-```
-  ╭─ ⌐■-■  PLAN GATE · 4/9 · THE ORACLE · opus/<review_effort> · crew <PERSONA + … | none>
-  │  "[quote from PLAN GATE pool]"
-  ╰─
-```
-PLAN GATE pool (14): "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system." / "Ask what it costs before you ask what it does." / "The second pair of eyes sees the assumption the first pair made." / "Improve the plan, not the planner's feelings." / "A good review changes the plan; a great one changes the question." / "Disagree on paper now, or apologize in the incident channel later." / "The cheapest place to be wrong is before the first commit." / "Trust the plan less than the reasons behind it." / "The plan you can't defend on paper won't survive the diff." / "Refute it now, while erasing is free." / "A criterion with no step is a promise with no plan." / "There is no shortcut past the review."
-
-RED banner (stage offset 5):
-```
-  ╭─ ⌐■-■  RED · 5/9 · THE SABOTEUR · auto
-  │  "[quote from RED pool]"
-  ╰─
-```
-RED pool (14): "A test that can't fail tells you nothing." / "Write the failure first; let success prove itself." / "Red is honest; green is a hypothesis." / "The test you skip is the bug you ship." / "If it doesn't break, it doesn't test." / "Encode the crime before you solve it." / "Freeze the witness before the suspect can coach them." / "A hollow red is worse than no red at all." / "The assertion must sting — or it's decoration." / "Lock the test before you write the fix." / "A green you didn't earn is a lie you'll inherit." / "Make it fail for the reason you claim it fails." / "An import error is a no-show, not a witness." / "Break it on purpose, or production breaks it for you."
-
-IMPLEMENT banner (stage offset 6):
-```
-  ╭─ ⌐■-■  IMPLEMENT · 6/9 · NEO · sonnet/medium
-  │  "[quote from IMPLEMENT pool]"
-  ╰─
-```
-IMPLEMENT pool (14): "Make it small enough to be wrong cheaply." / "Touch only what the plan told you to touch." / "One reviewable step beats ten clever ones." / "The first version should be obvious, not impressive." / "Done is a diff someone else can understand." / "I know kung fu." / "There is no spoon." / "Don't think you are; know you are." / "Free your mind." / "He is beginning to believe." / "Change the diff, not the mandate." / "Small enough to revert is small enough to trust." / "The plan is the path; walk it, don't wander." / "Stop trying to be clever and be correct."
-
-REPAIR banner (stage offset 6b — prints ONLY when tests go red):
-```
-  ╭─ ⌐■-■  REPAIR · 6b/9 · TRINITY · opus/high
-  │  "[quote from REPAIR pool]"
-  ╰─
-```
-REPAIR pool (14): "A red test is a witness — interrogate it, never silence it." / "Dodge this." / "The failing line is the symptom; find the organ." / "Name the cause in one line, or you have not found it." / "A test bent until it passes is a bug with paperwork." / "Flakes do not get fixed; they get named." / "Fix the function every caller shares, not the caller that complained." / "Two reds traded is not one red solved." / "Nobody has ever done this before — that is why it is going to work." / "Green earned by deletion is red in disguise." / "The suite is the one witness that cannot be charmed." / "Patch the cause; the symptom was never the enemy." / "If the approach cannot pass, say so — do not keep patching." / "One try, then the specialist. Flailing is not debugging."
-
-DIFF GATE banner (stage offset 7):
-```
-  ╭─ ⌐■-■  DIFF GATE · 7/9 · AGENT SMITH · opus/<review_effort>
-  │  "[quote from DIFF GATE pool]"
-  ╰─
-```
-DIFF GATE pool (14): "Read the diff as if your worst enemy wrote it." / "Your green tests are a comfort, not a verdict." / "Approve nothing you would not be paged for at midnight." / "The bug you cannot find is the one you decided was not there." / "Every assumption is a door you left unlocked." / "Find the failure before the failure finds the user." / "Mr. Anderson." / "That is the sound of inevitability." / "Never send a human to do a machine's job." / "You are a plague, and I am the cure." / "Green is not innocence; it is an alibi to check." / "The diff you wave through is the page you write at 3 a.m." / "Trust the merit, never the headcount." / "Inevitability, Mr. Anderson — the bug you chose not to see."
-
-SHIP banner (stage offset 8):
-```
-  ╭─ ⌐■-■  SHIP · 8/9 · THE ONE · auto
-  │  "[quote from SHIP pool]"
-  ╰─
-```
-SHIP pool (14): "Draft only. The human merges." / "A branch, a PR, a verdict — that's the job." / "Ship the evidence, not the confidence." / "The record is the PR; the scratch is disposable." / "Open the door; let the human walk through it." / "Push the branch, not the merge." / "Every good run ends with a diff someone can approve." / "The draft is honest about what it is." / "Done means reviewable, not merged." / "Raise your hand when you're finished — don't merge yourself." / "One clean commit; one honest history." / "Squash the noise; keep the story." / "The branch is yours; the merge is theirs." / "I came to hand you the key, not to turn it."
-
-REPORT banner (stage offset 9):
-```
-  ╭─ ⌐■-■  REPORT · 9/9 · THE MESSENGER · auto
-  │  "[quote from REPORT pool]"
-  ╰─
-```
-REPORT pool (14): "The result is only as good as the evidence behind it." / "State the outcome; show your work." / "A structured report is a gift to the next person in the chain." / "Name the blockers before the blockers name you." / "The human needs the map, not just the destination." / "Criteria in; evidence out." / "If you can't report it clearly, you don't understand it yet." / "The PR is the answer; the report is the reasoning." / "Leave breadcrumbs: someone will need to retrace this." / "End with the truth, whatever it is." / "A metric unrecorded is a lesson unlearned." / "Say what shipped, what slipped, and why." / "The next operator reads what you leave behind." / "End with evidence, not optimism."
-
-Quote: pick one line from the stage's pool; vary it across stages.
-
 ---
 
-1. INGEST — set up the run. All setup before printing the INGEST banner.
+1. INGEST — set up the run.
 
    a. Ensure `feature-research/` is in `.gitignore`: if line `feature-research/` absent,
       append it. (Same guard as `start.md` step 1 — scratch must not land in PR diff.)
@@ -138,7 +48,7 @@ Quote: pick one line from the stage's pool; vary it across stages.
    c. Run lock check: if `feature-research/<task-id>/state.md` already exists and contains
       `mode: auto` AND stage is not `done` or `aborted`, print:
       ```
-      ■ LOCKED · a run for task-id '<task-id>' is already active (stage: <stage>).
+      LOCKED · a run for task-id '<task-id>' is already active (stage: <stage>).
         Abort the existing run first (set stage: aborted in state.md) or wait for it to complete.
       ```
       Then STOP. Re-trigger after done/aborted may start fresh.
@@ -231,7 +141,6 @@ Quote: pick one line from the stage's pool; vary it across stages.
         UI against these files. No human to ask in auto — capture impossible → note it under
         `## Done so far` and the affected criteria downgrade to `manual` proof.
 
-   h. (BANNER RULE) Print the INGEST banner now, last line before any further action.
 
    i. Report INGEST complete in state.md `## Done so far`.
 
@@ -279,7 +188,6 @@ Quote: pick one line from the stage's pool; vary it across stages.
         Set state.md `stage: aborted`, print the needs-spec report, and STOP.
       - Record `test_cmd:` and `test_cmd_confidence:` in state.md.
 
-   f. (BANNER RULE) Print the BASELINE banner now.
 
    g. Run resolved `test_cmd`. Capture output. If suite RED (non-zero exit):
       write structured report to `feature-research/<task-id>/report.md`:
@@ -298,7 +206,6 @@ Quote: pick one line from the stage's pool; vary it across stages.
 
    a. Update state.md: set `stage: plan`.
 
-   b. (BANNER RULE) Print the PLAN banner now, last line before invoking the planner.
 
    c. Invoke the **planner** subagent, seeded with:
       - task title and body
@@ -355,8 +262,7 @@ Quote: pick one line from the stage's pool; vary it across stages.
       (drop `--hint` when the hint says `none`). Only SERAPH and NIOBE sit at the plan gate; THE
       MEROVINGIAN needs a diff. Record `plan_crew: <PERSONA + … | none>` in the state.md STATE block.
 
-   d. (BANNER RULE) Print the PLAN GATE banner now, last line before the first seat or plan-reviewer call.
-      Unless the plan crew is `none`, invoke one subagent per crew line IN ONE MESSAGE (safe in
+   d. Unless the plan crew is `none`, invoke one subagent per crew line IN ONE MESSAGE (safe in
       parallel: each reads the same plan and writes only its own file), using the agent the line
       names: "You are <PERSONA>, the <lens> lens seat on the PLAN review of task <task-id>. Scope:
       <Files touched>. Review plan.md through your lens only; do NOT read any other review. Write
@@ -400,7 +306,6 @@ Quote: pick one line from the stage's pool; vary it across stages.
 
    a. Update state.md: set `stage: red`.
 
-   b. (BANNER RULE) Print the RED banner now, last line before the RED step begins.
 
    c. Using your Write tool, write a failing test file under the repo's test directory that:
       - Encodes the acceptance criteria from step 1
@@ -444,7 +349,6 @@ Quote: pick one line from the stage's pool; vary it across stages.
 
    a. Update state.md: set `stage: implement`.
 
-   b. (BANNER RULE) Print the IMPLEMENT banner now, last line before invoking the implementer.
 
    c. Invoke the **implementer** subagent: execute `feature-research/<task-id>/plan.md`;
       make the frozen test pass; fill the Evidence column of plan.md `## ✅ Acceptance
@@ -465,7 +369,6 @@ Quote: pick one line from the stage's pool; vary it across stages.
       (`stage: aborted`, reason `repair-budget`, include the last red output and
       `feature-research/<task-id>/repair.md`), print, STOP.
 
-   c. (BANNER RULE) Print the REPAIR banner now, last line before invoking the test-fixer.
 
    d. Invoke the **test-fixer** subagent (model opus, effort high — never tiered; this
       stage is opus/high always), seeded with: the failing test name(s), the
@@ -568,8 +471,6 @@ Quote: pick one line from the stage's pool; vary it across stages.
           · diff SMALL (≤40 lines AND ≤2 files) → does NOT lower the tier (max rule)
         Set `tier:` = max(current tier, diff-derived tier); a forbidden/dep hit pins it to CRITICAL.
 
-   e. (BANNER RULE) Print the DIFF GATE banner now, last line before the panel runs.
-      Print it ONCE for the whole panel — not per reviewer.
 
    f. Run the blind reviewer panel — SIZE IT BY `tier`:
         - TRIVIAL  → 1 reviewer:  correctness
@@ -594,7 +495,7 @@ Quote: pick one line from the stage's pool; vary it across stages.
       panelist per output line (`<lens> <PERSONA> <agent> <model/effort> <reason>`; the lens
       definitions live in the reviewer agent), invoking the agent that line names. When the crew includes `security`, the
       `regressions+security` lens narrows to `regressions` (SERAPH owns security). Record
-      `crew: <PERSONA + … | none>` in the state.md STATE block and list the crew on the DIFF GATE banner.
+      `crew: <PERSONA + … | none>` in the state.md STATE block.
       Record `reviewers: <n>` (crew included). Run panelists IN PARALLEL — emit all N **reviewer** invocations in
       a SINGLE message (one Agent call each). Parallel is safe here ONLY because each panelist writes
       to its OWN file and returns its verdict in its reply — no shared `plan.md` / `diff_verdict`
@@ -611,7 +512,7 @@ Quote: pick one line from the stage's pool; vary it across stages.
       them), run HARD and CRITICAL panelists on the reviewer default (opus), since a missed bug at
       those tiers has real blast radius. Every panelist runs at `high` (reviewer frontmatter
       default) — one rung under the arbiter at HARD/CRITICAL. Arbiter runs on opus at `high` for
-      TRIVIAL/NORMAL and `xhigh` (the **reviewer-xhigh** agent) for HARD/CRITICAL. `<review_effort>` in the DIFF GATE banner = the
+      TRIVIAL/NORMAL and `xhigh` (the **reviewer-xhigh** agent) for HARD/CRITICAL. `<review_effort>` = the
       arbiter's effort. If no override available, all panelists run at the reviewer default —
       model tiering is a cost optimization, not a correctness requirement. Record the model the
       panel actually ran on as `panel_model: <sonnet|opus>` in state.md
@@ -686,7 +587,6 @@ Quote: pick one line from the stage's pool; vary it across stages.
 
    a. Update state.md: set `stage: ship`.
 
-   b. (BANNER RULE) Print the SHIP banner now, last line before the ship step.
 
    c. Determine labels: always add `auto-mode`. Add `needs-human` if sensitive/dependency paths
       flagged (step 7d) OR planner confidence was ≤ 3 (step 3a, relaxed, see SANDBOX) OR
@@ -793,7 +693,6 @@ Quote: pick one line from the stage's pool; vary it across stages.
 
 9. REPORT — print the structured terminal result.
 
-   a. (BANNER RULE) Print the REPORT banner now.
 
    b. Print the structured result:
       ```

@@ -44,8 +44,8 @@ test('band: crew grid, stall, verdict, and shrink when crowded', () => {
   const wide = text(band({ seats, pipe, now: 230_000, cols: 144, tick: 1, tok: { i: 1_234_567, o: 34_500 }, working: true }))
   expect(wide[0]).toContain('●●●●●◐○ diff_review 6/7')
   expect(wide[0]).toContain('I: 1.2M / O: 35k')
-  // Full width: header and every box row span the terminal.
-  for (const l of wide) expect([...l].length >= 140 && [...l].length <= 144).toBe(true)
+  // Full width: the header's rule spans the terminal.
+  expect([...(wide[0] ?? '')].length).toBe(144)
   expect(wide.join('\n')).toContain('✗ 1 blocking')
   expect(wide.join('\n')).toContain('⚠ stalled 3:50')
   expect(wide.join('\n')).toContain('▸ Read a.py')

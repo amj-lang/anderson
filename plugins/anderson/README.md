@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.68.2-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.69.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -682,6 +682,7 @@ The grill and the token slicing come from [Matt Pocock](https://github.com/mattp
 
 ## Changelog
 
+- **0.69.0** — **Band replaces the stage banners.** The `╭─ ⌐■-■ STAGE · n/5 · PERSONA` banners and their quote pools are gone from every command (start, approve-plan, rework, approve-diff, auto, proto): the band above the prompt already shows stage, persona and model live. Gate cards keep every line, minus the art (`🔴 GATE 1 · YOUR TURN`). `/anderson:demo` now previews the band; `bin/demo.sh` removed. Band boxes back to a fixed 34 columns; the header rule still spans the terminal.
 - **0.68.2** — Band box: gap between a long model name (`sonnet/medium`) and the timer.
 - **0.68.1** — Band no longer repeats `your turn ▸ answer the grill`: the grill's own card already asks.
 - **0.68.0** — **Band spans the terminal; tokens instead of `$`.** The band header ends in a rule to the terminal's full width and crew boxes stretch to fill each row. The header shows this session's tokens, `I: 1.2M / O: 35k` (main loop and subagents; input counts cache reads/writes), in place of the dollar figure.

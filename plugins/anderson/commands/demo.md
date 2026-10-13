@@ -1,55 +1,83 @@
 ---
-description: "Preview the full anderson pipeline UX (every stage banner + both gates). No agents, no tokens spent on the loop."
+description: "Preview the full anderson pipeline UX (the crew band at every stage + both gates). No agents, no tokens spent on the loop."
 ---
 Print a dry-run of the whole loop and NOTHING else: do NOT invoke any subagent
-and do NOT touch any files. Print the five framed stage banners and the two gate
-lines, in order, in the SAME framed format the live loop uses — one quote picked
-at random from each stage's pool (vary the pick). Then the SHIP banner. Format:
+and do NOT touch any files. Print, verbatim and in order, the frames and the two gate
+cards below, each in its own code block under its `──` title.
 
-  ╭─ ⌐■-■  [STAGE] · [N/5 or ✓] · [PERSONA] · [model/effort or tagline]
-  │  "[one quote from the pool]"
-  ╰─
+This is the crew band that sits just above the prompt during a live run (colors omitted):
 
-Print in exactly this order (sub-bullet = quote pool to pick from):
+```
+── 1. plan: THE ARCHITECT working
+⌐■-■ ◐○○○○○○ plan 1/7 · 3:00 · I: 412k / O: 10k  1 live ──────────────────────────────────────────────────────
+┌ THE ARCHITECT ⠸ ───────────────┐
+│ opus/medium    3:00            │
+└ ▸ Read api/limiter.py ─────────┘
 
-╭─ ⌐■-■  PLAN · 1/5 · THE ARCHITECT · opus/medium
-  Pool: "Design twice, so reality only has to happen once." / "What you do not name in the plan will name itself in production." / "Scope is a fire: contain it or feed it."
+── 2. grill: you answer, in the transcript
+⌐■-■ ●◐○○○○○ grill 2/7 · 5:00 · I: 1.3M / O: 22k ─────────────────────────────────────────────────────────────
+┌ THE ARCHITECT ✓ ───────────────┐
+│ opus/medium    3:12  1101k tok │
+└ ✓ done ────────────────────────┘
 
-╭─ ⌐■-■  GRILL · 2/5 · THE INTERROGATOR · you
-  Pool: "Every unanswered question is a bug with a delay." / "The plan you cannot defend out loud is not yet a plan." / "Pin every fork before the code picks one for you."
-  (opens with a one-line manifest — `grill · N questions · a🔴 b🟡 c🟢` + a rule — then asks 🔴 → 🟡 one/few at a time, each as a 3-line card `🔴 n/N ▰▰▱▱▱▱▱▱▱▱` / question / → recommendation, batches 🟢 at the end; questions are triaged from the plan's own decision tree, ✅ acceptance criteria (`derived` rows are 🔴 — confirm/edit/drop), 💥 blast radius, 📈 scorecard, and 🧯 error-handling `needs-context` rows — the blast-radius walk is where completeness gets challenged; each row you defer is recorded under state.md `## ❓ Open questions`)
+── 3. plan_review done, gate
+⌐■-■ ●●◐○○○○ your turn ▸ /anderson:approve-plan · 9:00 · I: 2.0M / O: 41k ────────────────────────────────────
+┌ THE ORACLE ✓ ──────────────────┐
+│ opus/high      4:00  640k tok  │
+└ ✓ done ────────────────────────┘
 
-╭─ ⌐■-■  PLAN_REVIEW · 3/5 · THE ORACLE · opus/high · tier NORMAL · crew SERAPH
-  Pool: "The flaw hides in the part everyone agreed not to question." / "A question carries more weight than any answer it returns." / "The map is not the territory, and the demo is not the system."
-  Then the gate marker (live runs print a TL;DR card — what · criteria/proof counts ·
-  scorecard · verdict — so plan.md only needs opening when a line raises doubt):
-  ﾊﾐﾐ 0ｺ1  🔴 G A T E  1 · YOUR TURN  1ｺ0 ﾐﾐﾊ
-  ⌐■-■  Add CSV export to the briefs table
-        criteria 5 (2 ticket · 2 design · 1 derived) · proof: 3 test · 1 visual · 1 e2e
-        assumptions: 2 load-bearing · all confirmed ✓   (each criterion has its own proof)
-        scorecard: Risk 4 · Confidence 8 · Coupling 3 · Reversibility 9
-        tier NORMAL · plan_review opus/high · implement sonnet/medium · diff_review opus/high
-        verdict ship → /anderson:approve-plan demo-task — or "approved, go"
+── 4. implement: NEO working
+⌐■-■ ●●●◐○○○ implement 4/7 · 14:00 · I: 3.4M / O: 88k  1 live ────────────────────────────────────────────────
+┌ NEO ⠸ ─────────────────────────┐
+│ sonnet/medium 14:00            │
+└ ▸ Edit api/limiter.py ─────────┘
 
-╭─ ⌐■-■  IMPLEMENT · 4/5 · NEO · sonnet/medium
-  Pool: "Make it small enough to be wrong cheaply." / "Ship the truth, not the hope." / "One reviewable step beats ten clever ones."
+── 5. repair: TRINITY stalled (only when tests go red)
+⌐■-■ ●●●●◐○○ repair 5/7 · 18:30 · I: 4.1M / O: 102k  1 live ──────────────────────────────────────────────────
+┌ TRINITY ⚠ ─────────────────────┐
+│ sonnet/high   18:30            │
+└ ⚠ stalled 2:30 · Bash pytest …─┘
 
-╭─ ⌐■-■  REPAIR · 4b/5 · TRINITY · opus/high      (only when tests go red — shown here for the preview)
-  Pool: "A red test is a witness — interrogate it, never silence it." / "Dodge this." / "One try, then the specialist. Flailing is not debugging."
-  The implementer gets ONE try at a failing test; a suite still red after it goes to TRINITY,
-  who root-causes it on opus/high and hands back a green tree (or says the plan is the problem).
+── 6. diff_review: crew of 4, mixed
+⌐■-■ ●●●●●◐○ diff_review 6/7 · 4:00 · I: 5.6M / O: 131k  2 live ──────────────────────────────────────────────
+┌ NIOBE ⠸ ────────── performance ┐ ┌ THE MEROVINGIAN ⠸ ──────── api ┐ [ SMITH ✗ 1 blocking ]
+│ opus/medium    4:00            │ │ opus/medium    4:00            │ [ SERAPH ✓ 0 blocking ]
+└ ▸ Grep rate_limit ─────────────┘ └ ▸ Read api/routes.py ──────────┘
 
-╭─ ⌐■-■  DIFF_REVIEW · 5/5 · AGENT SMITH · opus/high · crew SERAPH + MEROVINGIAN
-  Pool: "Your green tests are a comfort, not a verdict." / "Untested is unknown, and unknown is unsafe." / "Every assumption is a door you left unlocked."
-  Then the gate marker:
-  ﾊﾐﾐ 0ｺ1  🔴 G A T E  2 · AWAITING YOU  1ｺ0 ﾐﾐﾊ
-  ⌐■-■  criteria 5/5 proven (all)
-        verdict ship → read the diff (`! git diff HEAD` · new files `! git status -s` ·
-        fleet `o`) + plan.md ## 🔭 Review, then
-        /anderson:approve-diff demo-task to ship, or /anderson:rework demo-task
-  (ship builds the PR from the plan minus the how — What & why · criteria with evidence · design · how-to-test + config, with scorecard / blast radius / error handling in collapses; Open-questions only when non-empty — then deletes the gitignored scratch; the PR is the durable record)
+── 7. diff_review gate: blocking → rework
+⌐■-■ ●●●●●◐○ your turn ▸ /anderson:rework · 6:00 · I: 6.2M / O: 140k ─────────────────────────────────────────
+┌ AGENT SMITH ✗ ─────────────────┐ ┌ SERAPH ✓ ──────────── security ┐
+│ opus/xhigh     3:00  820k tok  │ │ opus/high      2:00  410k tok  │
+└ ✗ 1 blocking · 2 nits ─────────┘ └ ✓ 0 blocking ──────────────────┘
 
-╭─ ⌐■-■  SHIP ✓ · THE ONE · welcome to the real world
-  Pool: "Green is not understood; read what you merged." / "The gate is not an obstacle; it is the point." / "Review is how respect for the future is spelled."
+── 8. shipped
+⌐■-■ ●●●●●●● shipped · 31:00 · I: 7.9M / O: 176k ─────────────────────────────────────────────────────────────
+```
 
-End with: demo complete — no agents ran. (For a pure-shell, truly zero-token version, run bin/demo.sh in a terminal.)
+The grill (frame 2) runs in the transcript: a one-line manifest — `grill · N questions · a🔴 b🟡 c🟢` + a rule — then 🔴 → 🟡 one/few at a time, each as a 3-line card `🔴 n/N ▰▰▱▱▱▱▱▱▱▱` / question / → recommendation, 🟢 batched at the end; questions come from the plan's own decision tree, ✅ acceptance criteria (`derived` rows are 🔴), 💥 blast radius, 📈 scorecard, and 🧯 error-handling `needs-context` rows; each row you defer lands under state.md `## ❓ Open questions`.
+
+Gate 1 card (after frame 3; plan.md only needs opening when a line raises doubt):
+
+```
+🔴 GATE 1 · YOUR TURN
+  Add CSV export to the briefs table
+  criteria 5 (2 ticket · 2 design · 1 derived) · proof: 3 test · 1 visual · 1 e2e
+  assumptions: 2 load-bearing · all confirmed ✓   (each criterion has its own proof)
+  scorecard: Risk 4 · Confidence 8 · Coupling 3 · Reversibility 9
+  tier NORMAL · plan_review opus/high · implement sonnet/medium · diff_review opus/high
+  verdict ship → /anderson:approve-plan demo-task — or "approved, go"
+```
+
+Gate 2 card (after frame 7, on a clean review):
+
+```
+🔴 GATE 2 · AWAITING YOU
+  criteria 5/5 proven (all)
+  verdict ship → read the diff (`! git diff HEAD` · new files `! git status -s` ·
+  fleet `o`) + plan.md ## 🔭 Review, then
+  /anderson:approve-diff demo-task to ship, or /anderson:rework demo-task
+```
+
+(Ship builds the PR from the plan minus the how — What & why · criteria with evidence · design · how-to-test + config, with scorecard / blast radius / error handling in collapses; Open-questions only when non-empty — then deletes the gitignored scratch; the PR is the durable record.)
+
+End with: demo complete — no agents ran.
