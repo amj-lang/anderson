@@ -124,7 +124,7 @@ function box(s: Seat, v: View, w = MIN_W): Line[] {
   const why = s.why ? ' ' + s.why + ' ' : ''
   const fill = Math.max(1, w - 2 - W(name) - 2 - W(why))
   const top: Line = [['┌', edge], [name, C.bold], glyph, [' ' + '─'.repeat(fill), edge], [why, C.dim], ['┐', edge]]
-  const meta = ' ' + s.model.padEnd(13) + clock((s.doneAt ?? v.now) - s.startedAt).padStart(5) + '  ' + tok(s.tokens)
+  const meta = ' ' + s.model.padEnd(14) + clock((s.doneAt ?? v.now) - s.startedAt).padStart(5) + '  ' + tok(s.tokens)
   let tail: string, tc: string
   if (done) { tail = ` ${s.verdict} `; tc = s.bad ? C.red : C.green }
   else if (stalled) { tail = ` ⚠ stalled ${clock(v.now - s.lastAt)} · ${s.act ?? ''} `; tc = C.yellow }
