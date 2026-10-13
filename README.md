@@ -18,6 +18,7 @@ You describe the task. A crew of agents, sized to how hard the task is, plans it
 - **It gets it right the first time more often.** Before any code is written, you answer the plan's open questions and a second, stronger model reviews it. Mistakes get fixed in the plan, where they are cheap, not in the third rework.
 - **You only step in where it matters.** Two gates: the plan and the final diff. You judge intent and results; the agents do the typing.
 - **Several tasks at once.** Each task keeps its own state on disk, so you can run many in parallel. `fleet` shows all of them on one screen, tells you which one needs you, and takes you there.
+- **You see the crew work.** Just above your prompt, one box per running agent: who it is, its model, what it is doing right now, and its verdict when done. A stuck agent turns yellow; at a gate the band names the command to type next.
 - **Every decision is written down.** The plan, the evidence for each acceptance criterion and both reviews live in one folder per task.
 
 ## Philosophy
