@@ -52,6 +52,10 @@ def main():
         sys.exit(0)
     stage, task = field(t, "stage"), field(t, "task")
     if stage in (None, "done") or stage not in NEXT: sys.exit(0)
+    # A Stop fires when the main turn ends, even while the planner still runs in the background:
+    # without plan.md there is nothing to grill yet, so the stage must not move (the band would
+    # show "grill" over a live THE ARCHITECT).
+    if stage == "plan" and not os.path.exists(os.path.join(os.path.dirname(path), "plan.md")): sys.exit(0)
     # state.md is repo content: a crafted task name would ride into the notice Claude acts on.
     if not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", task or ""): sys.exit(0)
     if stage == "implement" and int(field(t, "iteration") or 0) > int(field(t, "max_iterations") or 2):

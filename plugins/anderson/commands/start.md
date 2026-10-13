@@ -5,7 +5,7 @@ allowed-tools: Bash(grep:*), Bash(echo:*), Bash(sed:*)
 ---
 State first, so the fleet monitor shows this task's row before any thinking starts (idempotent;
 also adds `feature-research/` to .gitignore):
-!`bash "${CLAUDE_PLUGIN_ROOT}/bin/feature.sh" seed $1 $2 2>&1`
+!`bash "${CLAUDE_PLUGIN_ROOT}/bin/feature.sh" seed "$ARGUMENTS" 2>&1`
 
 Parse "$ARGUMENTS": task slug = first word; goal = the rest.
 
