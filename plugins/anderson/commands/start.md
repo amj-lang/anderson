@@ -118,6 +118,10 @@ the one exception: they all read the same finished plan and each writes only its
      every state/variant shown, layout facts (order, grouping, alignment). The planner turns
      inventory lines into `source: design` criteria; the diff reviewer compares the built UI
      against these files.
+   - SLICE: a `feature-research/*.slices.md` file lists this task's ticket id or branch in its
+     table → this task is slice k of that parent (ripple and the split write those files). Add
+     `slices:          <that file>` and `slice:           <k>/<n>` to the STATE block, set that
+     row's Status to `doing`, and run SLICE MODE: tell the planner the slices file + k.
    Pass to the planner: goal + ticket criteria (verbatim) + the `design/` path when present.
 
 3. Print this PLAN banner as the LAST line before
@@ -137,6 +141,16 @@ the one exception: they all read the same finished plan and each writes only its
      ╰─
    ```
    Pool (24): "Every unanswered question is a bug with a delay." / "The plan you cannot defend out loud is not yet a plan." / "Decide it now in words, or discover it later in an outage." / "An assumption spoken is an assumption you can kill." / "The question you are avoiding is the one that matters." / "Pin every fork before the code picks one for you." / "Vague is just expensive spelled slowly." / "If two answers both sound fine, you haven't found the real question." / "Name the trade-off, or the trade-off names you." / "Shared understanding is cheaper than shared blame." / "What is real? How do you define real?" / "You think that's air you're breathing now?" / "What good is a phone call if you are unable to speak?" / "You have a problem with authority, Mr. Anderson." / "Choice is an illusion created between those with power and those without." / "There is only one constant, one universal: causality." / "Why, Mr. Anderson? Why do you persist?" / "You've been living in a dream world, Neo." / "We are all here to do what we are all here to do." / "Do you believe you are fighting for more than your survival?" / "Every fork you skip, the code picks for you." / "The answer you dodge becomes the outage you explain." / "Defend it out loud, or it isn't decided." / "Do not just hear the plan; interrogate it."
+   SLICE MODE (state.md has `slice:`): print this instead of the GRILL banner, then grill as
+   below but drop every question the slices file's `## Settled decisions` or `**Contracts:**`
+   already answer (the parent grill settled them once; never re-ask). A `Contract change:` LB
+   row is always 🔴. Manifest reads `grill · <N> new questions (parent settled <M>) · …`; with
+   N = 0 print `grill · 0 new questions (parent settled <M>) · skipped` and go to step 5.
+   ```
+     ╭─ ⌐■-■  SLICE <k>/<n> · <ticket id> <slice name> · parent <parent id>
+     │  contracts in: <name> ✓ … (✎ when a ripple changed it, with the slice that did)
+     ╰─
+   ```
    Then GRILL the plan yourself, inline in this session (self-contained — no external skill):
    - TRIAGE FIRST (before question 1): enumerate every question in ONE pass, drawn ONLY from
      what plan.md already puts on the table — each open branch of its decision tree, every
@@ -247,6 +261,43 @@ the one exception: they all read the same finished plan and each writes only its
            plan crew <PERSONA + … | none><, plan_tally line — or "">
            verdict <plan_verdict> → /anderson:approve-plan <task> — or "approved, go" · full plan: feature-research/<task>/plan.md
    ```
+   SPLIT CARD: when plan.md has a `## 🔪 Slices` section (Size ≥ 2 slices, never in slice mode),
+   the card gains the size + slices + contracts lines right under the What line, and its verdict
+   line asks the split question instead:
+   ```
+           size ~<N>k tokens → <n> slices (150k each)
+           ├─ 1 <slice>      <c> criteria          ← this session
+           └─ <k> <slice>    <c> criteria  ⟵ <depends on>
+           contracts: <name> · <name>
+           verdict <plan_verdict> → split into <n> sub-issues of <parent id> and approve slice 1? (y / n = no split)
+   ```
+   (`<n> local slices` instead of `sub-issues of …` when `source_url` is not a Linear issue.)
+   `n` → plain Gate 1, exactly as today (slice 1 planned, the rest stay a line in the LB Scope row).
+   `y` → SPLIT, then continue exactly as `/anderson:approve-plan <task>` (invoke that skill):
+   1. Write `feature-research/<task>.slices.md` (outside the task dir, so it survives each ship):
+      ```
+      # <task> slices
+      parent: <source_url | none>
+      | # | Slice | Criteria | Depends on | Issue | Branch | Status |
+      |---|-------|----------|------------|-------|--------|--------|
+      **Contracts:**
+      - <name>: <shape> — <invariant>
+      ## Settled decisions
+      - <question> → <answer>
+      ```
+      Rows from plan.md 🔪 Slices; Status `doing` for 1, `todo` for the rest. Settled decisions =
+      every `[answered]` line in state.md `## ❓ Open questions` plus every ✓ ✅ Decisions row.
+   2. Linear parent only: create one sub-issue per slice 2..n with Linear MCP `save_issue`:
+      team/project from the parent, `parentId` = parent, `title` = slice name, `description` =
+      its criteria + the contracts it reads or exposes (we create it, so description is allowed),
+      `blockedBy` = the sub-issues of its Depends-on slices. Slice 1 is this session: create it
+      too, then set state.md `source_url:` to it. Fill Issue + Branch (Linear's branch name) in
+      the slices file. NEVER edit the parent's description: post ONE comment on the parent with
+      the slice list, order and contracts (`save_comment`).
+   3. Add `slices:` and `slice: 1/<n>` to the STATE block. No Linear parent, or any MCP
+      failure → local slices only: Issue `—`, Branch `<task>-s<k>` (slice 1 keeps this task),
+      say so, continue.
+
    Halt is unconditional even on a ship verdict. GATE-BLOCK RULE: the gate is not approvable while
    any `## ✅ Decisions` LB row is unconfirmed (✗) — the grill above should have caught this, but
    if any remains, replace the "YOUR TURN" card with a `🔴 GATE 1 BLOCKED — <n> load-bearing

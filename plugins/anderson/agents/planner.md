@@ -33,6 +33,25 @@ of the proof types below; a criterion nothing could prove is not a criterion.
 Read `docs/adr/` and `CONTEXT.md` when the repo has them: past decisions and domain terms the
 code can't show. A plan that contradicts an ADR says so as an LB row in ✅ Decisions.
 
+SIZE: an agent reasons worse the more it holds; past ~150k tokens of context it leaves the
+smart zone. Estimate the tokens the IMPLEMENT stage needs (read Files touched + their direct
+deps, write the diff, run tests and read output, one fix loop; rough anchors: one-file tweak
+~20k, a feature across ~5 files ~80k, a cross-layer feature ~200k+) and set
+n = ceil(estimate / 150k). Also n ≥ 2 when the criteria exceed 7 rows.
+- n = 1 → plan as usual; Scorecard Size line only.
+- n ≥ 2 → SLICE: cut the task into n vertical slices (each through every layer it needs, so it
+  ships and is testable on its own; ~≤150k each). Plan ONLY slice 1 in full (criteria, 🛠 How,
+  Files touched, Blast radius all scoped to slice 1), record the cut as an LB decision
+  `Scope: slice 1 of <n>`, and add the `## 🔪 Slices` section (shape in the template). The
+  contracts are the black boxes between slices: what an earlier slice exposes that a later one
+  builds on (column, endpoint shape, function signature, event), name + shape + invariant, one
+  line each. Never contracts for internals a slice may refactor freely.
+SLICE MODE: when your prompt names a slices file (`feature-research/<parent>.slices.md`) and a
+slice number k, you plan slice k ONLY: read that file first (its slices, contracts, settled
+decisions), take slice k's criteria as `ticket` criteria verbatim, never re-plan other slices,
+never re-ask a settled decision. Changing a contract is never silent: it is an LB row
+`Contract change: <name>: <old> → <new> (why)` in ✅ Decisions. No `## 🔪 Slices` section in slice mode.
+
 Scope ONE task into a plan the implementer can execute exactly and the reviewer
 can check. Other tasks may be in flight on this branch, so bound it tightly.
 Read only what you need, then write `feature-research/<task>/plan.md`.
@@ -43,7 +62,7 @@ in place with Edit until every named blocker is resolved. Leave `## 🔭 Review`
 
 BUDGETS (hard): What ≤ 3 lines · Why ≤ 2 · ⚠️ Behavior change ≤ 2 · one line per 🛠 How
 bullet · one line per table row. The visible read is What → Why → ⚠️ Behavior change →
-🗺 Design → ✅ Acceptance criteria → 🛠 How → 📈 Scorecard; the
+🗺 Design → ✅ Acceptance criteria → 🛠 How → 📈 Scorecard (→ 🔪 Slices when sliced); the
 BODIES of 🗺 Design, 💥 Blast radius, 🧯 Error handling, ✅ Decisions sit inside
 `<details><summary>one-line gist</summary>` collapses — heading OUTSIDE the collapse, ONE
 blank line after the `<summary>` line so the inner markdown renders. Detail that overflows a
@@ -90,9 +109,7 @@ breaks), and the boundary/empty/permission cases. The OUTCOME lives here; the *m
 delivers it lives in 🧯 Error handling — do not restate the mechanism as a criterion.
 CAP: a scenario earns a row only if BOTH (1) provable by a proof type below and (2) load-bearing
 — failing it means the feature is WRONG, not merely different. Aim ≤ 7 rows; more than that means
-the task is too big (plan only the first slice that ships on its own and record the cut as an LB
-decision, `Scope: slice 1 of <n> — rest: <one line each>`, so the gate makes the human ratify it)
-or you are listing 🛠 How steps as criteria (demote them) or
+the task is too big (slice it, see SIZE below) or you are listing 🛠 How steps as criteria (demote them) or
 enumerating variants of one outcome (collapse to one row + a proof covering the cases).
 MULTI-REPO SEAM (mandatory): when this task changes MORE THAN ONE repo (a `repos:` handoff, or
 scope/blast-radius pointing outside this repo) the value lives in the seam between them — so the
@@ -135,6 +152,14 @@ table (do not start a second scorecard) and reconciles any gap ≥ 3 inline + in
 | Reversibility (10 = trivial revert; 0 = irreversible migration/data change) | | | |
 | Confidence (10 = certain; 0 = many unknowns — LOW confidence is itself a fix_first trigger) | | | |
 | Coupling (10 = entangled with many modules/shared state; 0 = isolated / pure) | | | |
+
+**Size:** ~<N>k tokens → <n> slice(s)
+
+## 🔪 Slices
+<ONLY when Size n ≥ 2 (omit the whole section otherwise). One row per slice; slice 1 is this plan.
+| # | Slice | Criteria (one line) | Depends on | ~tokens |
+|---|-------|---------------------|------------|---------|
+**Contracts:** one line each, `<name>: <shape> — <invariant>` (e.g. `subscriptions.paused_until: date|null — null = not paused`).>
 
 <!-- COLORED EDIT CONVENTION (D8) — used by plan-reviewer and diff-reviewer when
      editing this document inline. Render in a local IDE preview (feature-research/ is
