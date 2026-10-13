@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.65.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.65.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -672,6 +672,7 @@ The grill and the token slicing come from [Matt Pocock](https://github.com/mattp
 
 ## Changelog
 
+- **0.65.1** — **Fleet reads only real slices files.** `slices:` in state.md must name a regular `*.slices.md` directly in the repo's `feature-research` dir; an absolute path, `..`, a device or a FIFO is ignored, and the read is capped. Before, a crafted state.md could make fleet read any file or hang on `/dev/zero`.
 - **0.65.0** — **Fleet shows slices.** A row whose task is a slice of a split task gets `✂ 2/3` after the task name (`s 2/3` with `--ascii`), from state.md `slice:`. The selected row's card adds a `slice` line: the parent ticket, each contract (✓ unchanged, ✎ changed by a ripple) and the next slice with what it still waits on, read from the slices file. Unsliced tasks look exactly as before.
 - **0.64.0** — **Token slicing.** The planner now estimates how many tokens the implement stage needs and divides by 150k, the rough edge of the smart zone. One slice: nothing changes. Two or more: it plans slice 1, lists the rest with the contracts between them (the black boxes a later slice builds on), and Gate 1 asks once whether to split. `y` creates Linear sub-issues under the ticket (`blockedBy` wired, one comment on the parent, its description never touched) or local slices without Linear, then approves slice 1. Credit: the slicing rule (tokens ÷ 150k, one fresh session per ticket) and the grill both come from [Matt Pocock](https://github.com/mattpocock/skills); "smart zone" is Dex Horthy's term. Each later slice started from its sub-issue only grills what the parent grill didn't settle. After each ship, a ripple check compares the slice against the contracts: unchanged is one line, a change pauses and asks before updating the downstream slices. Then it offers the next unblocked slice, in this session while it stays under 150k, else as a command for a fresh one. `/anderson:auto` is unchanged.
 

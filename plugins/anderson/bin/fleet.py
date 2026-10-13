@@ -601,7 +601,7 @@ def enrich(s, now):
         "mood": mood, "model": model_spec, "iteration": it, "max_iter": mx,
         "plan_verdict": st.get("plan_verdict"), "diff_verdict": st.get("diff_verdict"), "branch": git_branch(root) or st.get("branch") or tr.get("branch"),
         "gate": (st.get("gate") or "").lower(), "tier": (st.get("tier") or "").lower(),
-        "slice": st.get("slice") or "", "slices": os.path.join(root, st["slices"]) if root and st.get("slices") else "",
+        "slice": st.get("slice") or "", "slices": slices_path(root, st.get("slices")),
         "dejavu": bool(it and it.isdigit() and int(it) > 0),
         "status": status, "now": now_txt, "text": tr.get("text") or "",
         "cost": s.get("cost_usd"), "ctx_pct": ctx_pct, "ctx_tokens": toks,
@@ -1092,12 +1092,23 @@ def _wrap(txt, width, max_lines):
     return out or [""]
 
 
+def slices_path(root, rel):
+    """state.md is repo content, so its `slices:` must name a regular `*.slices.md` file directly
+    in the repo's feature-research dir: no absolute paths, no `..`, no devices or FIFOs."""
+    if not (root and rel):
+        return ""
+    base = os.path.realpath(os.path.join(root, "feature-research"))
+    p = os.path.realpath(os.path.join(root, rel))
+    ok = os.path.dirname(p) == base and p.endswith(".slices.md") and os.path.isfile(p)
+    return p if ok else ""
+
+
 def slice_line(r):
     """`2/3 of AR-2587 · contracts a ✓ · next ar-2590 (waits on 1)` from the slices file that
     start.md's SPLIT writes. Missing or unreadable file → just the k/n from state.md."""
     try:
         with open(r.get("slices") or "", encoding="utf-8", errors="replace") as f:
-            t = f.read()
+            t = f.read(64_000)       # ponytail: a slices file is a few hundred bytes
     except OSError:
         return r["slice"]
     parent = field(t, "parent") or ""

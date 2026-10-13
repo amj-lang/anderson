@@ -47,6 +47,17 @@ class TestFleetSlices(unittest.TestCase):
         lines = fleet.detail_card(self.row(slice="2/3", slices=""), 150, "", 0)
         self.assertTrue(any("slice" in l[1] and "2/3" in l[1] for l in lines))
 
+    def test_slices_path_stays_in_feature_research(self):
+        with tempfile.TemporaryDirectory() as root:
+            fr = os.path.join(root, "feature-research"); os.mkdir(fr)
+            open(os.path.join(fr, "t.slices.md"), "w").close()
+            open(os.path.join(root, "x.slices.md"), "w").close()
+            ok = os.path.realpath(os.path.join(fr, "t.slices.md"))
+            self.assertEqual(fleet.slices_path(root, "feature-research/t.slices.md"), ok)
+            for bad in ("/etc/passwd", "feature-research/../x.slices.md", "/dev/zero",
+                        "feature-research/missing.slices.md", "feature-research", ""):
+                self.assertEqual(fleet.slices_path(root, bad), "", bad)
+
 
 if __name__ == "__main__":
     unittest.main()
