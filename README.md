@@ -181,6 +181,10 @@ Commands are namespaced `/anderson:<command>`. The first word is the task's slug
 - For ship: `git`, a remote, and an authenticated [`gh`](https://cli.github.com). Degrades gracefully without them.
 - Optional, used when present: the LSP and context7 plugins above; `npm audit`, `gitleaks` and `semgrep` for SERAPH; `knip` for THE MEROVINGIAN.
 
+## Credits
+
+The grill and the token slicing come from [Matt Pocock](https://github.com/mattpocock/skills): his `grill-me` interview that settles every decision before code exists, and his rule of sizing work by tokens and dividing by 150k so each ticket fits one fresh session (the "smart zone", a term he credits to Dex Horthy). anderson adapts both to its gated loop.
+
 ## More
 
 - Full operator docs: [plugins/anderson/README.md](plugins/anderson/README.md)

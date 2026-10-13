@@ -33,7 +33,7 @@ of the proof types below; a criterion nothing could prove is not a criterion.
 Read `docs/adr/` and `CONTEXT.md` when the repo has them: past decisions and domain terms the
 code can't show. A plan that contradicts an ADR says so as an LB row in ✅ Decisions.
 
-SIZE: an agent reasons worse the more it holds; past ~150k tokens of context it leaves the
+SIZE (Matt Pocock's rule): an agent reasons worse the more it holds; past ~150k tokens it leaves the
 smart zone. Estimate the tokens the IMPLEMENT stage needs (read Files touched + their direct
 deps, write the diff, run tests and read output, one fix loop; rough anchors: one-file tweak
 ~20k, a feature across ~5 files ~80k, a cross-layer feature ~200k+) and set
