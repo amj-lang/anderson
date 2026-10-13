@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.64.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.65.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -672,6 +672,7 @@ The grill and the token slicing come from [Matt Pocock](https://github.com/mattp
 
 ## Changelog
 
+- **0.65.0** — **Fleet shows slices.** A row whose task is a slice of a split task gets `✂ 2/3` after the task name (`s 2/3` with `--ascii`), from state.md `slice:`. The selected row's card adds a `slice` line: the parent ticket, each contract (✓ unchanged, ✎ changed by a ripple) and the next slice with what it still waits on, read from the slices file. Unsliced tasks look exactly as before.
 - **0.64.0** — **Token slicing.** The planner now estimates how many tokens the implement stage needs and divides by 150k, the rough edge of the smart zone. One slice: nothing changes. Two or more: it plans slice 1, lists the rest with the contracts between them (the black boxes a later slice builds on), and Gate 1 asks once whether to split. `y` creates Linear sub-issues under the ticket (`blockedBy` wired, one comment on the parent, its description never touched) or local slices without Linear, then approves slice 1. Credit: the slicing rule (tokens ÷ 150k, one fresh session per ticket) and the grill both come from [Matt Pocock](https://github.com/mattpocock/skills); "smart zone" is Dex Horthy's term. Each later slice started from its sub-issue only grills what the parent grill didn't settle. After each ship, a ripple check compares the slice against the contracts: unchanged is one line, a change pauses and asks before updating the downstream slices. Then it offers the next unblocked slice, in this session while it stays under 150k, else as a command for a fresh one. `/anderson:auto` is unchanged.
 
 - **0.63.0** — **Fleet, focused on following your agents.** Each row shows Claude's own title for the session (the one on its tab) instead of a cut-off first prompt. Persona, stage, tier and model merge into one `pipeline` cell, blank for sessions without anderson, so the `now` column (what it is doing) gets the room. Sessions you closed, and ones dead for over an hour, fold into one `dead (n)` line. After `N`, the new agent is selected as soon as it appears, so `⏎` follows it. Cut: the four extra themes (matrix stays; `--calm` is the motion switch), `--theme`, `--demo`, `--rings`, `--play`, `--ping`. The README says what anderson and fleet do in plainer words.

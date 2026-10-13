@@ -42,10 +42,10 @@ IDLE_S = 5 * 60              # a ring older than this stops pulsing and goes whi
 FULL_REPAINT_S = 10.0        # erase + redraw the whole screen this often; the diff repaint cannot see what the terminal lost
 
 # ──────────────────────────────────────────────────────────────────────── glyphs
-UNI = dict(eyes="⌐■-■", cur="▸", ring="☎", dead="✝", loop="⟲", run="▶", ship="★", hid="◌",
+UNI = dict(eyes="⌐■-■", cur="▸", ring="☎", dead="✝", loop="⟲", run="▶", ship="★", hid="◌", cut="✂",
            bar="▓", trk="░", rule="─", ell="…", det="▍", cursor="█",
            rain=("0·1 1", "1 0·1", " 1·10", "1·0 1"), raincol="01·10")
-ASCII = dict(eyes="[-_-]", cur=">", ring="!", dead="x", loop="~", run=">", ship="*", hid="h",
+ASCII = dict(eyes="[-_-]", cur=">", ring="!", dead="x", loop="~", run=">", ship="*", hid="h", cut="s",
              bar="#", trk=".", rule="-", ell="~", det="|", cursor="_",
              rain=("0.1 1", "1 0.1", " 1.10", "1.0 1"), raincol="01.10")
 G = dict(UNI)
@@ -195,7 +195,7 @@ def anderson_state(root, task=None, guess=True):
     except Exception:
         return {}
     st = {k: field(t, k) for k in
-          ("task", "stage", "iteration", "max_iterations", "plan_verdict", "diff_verdict", "branch", "gate", "tier")}
+          ("task", "stage", "iteration", "max_iterations", "plan_verdict", "diff_verdict", "branch", "gate", "tier", "slice", "slices")}
     st["task"] = st["task"] or os.path.basename(os.path.dirname(p))
     st["mtime"] = os.path.getmtime(p)
     return st
@@ -601,6 +601,7 @@ def enrich(s, now):
         "mood": mood, "model": model_spec, "iteration": it, "max_iter": mx,
         "plan_verdict": st.get("plan_verdict"), "diff_verdict": st.get("diff_verdict"), "branch": git_branch(root) or st.get("branch") or tr.get("branch"),
         "gate": (st.get("gate") or "").lower(), "tier": (st.get("tier") or "").lower(),
+        "slice": st.get("slice") or "", "slices": os.path.join(root, st["slices"]) if root and st.get("slices") else "",
         "dejavu": bool(it and it.isdigit() and int(it) > 0),
         "status": status, "now": now_txt, "text": tr.get("text") or "",
         "cost": s.get("cost_usd"), "ctx_pct": ctx_pct, "ctx_tokens": toks,
@@ -1015,7 +1016,7 @@ def cell(row, key, frame):
         return row["repo"]
     if key == "task":
         if row["task"]:
-            return row["task"]
+            return row["task"] + (f"  {G['cut']} {row['slice']}" if row.get("slice") else "")
         # Claude's own title for the session (else its first prompt); it survives death, so a
         # sentinel still says what it was
         return row.get("title") or ""
@@ -1091,6 +1092,32 @@ def _wrap(txt, width, max_lines):
     return out or [""]
 
 
+def slice_line(r):
+    """`2/3 of AR-2587 · contracts a ✓ · next ar-2590 (waits on 1)` from the slices file that
+    start.md's SPLIT writes. Missing or unreadable file → just the k/n from state.md."""
+    try:
+        with open(r.get("slices") or "", encoding="utf-8", errors="replace") as f:
+            t = f.read()
+    except OSError:
+        return r["slice"]
+    parent = field(t, "parent") or ""
+    m = re.search(r"[A-Z][A-Z0-9]+-\d+", parent)
+    parent = m.group(0) if m else os.path.basename(r["slices"]).removesuffix(".slices.md")
+    names = re.findall(r"^- ([^:\n]+):(.*)$", t.split("**Contracts:**", 1)[1] if "**Contracts:**" in t else "", re.M)
+    contracts = " ".join(f"{n.strip()} {'✎' if '✎' in rest else '✓'}" for n, rest in names
+                         if not n.strip().startswith("<"))
+    rows = [[c.strip() for c in l.strip().strip("|").split("|")] for l in t.splitlines()
+            if l.startswith("|") and not l.startswith("|-") and not l.startswith("| #")]
+    rows = [x for x in rows if len(x) >= 7]
+    shipped = {x[0] for x in rows if x[6].lower().startswith("shipped")}
+    nxt = next((x for x in rows if x[6].lower() == "todo"), None)
+    out = f"{r['slice']} of {parent}" + (f" · contracts {contracts}" if contracts else "")
+    if nxt:
+        waits = [d.strip() for d in nxt[3].split(",") if d.strip() not in ("", "—", "-") and d.strip() not in shipped]
+        out += f" · next {nxt[5].rsplit('/', 1)[-1] if nxt[5] not in ('', '—') else nxt[1]}" + (f" (waits on {', '.join(waits)})" if waits else "")
+    return out
+
+
 def detail_card(r, W, toast, t, airy=False):
     """Multi-line detail for the selected row. Labelled, one fact per line, no guessing needed.
     airy=True (16+ free lines): blank lines between groups, wider labels, `last` wraps to 2 lines."""
@@ -1125,6 +1152,8 @@ def detail_card(r, W, toast, t, airy=False):
                + (f" · tier {TIER_LABEL.get(r.get('tier') or '', '')}" if r.get("tier") else ""))
     if r.get("stage"):
         L("verdicts", f"plan {r['plan_verdict'] or '—'} · diff {r['diff_verdict'] or '—'} · gate {r.get('gate') or 'none'}")
+    if r.get("slice"):
+        L("slice", slice_line(r))
     gap()
     seen = age_str(r.get("last_seen")) if r.get("last_seen") else "—"
     L("status", f"{r['now']} · last activity {seen} ago · session age {age_str(r.get('start'))}")
@@ -1368,6 +1397,7 @@ MANUAL = """
             INTERROGATOR grill (you), ORACLE plan_review, NEO implement, TRINITY repair,
             AGENT SMITH diff_review, THE ONE shipped, T. ANDERSON: no pipeline yet
   tier      triv · normal · HARD · CRITICAL, from state.md `tier`
+  ✂ k/n     after the task: slice k of n of a split task (state.md `slice`); the card names the parent and the next slice
   header    session / week bars are your /usage windows (red past 90%)
 
   ↑↓ / j k  tune         select a row
