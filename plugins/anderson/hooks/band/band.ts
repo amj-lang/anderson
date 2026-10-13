@@ -115,7 +115,8 @@ function header(v: View): Line {
 
 const MIN_W = 34
 
-function box(s: Seat, v: View, w = MIN_W): Line[] {
+function box(s: Seat, v: View): Line[] {
+  const w = MIN_W
   const done = s.doneAt !== undefined
   const stalled = !done && v.now - s.lastAt > STALL_MS
   const edge = stalled ? C.yellow : done && s.bad ? C.red : C.dim
@@ -146,10 +147,7 @@ function grid(v: View): Line[] {
   const total = v.seats.length * (MIN_W + 1)
   const shrink = total > v.cols && v.seats.some(s => s.doneAt) && v.seats.some(s => !s.doneAt)
   const boxed = shrink ? v.seats.filter(s => !s.doneAt) : v.seats
-  // Boxes stretch so each full row spans the terminal.
-  const n = Math.max(1, Math.min(boxed.length, Math.floor((v.cols + 1) / (MIN_W + 1))))
-  const w = Math.max(MIN_W, Math.floor((v.cols + 1) / n) - 1)
-  const items = [...boxed.map(s => box(s, v, w)), ...(shrink ? [v.seats.filter(s => s.doneAt).map(compact)] : [])]
+  const items = [...boxed.map(s => box(s, v)), ...(shrink ? [v.seats.filter(s => s.doneAt).map(compact)] : [])]
   const rows: Line[][][] = []
   let cur: Line[][] = [], curW = 0
   for (const b of items) {
