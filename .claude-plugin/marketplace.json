@@ -5,8 +5,8 @@
     {
       "name": "anderson",
       "source": "./plugins/anderson",
-      "version": "0.65.1",
-      "description": "Gated build loop (plan -> grill -> plan-review -> implement -> diff-review) with per-stage model/effort, an interactive plan-grilling step, two approval gates, real hook-JSON autonomous chaining, and a ship step that commits cleanly on a branch and opens the PR."
+      "version": "0.65.2",
+      "description": "Gated build loop (plan -> grill -> plan-review -> implement -> diff-review) with per-stage model/effort, an interactive plan-grilling step, two approval gates, real hook-JSON autonomous chaining, and a ship step that commits cleanly on a branch and opens the PR. Big tasks are sized by tokens and split into Linear sub-issues with contracts between slices."
     }
   ]
 }
