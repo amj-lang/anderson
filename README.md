@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.65.1-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.65.2-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -83,6 +83,8 @@ In plain words:
 
 At each gate you get a short card: what changes, how each criterion is proven, the risk scorecard and the verdict. You open the full plan only when something looks off. Both gates always stop.
 
+**Big tasks get sliced.** An agent reasons worse past ~150k tokens of context, so THE ARCHITECT estimates what the implement stage needs and divides by 150k. One slice: nothing changes. More: it plans slice 1, lists the rest with the contracts between them, and Gate 1 asks once whether to split. Yes creates Linear sub-issues under the ticket (blocked-by wired), or local slices without Linear. Each later slice only grills what the first grill didn't settle, a ripple check after each ship flags any contract a slice changed, and the next slice starts in a fresh session once the current one is full. The rule comes from Matt Pocock (see [Credits](#credits)).
+
 ## auto mode
 
 `/anderson:auto <task-id> <title> [body|@file]` runs the same pipeline without stopping for you and ends at a **draft** PR. Experimental.
@@ -132,7 +134,7 @@ Not every task deserves the same scrutiny. The planner scores each plan on risk,
 
 Once you run more than one agent, the hard part is keeping track: which one is waiting on you, what each is doing, where its tab went. `fleet` answers that from one terminal tab. It runs outside Claude, so it costs no tokens.
 
-- **What every agent is doing.** One row per live Claude Code session, across all your repos: its title, its pipeline stage if it runs anderson, what it is doing right now (`▶ Bash pytest -q`), how full its context is.
+- **What every agent is doing.** One row per live Claude Code session, across all your repos: its title, its pipeline stage if it runs anderson (`✂ 2/3` when it works on one slice of a split task), what it is doing right now (`▶ Bash pytest -q`), how full its context is.
 - **Who needs you.** A session rings when it is really waiting on you: its turn is done, it asks permission, or it asks a question. It rings once, with a sound if you want one, and stays quiet while you are already looking at it. Ringing sessions sort to the top.
 - **Go there.** `⏎` brings that session's tab to the front, in Ghostty, iTerm2, Terminal.app, tmux or your IDE. A dead session reopens in a new tab, resumed. `fleet --focus` brings fleet back; bind it to a hotkey.
 - **Start the next one.** Below the sessions sit your workspace's repos. Pick one, press `N`, type the task, and a new agent starts in its own tab and gets selected as soon as it appears. A repo with work in progress on a feature branch gets a separate worktree, so nothing of yours is touched.

@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.65.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.65.2-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -193,6 +193,15 @@ The tier and the crew it summons are printed, never implicit: a `**Tier:** <TIER
 `## 📈 Scorecard` in `plan.md`, and the same line is echoed on the Gate 1 card. The re-tier at the
 diff gate rewrites both (with `was <old>` when it escalated), so you always see the bill before you
 approve it.
+
+**Slicing.** The planner writes `**Size:** ~<N>k tokens → <n> slice(s)` under the Scorecard
+(implement-stage estimate ÷ 150k, the smart-zone edge; also n ≥ 2 past 7 criteria). With n ≥ 2 it
+plans slice 1 only and adds `## 🔪 Slices` (slices, depends-on, the contracts between them). Gate 1
+then asks `split? (y/n)`: `y` writes `feature-research/<task>.slices.md`, creates Linear sub-issues
+(`parentId`, `blockedBy`; one comment on the parent, its description never touched) and approves
+slice 1; `n` is the plain Gate 1. A task started from a slice's sub-issue runs in slice mode (planner
+scoped to the slice, grill skips settled decisions). `/anderson:approve-diff` runs a ripple check
+against the contracts, then offers the next unblocked slice. `/anderson:auto` does not slice.
 
 The agents are **self-contained** — the implementer/reviewer logic is inlined, so
 there is no external skill to install. Per-stage `model` + `effort` switch
@@ -672,6 +681,7 @@ The grill and the token slicing come from [Matt Pocock](https://github.com/mattp
 
 ## Changelog
 
+- **0.65.2** — **Docs catch up with slicing.** The root README explains big-task slicing and the fleet `✂` tag; the plugin README's Pipeline section documents the Size line, the split, slice mode and the ripple check; the plugin and marketplace descriptions mention it.
 - **0.65.1** — **Fleet reads only real slices files.** `slices:` in state.md must name a regular `*.slices.md` directly in the repo's `feature-research` dir; an absolute path, `..`, a device or a FIFO is ignored, and the read is capped. Before, a crafted state.md could make fleet read any file or hang on `/dev/zero`.
 - **0.65.0** — **Fleet shows slices.** A row whose task is a slice of a split task gets `✂ 2/3` after the task name (`s 2/3` with `--ascii`), from state.md `slice:`. The selected row's card adds a `slice` line: the parent ticket, each contract (✓ unchanged, ✎ changed by a ripple) and the next slice with what it still waits on, read from the slices file. Unsliced tasks look exactly as before.
 - **0.64.0** — **Token slicing.** The planner now estimates how many tokens the implement stage needs and divides by 150k, the rough edge of the smart zone. One slice: nothing changes. Two or more: it plans slice 1, lists the rest with the contracts between them (the black boxes a later slice builds on), and Gate 1 asks once whether to split. `y` creates Linear sub-issues under the ticket (`blockedBy` wired, one comment on the parent, its description never touched) or local slices without Linear, then approves slice 1. Credit: the slicing rule (tokens ÷ 150k, one fresh session per ticket) and the grill both come from [Matt Pocock](https://github.com/mattpocock/skills); "smart zone" is Dex Horthy's term. Each later slice started from its sub-issue only grills what the parent grill didn't settle. After each ship, a ripple check compares the slice against the contracts: unchanged is one line, a change pauses and asks before updating the downstream slices. Then it offers the next unblocked slice, in this session while it stays under 150k, else as a command for a fresh one. `/anderson:auto` is unchanged.
