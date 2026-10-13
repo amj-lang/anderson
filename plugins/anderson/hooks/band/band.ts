@@ -70,7 +70,7 @@ export function parseState(text: string): Record<string, string> {
 
 /** The command the human types next at a gate, or undefined while nothing waits on them. */
 export function nextStep(p: Pipe): string | undefined {
-  if (p.stage === 'grill') return 'answer the grill'
+  // No grill entry: the grill's own card in the transcript already asks.
   if (p.stage === 'plan_review') return '/anderson:approve-plan'
   if (p.stage === 'diff_review') return /block|rework/i.test(p.diffVerdict) ? '/anderson:rework' : '/anderson:approve-diff'
   return undefined
