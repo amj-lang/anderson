@@ -15,6 +15,7 @@ ANDERSON — gated build loop: plan → grill → plan-review 🛑 → implement
   /anderson:approve-diff <slug>                        pass Gate 2 → commit, push, PR (guarded)
   /anderson:auto <id> <title> [body|@file]             no gates → draft PR (experimental)
   /anderson:status <slug>                              dashboard: stage, verdicts, next agent/model
+  /anderson:proto <what> [--task <slug>]               2-3 throwaway variants (ASCII or HTML), you pick one
   /anderson:demo                                       preview pipeline UX, no agents, no tokens
   /anderson:fleet                                      THE OPERATOR: launch card for the cross-repo session monitor
   /anderson:help                                       this card
