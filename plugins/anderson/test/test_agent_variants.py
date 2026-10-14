@@ -28,5 +28,39 @@ class TestEffortTwins(unittest.TestCase):
                     self.assertEqual(tfm[k], bfm[k], f"{twin}.md frontmatter '{k}' drifted")
 
 
+COMMANDS = os.path.join(os.path.dirname(__file__), "..", "commands")
+DOCS = os.path.join(os.path.dirname(__file__), "..", "docs")
+
+
+class TestTierRuleDrift(unittest.TestCase):
+    """The tier rules are stated in five files; they must all state the same ones."""
+    FILES = {"tiering": os.path.join(DOCS, "tiering.md"), "start": os.path.join(COMMANDS, "start.md"),
+             "auto": os.path.join(COMMANDS, "auto.md"), "approve-plan": os.path.join(COMMANDS, "approve-plan.md"),
+             "rework": os.path.join(COMMANDS, "rework.md")}
+
+    def text(self, name):
+        with open(self.FILES[name], encoding="utf-8") as f:
+            return f.read()
+
+    def test_new_thresholds_everywhere_old_ones_nowhere(self):
+        for name in ("tiering", "start", "auto"):
+            for want in ("Coupling ≥ 8", "Confidence ≤ 3"):
+                self.assertIn(want, self.text(name), f"{name}.md lacks {want}")
+        for name in ("tiering", "approve-plan", "rework", "auto"):
+            for want in ("≥400", "≥15 files"):
+                self.assertIn(want, self.text(name), f"{name}.md lacks {want}")
+        for name in self.FILES:
+            t = self.text(name)
+            for old in ("≥150", "≥8 files", "Coupling ≥ 7 OR", "Confidence ≤ 4", "Risk ≥ 9 OR Testability"):
+                self.assertNotIn(old, t, f"{name}.md still states {old}")
+            self.assertRegex(t, r"only (ever )?escalat|can only escalate", f"{name}.md dropped 'only escalates'")
+            self.assertIn("externally reachable entry point", t, f"{name}.md lacks the entry-point clause")
+
+    def test_auto_flags_needs_human_for_testability(self):
+        t = self.text("auto")
+        labels = t[t.index("Determine labels"):][:700]
+        self.assertIn("Testability ≥ 7", labels)
+
+
 if __name__ == "__main__":
     unittest.main()

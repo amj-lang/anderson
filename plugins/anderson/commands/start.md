@@ -25,9 +25,12 @@ so no stage runs on Fable (see docs/tiering.md).
 TIER: difficulty routing, so a one-line fix does not pay for a two-xhigh-critique pipeline.
 Computed ONCE at step 5 from the planner's `## 📈 Scorecard` (it does not exist before the
 planner runs, which is why the seed leaves `tier: pending`). First match wins, top-down:
-  - CRITICAL — Risk ≥ 9 OR Testability ≥ 7 (the scorecard anchor "needs a human/manual tester").
-  - HARD     — Risk ≥ 7 OR Coupling ≥ 7 OR Confidence ≤ 4, OR the change touches security, auth,
-               memory/resource management, concurrency, or OS/filesystem/process boundaries.
+  - CRITICAL — Risk ≥ 9.
+  - HARD     — Risk ≥ 7 OR Coupling ≥ 8 OR Confidence ≤ 3 OR Testability ≥ 7 (needs a human/manual
+               tester), OR the change alters an auth/permission check, secret/crypto handling,
+               locking/concurrency, or builds a shell command / filesystem path from external input,
+               OR adds/changes an externally reachable entry point (HTTP route, server action,
+               RPC/GraphQL resolver, webhook, CLI/IPC handler) or the input validation in front of one.
   - TRIVIAL  — Risk ≤ 2 AND Coupling ≤ 3 AND Confidence ≥ 8 (all three, or it is not trivial).
   - NORMAL   — anything else (default).
 Record `tier: <trivial|normal|hard|critical>` in state.md. PROVISIONAL — `/anderson:approve-plan`

@@ -41,6 +41,10 @@ export function persona(subagentType: string, prompt: string, model: string, eff
   return { name: crew?.[1] ?? who, model: effort ? `${fam}/${effort}` : fam, why: lens?.[1] }
 }
 
+/** One ledger line (cost.jsonl) for a finished seat; runlog.py folds these into the run record. */
+export const costLine = (s: Seat, end: number) =>
+  JSON.stringify({ stage: /^[a-z_-]+$/.test(s.stage ?? '') ? s.stage : '?', seat: s.name, model: s.model, tokens: s.tokens ?? 0, start: s.startedAt, end }) + '\n'
+
 /** One-line verdict from a finished seat's answer. */
 export function verdict(answer: string, ok: boolean): { verdict: string; bad: boolean } {
   if (!ok) return { verdict: '✗ aborted', bad: true }

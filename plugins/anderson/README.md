@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.71.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.72.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -157,10 +157,16 @@ anywhere. `python3 bin/runlog.py --summary` adds it up (illustrative numbers):
 runs 23 · aborted 2 · shipped 21
 tiers critical 1 · hard 6 · normal 12 · trivial 4
 rework rounds avg 0.6
+critical  runs   1 · tokens med 910k · time med 41m · rework 1/1
+hard      runs   6 · tokens med 640k · time med 27m · rework 3/6
+normal    runs  12 · tokens med 310k · time med 12m · rework 2/12
+trivial   runs   4 · tokens med 80k · time med 3m · rework 0/4
 SERAPH       seated   9 · confirmed 4/6 raised
 NIOBE        seated   5 · confirmed 0/2 raised
 MEROVINGIAN  seated  17 · confirmed 11/14 raised
 ```
+
+Tokens and time come from a ledger the band writes per subagent seat (`feature-research/<task>/cost.jsonl`, folded into the run line when it ends); older runs, or runs without the band, print `n/a`. Main-loop tokens are not attributed to a stage.
 
 A seat that is seated often and confirmed rarely is a pattern to tighten in `bin/crew.py`; a bug that
 shipped without the seat that should have caught it is a pattern to widen.

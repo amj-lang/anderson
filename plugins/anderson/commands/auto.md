@@ -245,11 +245,13 @@ for tuning tiers and crew patterns (`runlog.py --summary`).
 
    f. Read the `## 📈 Scorecard` Planner column: Risk, Coupling, Confidence, Testability. Compute
       the INITIAL tier (first match wins, top-down):
-        - CRITICAL — Risk ≥ 9 OR Testability ≥ 7 (the scorecard anchor "needs a human/manual
-                     tester" — cannot be verified autonomously).
-        - HARD     — Risk ≥ 7 OR Coupling ≥ 7 OR Confidence ≤ 4, OR the change touches security,
-                     auth, memory/resource management, concurrency, or OS/filesystem/process
-                     boundaries.
+        - CRITICAL — Risk ≥ 9.
+        - HARD     — Risk ≥ 7 OR Coupling ≥ 8 OR Confidence ≤ 3 OR Testability ≥ 7 (needs a
+                     human/manual tester — step 8c flags it `needs-human`), OR the change alters an
+                     auth/permission check, secret/crypto handling, locking/concurrency, or builds a
+                     shell command / filesystem path from external input, OR adds/changes an
+                     externally reachable entry point (HTTP route, server action, RPC/GraphQL
+                     resolver, webhook, CLI/IPC handler) or the input validation in front of one.
         - TRIVIAL  — Risk ≤ 2 AND Coupling ≤ 3 AND Confidence ≥ 8.
         - NORMAL   — anything else (default).
       Record `tier: <trivial|normal|hard|critical>` in state.md. This tier is PROVISIONAL — step 7d
@@ -475,7 +477,8 @@ for tuning tiers and crew patterns (`runlog.py --summary`).
         size as NOTE, append `runaway` to `override:`; do NOT fail the gate (panel + CI still
         judge the diff on merit).
       - RE-TIER on actual diff size, taking the MAX with the current tier (tier only escalates):
-          · diff LARGE (≥150 lines OR ≥8 files) → at least HARD
+          · diff LARGE (≥400 changed lines OR ≥15 files, tests, lockfiles and generated files
+            excluded; "generated" = marked `linguist-generated` in `.gitattributes` or carrying a generated / do-not-edit header; vendored and minified code counts toward the size.) → at least HARD
           · diff SMALL (≤40 lines AND ≤2 files) → does NOT lower the tier (max rule)
         Set `tier:` = max(current tier, diff-derived tier); a forbidden/dep hit pins it to CRITICAL.
 
@@ -598,6 +601,7 @@ for tuning tiers and crew patterns (`runlog.py --summary`).
 
    c. Determine labels: always add `auto-mode`. Add `needs-human` if sensitive/dependency paths
       flagged (step 7d) OR planner confidence was ≤ 3 (step 3a, relaxed, see SANDBOX) OR
+      planner Testability ≥ 7 (needs a manual tester) OR
       `open_questions > 0` (step 4g — unresolved business-context questions need a human) OR
       multi-repo run (cross-repo is higher-risk by default).
 

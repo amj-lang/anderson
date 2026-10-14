@@ -146,12 +146,12 @@ Score each 0–10 against the anchors; one line of justification each. The PLANN
 table (do not start a second scorecard) and reconciles any gap ≥ 3 inline + in `## 🔭 Review`.
 | Dimension | Planner | Reviewer | Why (1 line) |
 |-----------|---------|----------|--------------|
-| Risk (10 = could break prod / data loss; 0 = cosmetic) | | | |
+| Risk (10 = could break prod / data loss; 7 = a bug corrupts data, opens access or breaks a shared contract; 4 = a user-visible bug a revert fixes; 0 = cosmetic) | | | |
 | Horizontality (10 = many files/contracts/teams; 0 = one isolated file) | | | |
 | Testability (0–3 unit only · 4–6 needs integration · 7–10 needs a human/manual tester) | | | |
 | Reversibility (10 = trivial revert; 0 = irreversible migration/data change) | | | |
 | Confidence (10 = certain; 0 = many unknowns — LOW confidence is itself a fix_first trigger) | | | |
-| Coupling (10 = entangled with many modules/shared state; 0 = isolated / pure) | | | |
+| Coupling (10 = entangled with many modules/shared state; 8 = shared state or a contract many modules read; 0 = isolated / pure) | | | |
 
 **Size:** ~<N>k tokens → <n> slice(s)
 
