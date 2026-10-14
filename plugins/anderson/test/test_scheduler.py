@@ -77,6 +77,32 @@ class TestNEXT(unittest.TestCase):
         self.assertEqual(set(NEXT), {"plan", "plan_review", "diff_review"})
 
 
+class TestPlanGuard(unittest.TestCase):
+    """plan -> grill only once plan.md exists: a Stop mid-planner must not move the stage."""
+
+    def _run(self, with_plan):
+        import json, os, subprocess, tempfile
+        here = pathlib.Path(__file__).resolve().parents[1] / "hooks" / "scheduler.py"
+        with tempfile.TemporaryDirectory() as tmp:
+            d = pathlib.Path(tmp) / "feature-research" / "t"; d.mkdir(parents=True)
+            (d / "state.md").write_text("task:            t\nstage:           plan\ngate:            none\n")
+            if with_plan:
+                (d / "plan.md").write_text("# t\n")
+            r = subprocess.run(["python3", str(here)], input=json.dumps({"hook_event_name": "Stop"}),
+                               capture_output=True, text=True, cwd=tmp)
+            return r.stdout, (d / "state.md").read_text()
+
+    def test_no_plan_no_move(self):
+        out, state = self._run(with_plan=False)
+        self.assertEqual(out, "")
+        self.assertIn("stage:           plan", state)
+
+    def test_plan_present_moves_to_grill(self):
+        out, state = self._run(with_plan=True)
+        self.assertIn("GRILL", out)
+        self.assertIn("stage:           grill", state)
+
+
 class TestTaskGuard(unittest.TestCase):
     """state.md is repo content: a crafted task name must never reach the notice Claude acts on."""
     GUARD = r"[A-Za-z0-9._-]{1,64}"
