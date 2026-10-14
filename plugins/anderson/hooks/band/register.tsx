@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Pipe, Seat } from '../../types/band'
-import { act, agentFile, band, C, effortOf, parseState, persona, verdict } from './band'
+import { act, agentFile, band, C, costLine, effortOf, parseState, persona, verdict } from './band'
 import { frame, portraitFor, SIZE } from './portraits'
 
 const seatsA = atom({ plugin: 'anderson', key: 'seats' } as const, {})
@@ -10,6 +10,9 @@ const pipeA = atom({ plugin: 'anderson', key: 'pipe' } as const, null)
 const taskA = atom({ plugin: 'anderson', key: 'task' } as const, null)
 const tickA = atom({ plugin: 'anderson', key: 'tick' } as const, 0)
 const tokA = atom({ plugin: 'anderson', key: 'tokens' } as const, { i: 0, o: 0 })
+
+// Appends to cost.jsonl chain here so parallel seats never lose a line.
+let ledger = Promise.resolve()
 
 // state.md is written by tools (sed, Edit) that raise no event, so the band re-reads it on the clock.
 const POLL_TICKS = 8 // x 250 ms = 2 s
@@ -20,7 +23,7 @@ export function tasksOf(text: string): string[] {
   const cmd = /\/anderson:(?:start|approve-plan|approve-diff|rework|status|auto)\s+(\S+)/.exec(text)
   if (cmd?.[1]) out.push(cmd[1])
   for (const m of text.matchAll(/feature-research\/([A-Za-z0-9._-]+)\//g)) if (m[1]) out.push(m[1])
-  return out.map(t => t.split('/').pop() ?? '').filter(Boolean)
+  return out.map(t => t.split('/').pop() ?? '').filter(t => t && t !== '.' && t !== '..')
 }
 
 /** Pin this session to the first task the text names whose scratch dir exists (doc examples name none). */
@@ -75,13 +78,13 @@ export const register: Register = on => {
     const id = r.agentId
     try {
       await pin($, e.prompt)
+      await refresh($)
       const now = await $.clock.now()
       const file = agentFile(e.subagentType)
       const md = file ? await $.fs.read(`${$.plugin.root}/agents/${file}.md`).catch(() => '') : ''
       const p = persona(e.subagentType, e.prompt, r.model, effortOf(md))
-      const seat: Seat = { id, ...p, startedAt: now, lastAt: now }
+      const seat: Seat = { id, ...p, startedAt: now, lastAt: now, stage: (await read($, pipeA))?.stage }
       await update($, seatsA, s => ({ ...s, [id]: seat }))
-      await refresh($)
     } catch {}
     return r
   })
@@ -116,6 +119,17 @@ export const register: Register = on => {
           const tokens = u ? u.input_tokens + u.output_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) : undefined
           const v = verdict(e.answer, e.reason === 'answer')
           await update($, seatsA, s => (s[id] ? { ...s, [id]: { ...s[id], doneAt: now, tokens, ...v } } : s))
+          // Ledger: only while the task's scratch dir lives (approve-diff removes it; a write would recreate it).
+          const task = await read($, taskA)
+          const dir = task && `${await $.session.root()}/feature-research/${task}`
+          if (dir && (await $.fs.exists(`${dir}/state.md`))) {
+            const line = costLine({ ...seats[id], tokens }, now)
+            ledger = ledger.then(async () => {
+              const old = await $.fs.read(`${dir}/cost.jsonl`).catch(() => '')
+              await $.fs.write(`${dir}/cost.jsonl`, old + line)
+            }).catch(() => {})
+            await ledger
+          }
         }
       }
       await refresh($)

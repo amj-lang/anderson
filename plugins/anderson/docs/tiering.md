@@ -10,15 +10,37 @@ the real diff at `approve-plan` / `rework`. **First match wins, top-down. Tier o
 
 | Tier | Rule |
 |---|---|
-| CRITICAL | `Risk ≥ 9` OR `Testability ≥ 7` |
-| HARD | `Risk ≥ 7` OR `Coupling ≥ 7` OR `Confidence ≤ 4` OR touches security / auth / memory / concurrency / OS-fs-process |
+| CRITICAL | `Risk ≥ 9` |
+| HARD | `Risk ≥ 7` OR `Coupling ≥ 8` OR `Confidence ≤ 3` OR `Testability ≥ 7` OR the change *alters* an auth/permission check, secret/crypto handling, locking/concurrency, or builds a shell command / filesystem path from external input OR adds/changes an externally reachable entry point (HTTP route, server action, RPC/GraphQL resolver, webhook, CLI/IPC handler) or the input validation in front of one |
 | TRIVIAL | `Risk ≤ 2` AND `Coupling ≤ 3` AND `Confidence ≥ 8` |
 | NORMAL | everything else |
 
-Re-tier triggers at the diff gate: `≥150 lines` OR `≥8 files` → at least HARD.
+Re-tier triggers at the diff gate: `≥400` changed lines OR `≥15 files`, excluding tests, lockfiles and generated files → at least HARD. "Generated" = marked `linguist-generated` in `.gitattributes` or carrying a generated / do-not-edit header; vendored and minified code counts toward the size.
 
 CRITICAL and HARD fire on **any one** dimension going bad; TRIVIAL needs **all three** to be good.
 Deliberately biased toward escalation: over-reviewing costs tokens, under-reviewing ships a bug.
+A change that only *touches* a sensitive area no longer escalates by itself; one that alters it does.
+
+### Calibration
+
+The old rules (CRITICAL on high Testability, HARD on Coupling 7 or Confidence 4 and below or any touch
+of a sensitive area, re-tier at 150 lines / 8 files counting everything) put 25 of 31 tiered runs at
+HARD or CRITICAL, so nearly every diff review ran opus/xhigh. Evidence from `runs.jsonl` (32 lines):
+
+| Tier | Runs | Rework (`rework_rounds > 0`) |
+|---|---|---|
+| critical | 5 | 3/5 |
+| hard | 20 | 15/20 |
+| normal | 2 | 0/2 |
+| trivial | 4 | 0/4 |
+| pending (aborted) | 1 | 0/1 |
+
+Auto runs tagged `runaway` (over 200 lines or 20 files): 4 of 5 shipped, so a typical diff already
+cleared the old 150-line trigger. Rework at hard is confounded (xhigh raises more findings), so it
+does not show the tier was right. `runlog.py --summary` now prints median tokens, median time and
+rework rate per tier, so the next recalibration reads cost off the log.
+
+Replay of the logged runs with a GitHub PR under the new rules: 15 of 32 runs replayable (17 skipped: private repos, GitLab, no Scorecard in the PR body). HARD+CRITICAL: old rules 14/15, new rules with an over-firing path/diff heuristic for the sensitive and entry-point clauses 13/15 (target was half or fewer, **missed**), new rules on Scorecard and size alone 7/15 (normal 5, hard 7). The heuristic matches crew.py's security patterns plus route/action/handler paths, so it is an upper bound: the entry-point and sensitive clauses, not the Scorecard thresholds, now decide most HARDs. Thresholds were not tuned to fit; the next recalibration reads the real cost and scorecards from `runs.jsonl`.
 
 ## Start mode (gated)
 

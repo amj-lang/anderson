@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.71.0-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.72.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -112,7 +112,7 @@ feature-research/<task>/
 
 **`state.md`** is for the machine: stage, gate, iteration, verdicts, tier. It makes a run resumable, and it is what `/anderson:status` and `fleet` read.
 
-Every finished run also adds one line to a local log (`~/.claude/anderson/runs.jsonl`, never sent anywhere); `bin/runlog.py --summary` shows tiers, rework rounds and how often each reviewer was right.
+Every finished run also adds one line to a local log (`~/.claude/anderson/runs.jsonl`, never sent anywhere); `bin/runlog.py --summary` shows tiers, cost per tier, rework rounds and how often each reviewer was right.
 
 ## Difficulty tiers
 

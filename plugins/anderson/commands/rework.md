@@ -14,9 +14,12 @@ REVIEW MODEL: the diff reviewer always runs on opus (agent frontmatter); no flag
 
 REVIEW EFFORT: derived from state.md `tier`.
 RE-TIER FIRST — before reading the effort, re-tier against the ACTUAL diff and take the MAX (tier
-only ever escalates, never drops). `git diff --stat` showing ≥150 lines OR ≥8 files → at least
-HARD; a diff touching security, auth, memory/resource management, concurrency, or
-OS/filesystem/process boundaries → at least HARD. Write the resulting `tier:` back to state.md.
+only ever escalates, never drops). `git diff --stat` showing ≥400 changed lines OR ≥15 files (tests, lockfiles
+and generated files excluded; "generated" = marked `linguist-generated` in `.gitattributes` or carrying a generated / do-not-edit header; vendored and minified code counts toward the size.) → at least HARD; a diff that alters an
+auth/permission check, secret/crypto handling, locking/concurrency, or builds a shell command /
+filesystem path from external input, or adds/changes an externally reachable entry point
+(HTTP route, server action, RPC/GraphQL resolver, webhook, CLI/IPC handler) or the input
+validation in front of one → at least HARD. Write the resulting `tier:` back to state.md.
 Then read the effort off it:
   | tier     | DIFF_REVIEW effort |
   | trivial  | high               |

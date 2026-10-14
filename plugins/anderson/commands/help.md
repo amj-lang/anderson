@@ -28,7 +28,7 @@ ANDERSON — gated build loop: plan → grill → plan-review 🛑 → implement
             THE MEROVINGIAN (dead code) judge the code, AGENT SMITH rules. Same reviewer agent,
             blind. The plan's Crew hint can add a seat, never drop one.
 
-  runs:     python3 bin/runlog.py --summary — every finished run, tier and crew hit rate
+  runs:     python3 bin/runlog.py --summary — every finished run, tier, cost per tier (median tokens/time, rework rate) and crew hit rate
             (local log at ~/.claude/anderson/runs.jsonl, never sent anywhere).
 
   repair:   tests red? the implementer gets ONE try, then TRINITY (test-fixer, ALWAYS opus/high,

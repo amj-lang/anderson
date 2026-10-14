@@ -10,6 +10,7 @@ export type Seat = {
   verdict?: string
   bad?: boolean
   tokens?: number
+  stage?: string
 }
 
 export type Pipe = {
