@@ -11,11 +11,13 @@ _spec.loader.exec_module(fleet)
 
 SLICES = """# ar-2587-pause slices
 parent: https://linear.app/acme/issue/AR-2587/pause
-| # | Slice | Criteria | Depends on | Issue | Branch | Status |
-|---|-------|----------|------------|-------|--------|--------|
-| 1 | pause stops charge | c1 | — | AR-2588 | me/ar-2588-pause | shipped (pr 1) |
-| 2 | resume date | c2 | 1 | AR-2589 | me/ar-2589-resume | doing |
-| 3 | packed bag | c3 | 1, 2 | AR-2590 | me/ar-2590-packed-bag | todo |
+branch: me/ar-2587-pause
+pr: https://github.com/acme/app/pull/1
+| # | Slice | Criteria | Depends on | Status |
+|---|-------|----------|------------|--------|
+| 1 | pause stops charge | c1 | — | shipped |
+| 2 | resume date | c2 | 1 | doing |
+| 3 | packed bag | c3 | 1, 2 | todo |
 **Contracts:**
 - paused_until: date|null — null = not paused
 - skipCharge(sub): bool — true while paused ✎ slice 1
@@ -38,7 +40,7 @@ class TestFleetSlices(unittest.TestCase):
         self.addCleanup(os.remove, f.name)
         line = fleet.slice_line(self.row(slice="2/3", slices=f.name))
         self.assertEqual(line, "2/3 of AR-2587 · contracts paused_until ✓ skipCharge(sub) ✎"
-                               " · next ar-2590-packed-bag (waits on 2)")
+                               " · next packed bag (waits on 2)")
 
     def test_slice_line_without_file_is_just_k_of_n(self):
         self.assertEqual(fleet.slice_line(self.row(slice="2/3", slices="/nope.slices.md")), "2/3")

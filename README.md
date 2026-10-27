@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.72.1-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.73.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -84,7 +84,7 @@ In plain words:
 
 At each gate you get a short card: what changes, how each criterion is proven, the risk scorecard and the verdict. You open the full plan only when something looks off. Both gates always stop.
 
-**Big tasks get sliced.** An agent reasons worse past ~150k tokens of context, so THE ARCHITECT estimates what the implement stage needs and divides by 150k. One slice: nothing changes. More: it plans slice 1, lists the rest with the contracts between them, and Gate 1 asks once whether to split. Yes creates Linear sub-issues under the ticket (blocked-by wired), or local slices without Linear. Each later slice only grills what the first grill didn't settle, a ripple check after each ship flags any contract a slice changed, and the next slice starts in a fresh session once the current one is full. The rule comes from Matt Pocock (see [Credits](#credits)).
+**Big tasks get sliced.** An agent reasons worse the more context it holds, but every slice costs a re-plan and a review, so THE ARCHITECT only slices big jobs: it estimates what the implement stage needs and divides by 250k. One slice: nothing changes. More: it plans slice 1, lists the rest with the contracts between them, and Gate 1 asks once whether to split. Slices run in order and stack on one branch and one PR: slice 1 opens it as a draft, each later slice adds a commit, the last marks it ready. Each later slice only grills what the first grill didn't settle, a ripple check after each ship flags any contract a slice changed, and the next slice starts in a fresh session once the current one is full. The run log buckets review findings by implement tokens, so the 250k line gets checked against real runs. The rule comes from Matt Pocock (see [Credits](#credits)).
 
 ## auto mode
 
@@ -187,7 +187,7 @@ Commands are namespaced `/anderson:<command>`. The first word is the task's slug
 
 ## Credits
 
-The grill and the token slicing come from [Matt Pocock](https://github.com/mattpocock/skills): his `grill-me` interview, the throwaway prototypes it hands off to when a question is visual, that settles every decision before code exists, and his rule of sizing work by tokens and dividing by 150k so each ticket fits one fresh session (the "smart zone", a term he credits to Dex Horthy). anderson adapts both to its gated loop.
+The grill and the token slicing come from [Matt Pocock](https://github.com/mattpocock/skills): his `grill-me` interview, the throwaway prototypes it hands off to when a question is visual, that settles every decision before code exists, and his rule of sizing work by tokens so each slice fits one fresh session (anderson draws the line at 250k) (the "smart zone", a term he credits to Dex Horthy). anderson adapts both to its gated loop.
 
 ## More
 

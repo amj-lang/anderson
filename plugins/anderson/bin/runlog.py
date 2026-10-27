@@ -6,8 +6,9 @@ usage: runlog.py <task-dir> --mode gated|auto --outcome shipped|aborted:<reason>
        runlog.py --summary
 Log: $ANDERSON_RUNLOG, default ~/.claude/anderson/runs.jsonl. Local only, never sent anywhere.
 Each line also carries `cost` {stage: {tokens, ms}}, `tokens`, `duration_ms` (from the band's ledger
-<task-dir>/cost.jsonl, which record consumes: removed after the line is appended), `scorecard` and
-`tier_line` (from plan.md). Missing sources omit the cost keys / give {} and None.
+<task-dir>/cost.jsonl, which record consumes: removed after the line is appended), `scorecard`,
+`tier_line` and `size_k` (from plan.md), and `blocking` (diff-review blocking findings per round,
+from state.md `diff_blocking:` lines). Missing sources omit the cost keys / give {}, None and [].
 
 ponytail: outcome is what's known when the run ends; post-merge bugs and reverts aren't tracked.
 Add a field when a label or revert detector exists to feed it.
@@ -75,12 +76,13 @@ def plan_facts(task_dir):
         with open(os.path.join(task_dir, "plan.md"), encoding="utf-8") as f:
             plan = f.read()
     except (OSError, ValueError):
-        return {}, None
+        return {}, None, None
     score = {}
     for m in re.finditer(r"^\|\s*(Risk|Horizontality|Testability|Reversibility|Confidence|Coupling)\b[^|]*\|\s*(\d{1,3})\b", plan, re.M):
         score.setdefault(m[1].lower(), int(m[2]))
     t = re.search(r"^\*\*Tier:\*\*\s*(.*)$", plan, re.M)
-    return score, t[1].strip() if t else None
+    size = re.search(r"^\*\*Size:\*\*\s*~?(\d+)k", plan, re.M)
+    return score, t[1].strip() if t else None, int(size[1]) if size else None
 
 
 def record(task_dir, mode, outcome, pr):
@@ -89,7 +91,7 @@ def record(task_dir, mode, outcome, pr):
     block = text.split("<!-- STATE:START -->", 1)[-1].split("<!-- STATE:END -->", 1)[0]
     state = dict(m.groups() for m in re.finditer(r"^([a-z_]+):[ \t]*(.*?)[ \t]*$", block, re.M))
     ledger = cost(task_dir)
-    score, tier_line = plan_facts(task_dir)
+    score, tier_line, size_k = plan_facts(task_dir)
     top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
     extra = {"cost": ledger, "tokens": sum(c["tokens"] for c in ledger.values()),
              "duration_ms": sum(c["ms"] for c in ledger.values())} if ledger else {}
@@ -103,9 +105,11 @@ def record(task_dir, mode, outcome, pr):
         "crew_tally": tally(text, "crew_tally"),
         "plan_tally": tally(text, "plan_tally"),
         "diff_votes": re.findall(r"diff_vote_\S+:.*", text),
+        "blocking": [int(n) for n in re.findall(r"\bdiff_blocking:\s*(\d+)", text)],
         **extra,
         "scorecard": score,
         "tier_line": tier_line,
+        "size_k": size_k,
     }
 
 
@@ -146,7 +150,22 @@ def summary(runs):
             plan[p, 1] += n
     lines += [f"{p:<12} plan review · confirmed {plan[p, 0]}/{plan[p, 1]} raised"
               for p in PERSONAS if plan[p, 1]]
+    lines += blocking_by_ctx(runs)
     return "\n".join(lines)
+
+
+def blocking_by_ctx(runs):
+    """First-round diff-review blocking findings vs implement-stage tokens: where quality drops is
+    where the planner's slicing line (SIZE, 250k) belongs. Runs missing either number are skipped."""
+    buckets = {"<100k": [], "100-250k": [], "250k+": []}
+    for r in runs:
+        tok = r.get("cost", {}).get("implement", {}).get("tokens")
+        if tok is None or not r.get("blocking"):
+            continue
+        key = "<100k" if tok < 100_000 else "100-250k" if tok < 250_000 else "250k+"
+        buckets[key].append(r["blocking"][0])
+    return [f"implement {k:<8} runs {len(v):>3} · first-review blocking med {median(v):g}"
+            for k, v in buckets.items() if v]
 
 
 if __name__ == "__main__":

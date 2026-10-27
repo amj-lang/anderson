@@ -130,6 +130,15 @@ class TestRunlog(unittest.TestCase):
         self.assertIn("cost", first)
         self.assertNotIn("cost", second)
 
+    def test_blocking_and_size_bucketed_by_implement_tokens(self):
+        with open(os.path.join(self.task, "state.md"), "a") as f:
+            f.write("- diff_blocking: 3\n- diff_blocking: 0\n")
+        self.write("plan.md", PLAN + "\n**Size:** ~120k tokens → 1 slice(s)\n")
+        self.run_log(self.task, "--mode", "gated", "--outcome", "shipped")
+        rec = self.log_lines()[-1]
+        self.assertEqual((rec["blocking"], rec["size_k"]), ([3, 0], 120))
+        self.assertRegex(self.run_log("--summary"), r"implement <100k\s+runs\s+1 · first-review blocking med 3")
+
     def test_summary_with_no_log(self):
         self.assertIn("no runs logged yet", self.run_log("--summary"))
 

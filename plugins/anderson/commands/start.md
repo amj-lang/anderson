@@ -118,10 +118,13 @@ the one exception: they all read the same finished plan and each writes only its
      every state/variant shown, layout facts (order, grouping, alignment). The planner turns
      inventory lines into `source: design` criteria; the diff reviewer compares the built UI
      against these files.
-   - SLICE: a `feature-research/*.slices.md` file lists this task's ticket id or branch in its
-     table → this task is slice k of that parent (ripple and the split write those files). Add
-     `slices:          <that file>` and `slice:           <k>/<n>` to the STATE block, set that
-     row's Status to `doing`, and run SLICE MODE: tell the planner the slices file + k.
+   - SLICE: `feature-research/<task>.slices.md` exists with a `todo` row → this task is slice k
+     of that parent, k = the first `todo` row (slices run in order). Slices stack on ONE branch:
+     when the current branch is not the file's `branch:`, `git switch` to it first so the planner
+     sees the earlier slices' code (dirty working tree → stop and ask me, never stash or discard).
+     Add `slices:          <that file>`, `slice:           <k>/<n>`, `branch:` (the file's) and
+     `source_url:` (the file's `parent:`, when not none) to the STATE block, set that row's Status
+     to `doing`, and run SLICE MODE: tell the planner the slices file + k.
    Pass to the planner: goal + ticket criteria (verbatim) + the `design/` path when present.
 
 3. Invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md. Set stage=grill.
@@ -246,21 +249,22 @@ the one exception: they all read the same finished plan and each writes only its
    the card gains the size + slices + contracts lines right under the What line, and its verdict
    line asks the split question instead:
    ```
-           size ~<N>k tokens → <n> slices (150k each)
+           size ~<N>k tokens → <n> slices (250k each)
            ├─ 1 <slice>      <c> criteria          ← this session
            └─ <k> <slice>    <c> criteria  ⟵ <depends on>
            contracts: <name> · <name>
-           verdict <plan_verdict> → split into <n> sub-issues of <parent id> and approve slice 1? (y / n = no split)
+           verdict <plan_verdict> → split into <n> slices on one branch + one PR and approve slice 1? (y / n = no split)
    ```
-   (`<n> local slices` instead of `sub-issues of …` when `source_url` is not a Linear issue.)
    `n` → plain Gate 1, exactly as today (slice 1 planned, the rest stay a line in the LB Scope row).
    `y` → SPLIT, then continue exactly as `/anderson:approve-plan <task>` (invoke that skill):
    1. Write `feature-research/<task>.slices.md` (outside the task dir, so it survives each ship):
       ```
       # <task> slices
       parent: <source_url | none>
-      | # | Slice | Criteria | Depends on | Issue | Branch | Status |
-      |---|-------|----------|------------|-------|--------|--------|
+      branch: <state.md branch:, else anderson/<task>>
+      pr: none
+      | # | Slice | Criteria | Depends on | Status |
+      |---|-------|----------|------------|--------|
       **Contracts:**
       - <name>: <shape> — <invariant>
       ## Settled decisions
@@ -268,16 +272,10 @@ the one exception: they all read the same finished plan and each writes only its
       ```
       Rows from plan.md 🔪 Slices; Status `doing` for 1, `todo` for the rest. Settled decisions =
       every `[answered]` line in state.md `## ❓ Open questions` plus every ✓ ✅ Decisions row.
-   2. Linear parent only: create one sub-issue per slice 2..n with Linear MCP `save_issue`:
-      team/project from the parent, `parentId` = parent, `title` = slice name, `description` =
-      its criteria + the contracts it reads or exposes (we create it, so description is allowed),
-      `blockedBy` = the sub-issues of its Depends-on slices. Slice 1 is this session: create it
-      too, then set state.md `source_url:` to it. Fill Issue + Branch (Linear's branch name) in
-      the slices file. NEVER edit the parent's description: post ONE comment on the parent with
-      the slice list, order and contracts (`save_comment`).
-   3. Add `slices:` and `slice: 1/<n>` to the STATE block. No Linear parent, or any MCP
-      failure → local slices only: Issue `—`, Branch `<task>-s<k>` (slice 1 keeps this task),
-      say so, continue.
+   2. Linear parent only: post ONE comment on the parent with the slice list, order and
+      contracts, and that they ship as one PR (`save_comment`). No sub-issues; NEVER edit the
+      parent's description. MCP failure → say so, continue.
+   3. Add `slices:` and `slice: 1/<n>` to the STATE block.
 
    Halt is unconditional even on a ship verdict. GATE-BLOCK RULE: the gate is not approvable while
    any `## ✅ Decisions` LB row is unconfirmed (✗) — the grill above should have caught this, but
