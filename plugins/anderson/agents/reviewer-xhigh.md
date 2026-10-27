@@ -139,7 +139,8 @@ criteria: <proven>/<total> · verified against the actual diff/code: scope creep
 ship | fix_first
 ```
 
-Record the verdict into state.md (`diff_verdict: ship | fix_first`) and copy any
+Record the verdict into state.md (`diff_verdict: ship | fix_first`), append
+`- diff_blocking: <n>` (blocking findings this round, 0 on ship) under `## Done so far`, and copy any
 blocking items into "Still open". House style: lead with the verdict; tables/bullets over prose;
 one line per item; no preamble, restating, or praise — prose only when a table can't carry the
 relation. Stop.

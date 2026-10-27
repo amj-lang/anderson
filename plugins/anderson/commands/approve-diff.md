@@ -57,7 +57,7 @@ step. NEVER force-push; never touch an existing branch destructively.
    - Task key = last `/`-segment of "$ARGUMENTS" (a pasted branch name resolves to the flat
      `feature-research/<key>/`; use the key wherever `$ARGUMENTS` names that dir below).
      Branch name = state.md `branch:` if present (the slug as given at start, e.g. a Linear
-     branch `user/ar-123-title`), else `anderson/<key>`.
+     branch `user/ar-123-title`, or the slices file's shared branch), else `anderson/<key>`.
    - If `current` == default (on main/master): create + switch to that branch:
      `git switch -c "<branch>"` — but if it already exists, `git switch "<branch>"` instead
      (don't clobber). Tell me the branch name.
@@ -76,6 +76,14 @@ step. NEVER force-push; never touch an existing branch destructively.
    - Need a remote (`git remote` non-empty) AND gh ready (`gh auth status` succeeds).
    - Both present: `git push -u origin "<branch>"`, then
      `gh pr create --base "<default>" --head "<branch>" --title "<subject>" --body-file <tmp>`.
+     SLICED (state.md has `slices:`): all slices share one branch and ONE PR.
+     · slices file `pr: none` (slice 1) → same `gh pr create`, plus `--draft` while any row is
+       still `todo`; write the URL to the file's `pr:`. Prefix the body's What & why with
+       `✂ <n> slices, one commit each; draft until the last ships.`
+     · `pr:` set (slice ≥ 2) → push only, no new PR. Append this slice's body as a
+       `## ✂ Slice <k>: <name>` section (its What & why, criteria table, How to test) to the PR
+       body: `gh pr view "<pr>" --json body -q .body` > tmp, append, `gh pr edit "<pr>" --body-file <tmp>`.
+     · no `todo` row left after this slice → `gh pr ready "<pr>"`.
      If state.md `open_questions:` > 0 (grill left deferred `[open]` rows), add
      `--label needs-human` to steer reviewer to open business calls; if label doesn't
      exist or `gh` rejects it, drop the flag, open PR anyway (never fail the ship).
@@ -107,12 +115,11 @@ step. NEVER force-push; never touch an existing branch destructively.
      ripple · slice <k> changed <c> contract(s)
        <name>: <old> → <new>
        affects: <slice # name> (criterion <i>) · …       ← only todo slices that depend on it
-       → update those slices + comment on <their issues>? (y / edit / n)
+       → update those slices? (y / edit / n)
      ```
      `y`/`edit` → rewrite the contract line (append `✎ slice <k>`) and the affected slices'
-     Criteria in the slices file; post a COMMENT on each affected sub-issue (never edit a
-     description). `n` → leave the file, note it under the PR's open questions.
-   Then set this slice's Status to `shipped` (+ PR url).
+     Criteria in the slices file. `n` → leave the file, note it under the PR's open questions.
+   Then set this slice's Status to `shipped`.
 
 6. Log the run, THEN remove disposable scratch (the log reads state.md, so order matters):
    `python3 "${CLAUDE_PLUGIN_ROOT}/bin/runlog.py" "feature-research/<key>" --mode gated --outcome shipped --pr <PR url, or none>`
@@ -126,12 +133,11 @@ step. NEVER force-push; never touch an existing branch destructively.
 7. Print the done line, filled in with what actually happened (branch + PR URL, or
    fallback): `✓ [anderson · DONE] $ARGUMENTS shipped on <branch> · <PR url | committed locally, PR body above> · scratch cleaned · loop stopped — nothing runs in the background; /anderson:start to begin again.`
 
-8. NEXT SLICE — only when step 5b ran. Next = the first `todo` row whose Depends-on are all
-   `shipped`. None left and every row shipped → delete the slices file, comment on the Linear
-   parent `all <n> slices shipped: <PR urls>`, print `slices · all <n> shipped ✓`, stop. None
-   unblocked yet → print what is still running, stop.
+8. NEXT SLICE — only when step 5b ran. Next = the first `todo` row (slices run in order). None
+   left → delete the slices file, comment on the Linear parent (when one) `all <n> slices
+   shipped, PR ready: <pr>`, print `slices · all <n> shipped ✓ · PR ready`, stop.
    Else check this session's size: `cat ~/.claude/fleet/${CLAUDE_SESSION_ID}.status.json`
-   (written by the statusline; `ctx_tokens`). Under 150k →
-   `next: <issue> <slice> · go?` and on my "go" invoke the `anderson:start` skill with
-   `<Branch> <slice name>`. Over 150k, or the file is missing (budget unknown) → hand off:
-   `session ctx <N>k > 150k · next in a fresh session:  /anderson:start <Branch> <slice name>`.
+   (written by the statusline; `ctx_tokens`). Under 250k →
+   `next: slice <k> <slice name> · go?` and on my "go" invoke the `anderson:start` skill with
+   `<branch> <slice name>`. Over 250k, or the file is missing (budget unknown) → hand off:
+   `session ctx <N>k > 250k · next in a fresh session:  /anderson:start <branch> <slice name>`.

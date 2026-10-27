@@ -201,13 +201,17 @@ diff gate rewrites both (with `was <old>` when it escalated), so you always see 
 approve it.
 
 **Slicing.** The planner writes `**Size:** ~<N>k tokens → <n> slice(s)` under the Scorecard
-(implement-stage estimate ÷ 150k, the smart-zone edge; also n ≥ 2 past 7 criteria). With n ≥ 2 it
-plans slice 1 only and adds `## 🔪 Slices` (slices, depends-on, the contracts between them). Gate 1
-then asks `split? (y/n)`: `y` writes `feature-research/<task>.slices.md`, creates Linear sub-issues
-(`parentId`, `blockedBy`; one comment on the parent, its description never touched) and approves
-slice 1; `n` is the plain Gate 1. A task started from a slice's sub-issue runs in slice mode (planner
-scoped to the slice, grill skips settled decisions). `/anderson:approve-diff` runs a ripple check
-against the contracts, then offers the next unblocked slice. `/anderson:auto` does not slice.
+(implement-stage estimate ÷ 250k: slicing costs a re-plan and review per slice, so only big jobs
+pay for it). With n ≥ 2 it plans slice 1 only and adds `## 🔪 Slices` (slices, depends-on, the
+contracts between them). Gate 1 then asks `split? (y/n)`: `y` writes
+`feature-research/<task>.slices.md` (shared branch, PR, one row per slice), posts one comment on a
+Linear parent (its description never touched) and approves slice 1; `n` is the plain Gate 1.
+Slices run in order and stack on ONE branch: slice 1 opens a draft PR, each later slice adds a
+commit and a `## ✂ Slice <k>` section to it, the last one marks it ready. `/anderson:start <branch>`
+picks up the next `todo` slice in slice mode (planner scoped to the slice, grill skips settled
+decisions). `/anderson:approve-diff` runs a ripple check against the contracts, then offers the
+next slice. `/anderson:auto` does not slice. `runlog.py --summary` buckets first-review blocking
+findings by implement tokens, so the 250k line can be checked against real runs.
 
 The agents are **self-contained** — the implementer/reviewer logic is inlined, so
 there is no external skill to install. Per-stage `model` + `effort` switch

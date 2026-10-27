@@ -1151,7 +1151,7 @@ def slices_path(root, rel):
 
 
 def slice_line(r):
-    """`2/3 of AR-2587 · contracts a ✓ · next ar-2590 (waits on 1)` from the slices file that
+    """`2/3 of AR-2587 · contracts a ✓ · next packed bag (waits on 1)` from the slices file that
     start.md's SPLIT writes. Missing or unreadable file → just the k/n from state.md."""
     try:
         with open(r.get("slices") or "", encoding="utf-8", errors="replace") as f:
@@ -1166,13 +1166,13 @@ def slice_line(r):
                          if not n.strip().startswith("<"))
     rows = [[c.strip() for c in l.strip().strip("|").split("|")] for l in t.splitlines()
             if l.startswith("|") and not l.startswith("|-") and not l.startswith("| #")]
-    rows = [x for x in rows if len(x) >= 7]
-    shipped = {x[0] for x in rows if x[6].lower().startswith("shipped")}
-    nxt = next((x for x in rows if x[6].lower() == "todo"), None)
+    rows = [x for x in rows if len(x) >= 5]   # | # | Slice | Criteria | Depends on | Status |
+    shipped = {x[0] for x in rows if x[-1].lower().startswith("shipped")}
+    nxt = next((x for x in rows if x[-1].lower() == "todo"), None)
     out = f"{r['slice']} of {parent}" + (f" · contracts {contracts}" if contracts else "")
     if nxt:
         waits = [d.strip() for d in nxt[3].split(",") if d.strip() not in ("", "—", "-") and d.strip() not in shipped]
-        out += f" · next {nxt[5].rsplit('/', 1)[-1] if nxt[5] not in ('', '—') else nxt[1]}" + (f" (waits on {', '.join(waits)})" if waits else "")
+        out += f" · next {nxt[1]}" + (f" (waits on {', '.join(waits)})" if waits else "")
     return out
 
 

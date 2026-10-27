@@ -33,14 +33,15 @@ of the proof types below; a criterion nothing could prove is not a criterion.
 Read `docs/adr/` and `CONTEXT.md` when the repo has them: past decisions and domain terms the
 code can't show. A plan that contradicts an ADR says so as an LB row in ✅ Decisions.
 
-SIZE (Matt Pocock's rule): an agent reasons worse the more it holds; past ~150k tokens it leaves the
-smart zone. Estimate the tokens the IMPLEMENT stage needs (read Files touched + their direct
-deps, write the diff, run tests and read output, one fix loop; rough anchors: one-file tweak
-~20k, a feature across ~5 files ~80k, a cross-layer feature ~200k+) and set
-n = ceil(estimate / 150k). Also n ≥ 2 when the criteria exceed 7 rows.
+SIZE (after Matt Pocock's rule): an agent reasons worse the more it holds. Slicing costs a re-plan,
+re-read and review per slice, so it only pays on big jobs: the line is ~250k tokens.
+Estimate the tokens the IMPLEMENT stage needs (read Files touched + their direct deps, write the
+diff, run tests and read output, one fix loop; rough anchors: one-file tweak ~20k, a feature
+across ~5 files ~80k, a cross-layer feature ~200k+) and set n = ceil(estimate / 250k).
 - n = 1 → plan as usual; Scorecard Size line only.
 - n ≥ 2 → SLICE: cut the task into n vertical slices (each through every layer it needs, so it
-  ships and is testable on its own; ~≤150k each). Plan ONLY slice 1 in full (criteria, 🛠 How,
+  ships and is testable on its own; ~≤250k each; slices run in order, each built on the previous
+  one, all on one branch and one PR). Plan ONLY slice 1 in full (criteria, 🛠 How,
   Files touched, Blast radius all scoped to slice 1), record the cut as an LB decision
   `Scope: slice 1 of <n>`, and add the `## 🔪 Slices` section (shape in the template). The
   contracts are the black boxes between slices: what an earlier slice exposes that a later one
