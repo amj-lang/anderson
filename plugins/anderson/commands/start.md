@@ -61,6 +61,10 @@ per message, as its last line, and wait for it to finish — two Agent calls in 
 run in parallel and the reviewer judges files that don't exist yet. Step 5's plan crew seats are
 the one exception: they all read the same finished plan and each writes only its own file.
 
+RESUME FROM AUTO: when `feature-research/<task>/plan.md` already exists and state.md says
+`stage: grill` (an auto run stopped on a 🔴 question, auto.md step 4g), do steps 1-2's state
+checks only, skip the planner (step 3) and go straight to step 4 GRILL on that plan.
+
 1. The seed line at the top already did the setup: `.gitignore` has `feature-research/` and
    `feature-research/<task>/state.md` exists (`state: … seeded` or `… already there`). Do NOT
    recreate it. ADOPTED: when that line says `ADOPTED for this session, use task key <t>`, the
@@ -152,6 +156,15 @@ the one exception: they all read the same finished plan and each writes only its
      `y` → invoke the `anderson:proto` skill with `<question> --task <task>` and fold its pick
      like any answer (a `source: design` criterion + a ✓ Decisions row). The tally adds
      `<v>🎨` when any are flagged. Never prototype in auto mode.
+   - NO 🔴 AND NO 🎨 → no conversation. Apply the early-exit rule below before question 1 (🟢 →
+     your recommendation, `[answered] … (grilled, default)`; 🟡 → `[open]`), print ONE block
+     ```
+     grill · <N> questions · no 🔴 · skipped
+       🟡 <question> → [open]
+       🟢 <question> → <answer>
+     ```
+     set stage=plan_review and go to step 5. Gate 1 still shows every line, so you can override.
+     LB rows and `derived` criteria are always 🔴, so they never take this path.
    - Print the manifest as the FIRST thing in the grill — ONE header line + a rule,
      nothing else, so I see the grilling level at a glance (substitute real counts; omit a
      grade from the tally when its count is 0):
