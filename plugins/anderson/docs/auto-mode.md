@@ -1,42 +1,6 @@
 # Anderson — `auto` mode (autonomous build loop)
 
-**Status:** v1 spec · **Type:** design doc · **Owner:** TBD
-
-> **Implementation status (0.11.0):** the orchestrator (`commands/auto.md`) ships a
-> difficulty-adaptive version of the gates below. Notable divergences from the original spec, made
-> for the success-rate / token / latency balance:
-> - **Difficulty routing is IN** (was "v2 / out of scope") — a tier from the plan Scorecard, re-derived
->   from diff size at the gate (max-only), sizes the whole downstream harness.
-> - **Plan gate (gate 4) is ONE `plan-reviewer`, not a 3-lens panel** (every tier; opus/high,
->   opus/xhigh at critical — a rung above the opus/medium planner). Plan errors are cheap; rigor is concentrated at the diff gate.
-> - **Diff panel (gate 7) is tier-sized 1/2/3 and runs in PARALLEL** (each reviewer writes its own
->   file + returns a verdict, so no shared-state collision). The panel model is tier-sized (sonnet for
->   trivial/normal, opus for hard/critical), and an **opus arbiter** backstops every panel that doesn't
->   unanimously refute — resolving splits on merit and signing off unanimous ships — with a forced
->   `## Options considered` (+/−) table, instead of a flat majority-vote.
-> - **CI veto runs first and short-circuits** a red build before reviewer tokens are spent.
-> - **Rework** re-enters at the panel with a per-round reset and a one-time **replan bounce** before
->   `needs-human`. **Red-for-right-reason** is enforced at gate 5.
-> - Every run emits a `metrics:` line for threshold calibration.
-> - **Auto-mode override policy (operator opt-in)** — auto pushes through the SOFT guardrails (low
->   planner confidence, scope / runaway caps, sensitive non-migration paths) instead of aborting, so it
->   finishes the task unattended. Two hard rules never bend: never author/apply a migration (hard stop
->   + hand-off), never force-push outside its own `anderson/auto/*` branch (squash-to-clean on its own
->   branch is allowed). The verification engine is unchanged. See the AUTO-MODE OVERRIDE POLICY block
->   in `commands/auto.md`.
-> - **A red suite goes to TRINITY, not back to the implementer (0.52.0)** — the implementer gets ONE
->   try at a failing test; still red and the run enters a `repair` stage running the **test-fixer**
->   subagent on **opus/high** (fixed, never tiered). It reproduces,
->   flake-checks, names the root cause before editing, fixes the cause, and proves the single test
->   AND the full suite green; it may never weaken, skip or delete a test. Verdicts: `fixed` · `flake`
->   · `replan` (take the replan bounce) · `needs-human`; budget 2 rounds. The CI veto now
->   short-circuits to REPAIR, and the rework loop is REVIEW findings only.
-> - **Error handling + open-questions report (0.15.0)** — the planner enumerates failure paths in a
->   `## 🧯 Error handling` table, classing each `deduced` (handle now) or `needs-context` (a business
->   call). Since auto has no grill, the `needs-context` ones are captured (step 4g) and surfaced in a
->   `## ❓ Open questions & assumptions` PR section + the REPORT block, flag the PR `needs-human`, and
->   emit `open_q=<n>` on the `metrics:` line. Auto ships the question rather than inventing an answer.
-> Source adapters remain out of scope.
+How auto mode works and why. The executable source of truth is `commands/auto.md`; version history is in `CHANGELOG.md`.
 
 ## Summary
 
@@ -60,32 +24,6 @@ and executable ground truth — *not* through self-approval (which lowers succes
 - No auto-merge. A human always merges the draft PR.
 - No replacement of gated/interactive Anderson — that mode stays as-is.
 - Not tied to any specific issue tracker (Linear, GitHub Issues, etc. are pluggable, designed later).
-
-## Decision: add a mode, do not rewrite
-
-Anderson's value is its subagents (`planner`, `plan-reviewer`, `implementer`, `test-fixer`,
-`reviewer`) and the rework loop. Those are unchanged between gated and autonomous use. The only difference is **who
-answers the gates** — a human (interactive) vs. panels + CI (autonomous). That is a front-end swap.
-
-| | Gated mode (today) | `auto` mode (new) |
-|---|---|---|
-| Subagents | planner / plan-reviewer / implementer / test-fixer / reviewer | **same, shared** |
-| Rework loop | `/anderson:rework` | **same, shared** |
-| Plan gate | human grill + approve | critic panel + criteria-coverage check |
-| Diff gate | human review | reviewer panel + **CI veto** |
-| Halts | yes — waits for the operator | none — runs to draft PR |
-| Trigger | operator, in terminal | external source via adapter |
-
-Shared core, two entry points. The only net-new code is the **non-halting orchestrator** that
-drives the subagents and panels end-to-end. Everything it calls already exists.
-
-```
-anderson/
-  agents/      planner, plan-reviewer, implementer, test-fixer, reviewer   ← unchanged, shared
-  skills/
-    start, approve-plan, approve-diff, rework   ← gated (kept untouched)
-    auto                                        ← NEW: non-halting orchestrator
-```
 
 ## Architecture — source-agnostic seam
 
@@ -182,9 +120,8 @@ Adapters (Linear, GitHub Issues, chat, CLI) are **out of scope for this doc** �
 
 ## Gates & panels
 
-> Shipped shape (0.11.0) below. The original design called for a 3-critic plan panel; it was slimmed
-> to one reviewer because plan errors are cheap to fix (you rework — nothing ships), so the rigor
-> budget is concentrated at the diff gate. Panel size is now tier-driven (see Difficulty routing).
+Plan errors are cheap to fix (you rework, nothing ships), so the plan gate is one reviewer and the
+rigor budget sits at the diff gate, sized by tier.
 
 ### Plan gate (gate 4)
 - Mechanical criteria-coverage check + **one** `plan-reviewer` with a refute posture: *"Refute this
@@ -192,21 +129,17 @@ Adapters (Linear, GitHub Issues, chat, CLI) are **out of scope for this doc** �
 - **Runs on every tier** (opus/high, opus/xhigh at critical). Pass requires `ship` **and** every acceptance criterion
   mapped to a plan step. One bounded plan-rework on failure, then abort.
 
-### Diff reviewer panel + arbiter (gate 7)
-- **Tier-sized** 1 / 2 / 3 reviewers, fresh context, **blind to the implementer's reasoning** and to
-  each other (anchoring kills independence). Run **in parallel** — each writes its own review file and
-  returns its verdict, so there is no shared-state collision.
-- Lenses (added in order): **correctness**, **regressions / security**, **does the diff match the plan?**
-- **Panel model is tiered** — trivial/normal panels run on **sonnet** (cost), hard/critical on **opus**
-  (a missed bug there has real blast radius). Every panelist runs at `high`, one rung under the arbiter
-  at hard/critical.
-- **Arbiter backstops every panel** — one **opus** arbiter (`high` at trivial/normal, `xhigh` at
-  hard/critical) runs on every outcome except a unanimous refute: it resolves a split **on merit, not
-  headcount**, and on a unanimous *ship* it runs as a final sign-off (independent re-review, no rubber-stamp). Justified in a required `## Options considered`
-  (+/−) table. This replaces a flat ≥2/3 majority vote and the earlier "unanimous ship skips the arbiter"
-  token-saver.
-- **CI is a veto, not a vote** — it runs FIRST and a red build short-circuits before any reviewer
+### Diff gate (gate 7)
+- **CI is a veto, not a vote**: it runs FIRST and a red build short-circuits before any reviewer
   tokens are spent. The one gate the model cannot talk its way past.
+- **Trivial/normal: AGENT SMITH alone** (opus/high), blind to the implementer's reasoning, judging
+  correctness, regressions/security and plan-match in one pass. His verdict is the gate. A sub-HARD
+  panel only fed an arbiter that re-reviewed the diff anyway, so it was pure cost.
+- **Hard/critical: 3 blind panelists + arbiter.** Three `reviewer`s (opus/high), one lens each, run
+  in parallel, blind to `audit.md` and to each other. One opus/xhigh arbiter runs on every outcome
+  except a unanimous refute: it resolves a split **on merit, not headcount**, and signs off a
+  unanimous *ship* by re-reviewing independently, justified in a required `## Options considered`
+  (+/−) table.
 
 ## Verification hardening
 
@@ -266,37 +199,3 @@ These are the additions that most affect success rate.
 - Forbidden-path and dependency guards as above.
 - Secrets: run needs an Anthropic key + a repo-scoped token (contents + PR write). Do not reuse
   source-adapter credentials.
-
-## Why this improves success rate
-
-The gain comes from three things, none of which is "remove the human":
-
-1. **Objective ground truth** — a failing repro test (RED) + full-suite CI is a gate the model cannot
-   rationalize past.
-2. **Verification independence** — fresh-context, blind, adversarial panels prompted to *refute*,
-   majority-vote, with diverse lenses.
-3. **Loop until clean** — bounded rework with a thrash breaker.
-
-Self-approval (the same model rubber-stamping its own work) does the opposite — it inflates confidence
-and ships confident-wrong fixes. `auto` mode deliberately avoids it.
-
-## Open questions
-
-1. **Runner** — ~~GitHub Actions vs. a long-running worker.~~ **Resolved (0.11.0):** GitHub Actions
-   is the authoritative CI veto when the repo has it + a remote + `gh`; otherwise the in-tree suite
-   run is the fallback veto. A dedicated worker is not required for v1.
-2. **RED step universality** — always (bug fix → yes; feature → test encodes criteria), or
-   feature-exempt? (Red-for-right-reason is now enforced when RED runs.)
-3. **Acceptance criteria** — require as input (stronger spec, less autonomous) vs. always derive
-   (more autonomous, weaker). Current default: derive-if-absent + confidence flag.
-4. **Panel size / threshold** — ~~start at 3 / majority-refute, tune later.~~ **Implemented (0.11.0):**
-   3 panelists / majority-refute at both gates; still tunable.
-5. **Difficulty routing** — ~~size the harness to estimated task difficulty? Likely v2.~~
-   **Implemented (0.11.0):** a tier (trivial/normal/hard/critical) from the plan Scorecard, re-derived
-   from diff size at the gate (max-only), sizes the plan gate, the diff panel (1/2/3), and the arbiter
-   policy. Thresholds are first-guess defaults — calibrate from the per-run `metrics:` line.
-
-## Out of scope (later)
-
-- Source adapters (Linear, GitHub Issues, chat) and their auth.
-- Difficulty-based harness sizing.

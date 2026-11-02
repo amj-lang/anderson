@@ -25,7 +25,7 @@ Then read the effort off it:
   | hard     | xhigh              |
   | critical | xhigh              |
 Missing or `pending` tier (a pipeline started before tiering existed) → treat as `hard`. Never
-`max`, never `low`. The effort picks the agent (effort is frontmatter-only; the Agent tool has no effort parameter):
+`max`, never `low`. The effort picks the agent (effort lives in agent frontmatter, which the band reads):
 `high` → **reviewer**, `xhigh` → **reviewer-xhigh**.
 
 TIER LINE: a re-tier that does not show up in the plan is a silent price change. After writing

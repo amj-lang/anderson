@@ -1,5 +1,5 @@
-"""The effort twins (-xhigh, -medium) exist only because effort is frontmatter-only (the Agent tool
-has no per-call effort). Their instructions must never drift from the base agent they twin."""
+"""The effort twins (-xhigh, -medium) exist because the band reads effort from agent frontmatter
+(the spawn event carries no per-call effort). Their instructions must never drift from the base agent they twin."""
 import os
 import unittest
 
@@ -33,10 +33,9 @@ DOCS = os.path.join(os.path.dirname(__file__), "..", "docs")
 
 
 class TestTierRuleDrift(unittest.TestCase):
-    """The tier rules are stated in five files; they must all state the same ones."""
+    """The tier rules are stated in four files; they must all state the same ones."""
     FILES = {"tiering": os.path.join(DOCS, "tiering.md"), "start": os.path.join(COMMANDS, "start.md"),
-             "auto": os.path.join(COMMANDS, "auto.md"), "approve-plan": os.path.join(COMMANDS, "approve-plan.md"),
-             "rework": os.path.join(COMMANDS, "rework.md")}
+             "auto": os.path.join(COMMANDS, "auto.md"), "approve-plan": os.path.join(COMMANDS, "approve-plan.md")}
 
     def text(self, name):
         with open(self.FILES[name], encoding="utf-8") as f:
@@ -46,7 +45,7 @@ class TestTierRuleDrift(unittest.TestCase):
         for name in ("tiering", "start", "auto"):
             for want in ("Coupling ≥ 8", "Confidence ≤ 3"):
                 self.assertIn(want, self.text(name), f"{name}.md lacks {want}")
-        for name in ("tiering", "approve-plan", "rework", "auto"):
+        for name in ("tiering", "approve-plan", "auto"):
             for want in ("≥400", "≥15 files"):
                 self.assertIn(want, self.text(name), f"{name}.md lacks {want}")
         for name in self.FILES:

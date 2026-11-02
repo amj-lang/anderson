@@ -2,54 +2,9 @@
 description: "Loop the implementer on the checker's blocking findings, then diff-review and halt."
 argument-hint: <task-slug>
 ---
-Task slug = "$ARGUMENTS"; the task key (state dir name) is its LAST `/`-segment, so a pasted
-branch name like `user/ar-123-title` resolves to `feature-research/ar-123-title/`.
-Blocking findings are already in state.md "Still open".
-Run exactly the implement → diff_review → halt sequence from approve-plan,
-incrementing iteration and stopping if it exceeds max_iterations. A round that leaves the tests
-RED goes to TRINITY (step 1b), never back to the implementer: the implementer gets one try at a
-failing test, and looping it on a red suite is the failure mode this stage exists to stop.
-
-REVIEW MODEL: the diff reviewer always runs on opus (agent frontmatter); no flag, no state field.
-
-REVIEW EFFORT: derived from state.md `tier`.
-RE-TIER FIRST — before reading the effort, re-tier against the ACTUAL diff and take the MAX (tier
-only ever escalates, never drops). `git diff --stat` showing ≥400 changed lines OR ≥15 files (tests, lockfiles
-and generated files excluded; "generated" = marked `linguist-generated` in `.gitattributes` or carrying a generated / do-not-edit header; vendored and minified code counts toward the size.) → at least HARD; a diff that alters an
-auth/permission check, secret/crypto handling, locking/concurrency, or builds a shell command /
-filesystem path from external input, or adds/changes an externally reachable entry point
-(HTTP route, server action, RPC/GraphQL resolver, webhook, CLI/IPC handler) or the input
-validation in front of one → at least HARD. Write the resulting `tier:` back to state.md.
-Then read the effort off it:
-  | tier     | DIFF_REVIEW effort |
-  | trivial  | high               |
-  | normal   | high               |
-  | hard     | xhigh              |
-  | critical | xhigh              |
-Missing or `pending` tier (a pipeline started before tiering existed) → treat as `hard`. Never
-`max`, never `low`. The effort picks the agent (effort is frontmatter-only; the Agent tool has no effort parameter):
-`high` → **reviewer**, `xhigh` → **reviewer-xhigh**. Rewrite the plan.md `**Tier:**` line per approve-plan.md's
-TIER LINE, so the plan shows the tier and crew this round actually used.
-
-SEQUENCING: stages are sequential because each reads the previous stage's file output
-(the reviewer reads the diff + audit.md the implementer just wrote). Invoke one subagent
-per message, as its last line, and wait for it to finish — two Agent calls in one message
-run in parallel and the reviewer judges files that don't exist yet. Step 2's crew seats are
-the one exception: they all read the same finished diff and each writes only its own file.
-
-1. In state.md set iteration += 1 (if iteration > max_iterations, print `EXIT · hit max_iterations`, log the run with `python3 "${CLAUDE_PLUGIN_ROOT}/bin/runlog.py" feature-research/<task> --mode gated --outcome aborted:max_iterations`, and STOP); set stage=implement, then invoke the implementer subagent: fix only "Still open". Writes audit.md.
-   Set stage=diff_review.
-1b. TESTS RED? — the implementer gets ONE try at a failing test, then TRINITY takes it.
-   After the implementer returns, run the repo's test command. GREEN → step 2. RED → set
-   `stage: repair`, `repair_round:` += 1 (abort to you at `repair_round > 2`, reason
-   `repair-budget`), then invoke the **test-fixer** subagent (ALWAYS opus/high, never tiered), seeded with the failing test name(s), the command, its output, and the plan's
-   "Files touched" list. It writes `feature-research/<task>/repair.md` and sets `repair_verdict:`.
-   Route on that verdict: `fixed` → re-run the full suite; green → step 2, still red → another
-   repair round. `flake` → note it and go to step 2. `replan` or `needs-human` → print the
-   fixer's report and STOP for you (the approach, not the code, is the problem).
-2. CREW + DIFF_REVIEW — exactly as approve-plan.md step 2: run crew.py on the scope, record
-   `crew:`, run
-   the crew seats in one message (lens files stamped `-r<iteration>`), then AGENT SMITH
-   (**reviewer-xhigh** when `<review_effort>` is xhigh) → reads the lens reviews, appends diff
-   review under `## 🔭 Review` in plan.md; sets diff_verdict.
-3. Print the GATE 2 line exactly as approve-plan.md step 3 does, then STOP.
+Task slug = "$ARGUMENTS". Blocking findings are already in state.md "Still open".
+Read `${CLAUDE_PLUGIN_ROOT}/commands/approve-plan.md` and run it top to bottom for this slug
+(iteration += 1 and the max_iterations exit, re-tier, TIER LINE, implement, TRINITY on red,
+crew + diff review, GATE 2 card, halt). This is its rework loop: the implementer fixes ONLY
+"Still open", and a round that leaves the tests RED goes to TRINITY (its step 1b), never back to
+the implementer.

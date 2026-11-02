@@ -3,7 +3,8 @@
 
 Deterministic on purpose: routing is pattern matching, not a model call.
 usage: crew.py <tier> [--hint lens,lens] [--plan plan.md] <file>...   (run from the repo root)
-  diff review: files = the diff scope; changed lines come from `git diff HEAD`.
+  diff review: files = the diff scope; changed lines come from `git diff HEAD`. Below HARD only
+  the plan's Crew hint seats a lens (the pattern seats confirmed 0 of 6 findings there).
   plan review (--plan): files = plan.md "Files touched"; the plan's text stands in for changed
   lines, and only security + performance sit (leftovers needs a diff; the plan-reviewer's
   blast-radius check owns planned dead code).
@@ -11,7 +12,7 @@ prints one line per summoned lens: `<lens> <PERSONA> <agent> <model/effort> <rea
 Every seat runs on opus; effort is frontmatter-only, so the effort picks the agent.
 
 ponytail: regex over paths + changed lines; over-summons on a name match (cheap: one extra
-seat), under-summons security only below HARD (the tier forces SERAPH from HARD up). At plan
+seat). Security is forced from HARD up, and the HARD rule escalates any change that alters auth/secrets. At plan
 review the code regexes scan prose too, so "select a row from the list" seats SERAPH: same trade.
 """
 import argparse
@@ -69,16 +70,19 @@ def crew(tier, files, hints=(), plan=None):
             picks["security"] = "plan text"
         if any(PERF_CODE.search(l) for l in plan):
             picks["performance"] = "plan text"
-    for path in files:
-        added, removed = changed(path) if plan is None else ([], [])
-        if SEC_PATH.search(path):
-            picks.setdefault("security", f"path {path}")
-        elif any(SEC_CODE.search(l) for l in added):
-            picks.setdefault("security", f"code in {path}")
-        if PERF_PATH.search(path) or any(PERF_CODE.search(l) for l in added):
-            picks.setdefault("performance", f"{path}")
-        if CODE.search(path) and any(l.strip() for l in removed):
-            picks.setdefault("leftovers", f"removed code in {path}")
+    # ponytail: below HARD the diff crew rode regex hits and confirmed 0 of 6 findings (runs.jsonl,
+    # 0.74.0); AGENT SMITH covers it. Only the plan's Crew hint seats a lens there now.
+    if plan is not None or hard:
+        for path in files:
+            added, removed = changed(path) if plan is None else ([], [])
+            if SEC_PATH.search(path):
+                picks.setdefault("security", f"path {path}")
+            elif any(SEC_CODE.search(l) for l in added):
+                picks.setdefault("security", f"code in {path}")
+            if PERF_PATH.search(path) or any(PERF_CODE.search(l) for l in added):
+                picks.setdefault("performance", f"{path}")
+            if CODE.search(path) and any(l.strip() for l in removed):
+                picks.setdefault("leftovers", f"removed code in {path}")
     if hard:
         picks.setdefault("security", f"tier {tier}")
     for lens in hints:  # the plan's Crew hint: add-only, never removes a rule's pick

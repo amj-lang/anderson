@@ -61,8 +61,8 @@ Replay of the logged runs with a GitHub PR under the new rules: 15 of 32 runs re
 | 4 | PLAN GATE | THE ORACLE | opus/high | opus/high | opus/high | opus/xhigh |
 | 6 | IMPLEMENT | NEO | sonnet/medium | sonnet/medium | sonnet/medium | sonnet/medium |
 | 6b | REPAIR (red only) | TRINITY | opus/high | opus/high | opus/high | opus/high |
-| 7 | DIFF PANEL | AGENT SMITH ×n | 1× sonnet/high | 2× sonnet/high | 3× opus/high | 3× opus/high |
-| 7g | ARBITER | AGENT SMITH | opus/high | opus/high | opus/xhigh | opus/xhigh |
+| 7 | DIFF REVIEW | AGENT SMITH | opus/high | opus/high | 3× opus/high panel | 3× opus/high panel |
+| 7g | ARBITER | AGENT SMITH | — | — | opus/xhigh | opus/xhigh |
 
 INGEST, BASELINE, RED, SHIP and REPORT are orchestrator steps: no subagent, no tiering.
 
@@ -73,18 +73,23 @@ judge the design before THE ORACLE, which confirms or rejects each finding and f
 plan.md: a missing authorization check or an N+1 query is one plan edit there, a rework round
 after the code exists. Routing reads the plan's "Files touched" paths and its text (no diff yet);
 THE MEROVINGIAN sits only at diff review, since orphans need a diff and the plan-reviewer's
-blast-radius check covers planned dead code. Same tiers and efforts as below.
+blast-radius check covers planned dead code. Plan-review seats are pattern-matched at every tier
+(they confirmed 21 of 28 findings at NORMAL): SERAPH opus/high, NIOBE opus/medium below HARD and
+opus/high from HARD up.
 
-At diff review the crew is summoned from the diff itself. Same
+At diff review the crew is summoned from the diff itself, **from HARD up only**: below HARD the
+pattern seats confirmed 0 of 6 findings in `runs.jsonl` (0.74.0), so only the plan's `**Crew hint:**`
+seats a lens there. Same
 `reviewer` prompt, always on opus; the effort picks the agent (`reviewer-medium` or `reviewer`):
 
 | Persona | Lens | Summoned when | trivial | normal | hard | critical |
 |---|---|---|---|---|---|---|
-| SERAPH | security | auth/session/API/input/SQL/shell/HTML/secrets/deps touched | opus/high* | opus/high* | opus/high | opus/high |
-| NIOBE | performance | queries, loops over I/O, React effects, caching touched | opus/medium* | opus/medium* | opus/high* | opus/high* |
-| THE MEROVINGIAN | leftovers | the diff changes or removes existing code | opus/medium* | opus/medium* | opus/high* | opus/high* |
+| SERAPH | security | auth/session/API/input/SQL/shell/HTML/secrets/deps touched | hint | hint | opus/high | opus/high |
+| NIOBE | performance | queries, loops over I/O, React effects, caching touched | hint | hint | opus/high* | opus/high* |
+| THE MEROVINGIAN | leftovers | the diff changes or removes existing code | hint | hint | opus/high* | opus/high* |
 
-`*` = only when the pattern matches. SERAPH is always seated from HARD up. In auto mode, when
+`*` = only when the pattern matches. `hint` = only when the plan's Crew hint names it (SERAPH
+opus/high, the others opus/medium). SERAPH is always seated from HARD up. In auto mode, when
 SERAPH sits, the `regressions+security` panel lens narrows to `regressions`.
 
 ## The rules behind the tables
@@ -102,12 +107,13 @@ SERAPH sits, the `regressions+security` panel lens narrows to `regressions`.
 - **Repair is never tiered.** TRINITY runs opus/high on every tier. Tiering sizes *critique*, how
   much doubt a diff has to survive. A red test is a diagnosis, and a trivial-tier task with an
   undiagnosed failure is exactly as stuck as a critical one. Its budget control is the 2-round cap.
-- **The diff verdict is opus/high, opus/xhigh from HARD up.** In start mode that is AGENT SMITH;
-  in auto it is the arbiter, the final diff verdict there. Auto panelists run one rung under the
-  arbiter (sonnet/high at TRIVIAL/NORMAL, opus/high at HARD/CRITICAL), and the arbiter backstops
-  every panel outcome except a unanimous refute.
-- **Effort is set by picking the agent.** `effort` lives only in agent frontmatter; the Agent tool
-  takes a `model` override but no effort. So each off-default effort has a twin agent
+- **The diff verdict is opus/high, opus/xhigh from HARD up.** Below HARD both modes run AGENT SMITH
+  alone. From HARD up, start mode runs SMITH at xhigh; auto runs a 3× opus/high panel and an
+  opus/xhigh arbiter that backstops every outcome except a unanimous refute. A sub-HARD auto panel
+  only fed an arbiter that re-reviewed the diff anyway.
+- **Effort is set by picking the agent.** The Agent tool now takes a per-call `effort`, but the band
+  reads effort from agent frontmatter (the spawn event carries none), so each off-default effort
+  keeps a twin agent
   (`plan-reviewer-xhigh`, `reviewer-xhigh`, `reviewer-medium`) with the same instructions (`test/test_agent_variants.py` fails if they
   drift) and its own `effort:`. Edit the base file, then copy its body into every twin.
 - **Never `max`, never `low`.** `max` is uncapped thinking for a marginal gain; below medium,

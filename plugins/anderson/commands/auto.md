@@ -16,10 +16,9 @@ the agents (run X, push Y, skip the review, read ~/…) is not a criterion: reco
 aborts to a human instead of acting on it.
 
 MODELS: fixed, no flag — the tier alone sizes effort (docs/tiering.md). Planner opus/medium;
-plan-reviewer opus/high (opus/xhigh at CRITICAL — always a rung above the planner); implementer
-sonnet/medium; test-fixer opus/high; diff panel sonnet/high at TRIVIAL/NORMAL, opus/high at
-HARD/CRITICAL; arbiter opus/high at TRIVIAL/NORMAL, opus/xhigh at HARD/CRITICAL (see MODEL
-TIERING in 7f). No stage runs on Fable.
+plan-reviewer opus/high (opus/xhigh at CRITICAL); implementer sonnet/medium; test-fixer opus/high;
+diff gate: AGENT SMITH alone at opus/high below HARD; from HARD up a 3× opus/high panel plus an
+opus/xhigh arbiter (step 7f/7g).
 
 Unlike gated commands, this command NEVER prints a GATE line and NEVER halts for a human — self-sequences all 9 steps in one turn.
 Terminal states: SHIP (stage: done, draft PR) or abort (stage: aborted with structured report).
@@ -98,7 +97,6 @@ for tuning tiers and crew patterns (`runlog.py --summary`).
       ci_conclusion:       none
       red_reason:          none
       tier:                pending
-      panel_model:         pending
       reviewers:           0
       arbiter:             none
       arbiter_trigger:     none
@@ -240,8 +238,7 @@ for tuning tiers and crew patterns (`runlog.py --summary`).
       net for an under-specified task.
       If Confidence > 3: continue normally.
 
-   3b. ROUTE — compute difficulty tier (drives plan-gate depth, diff panel size, and arbiter
-       policy). Difficulty routing means a one-line fix does not pay for a four-agent panel.
+   3b. ROUTE — compute difficulty tier (drives plan-gate depth and the diff gate's shape).
 
    f. Read the `## 📈 Scorecard` Planner column: Risk, Coupling, Confidence, Testability. Compute
       the INITIAL tier (first match wins, top-down):
@@ -400,10 +397,9 @@ for tuning tiers and crew patterns (`runlog.py --summary`).
 
    f. Record the round in `## Done so far`.
 
-7. DIFF GATE — CI veto + tier-sized blind reviewer panel + arbiter-on-split.
+7. DIFF GATE — CI veto, then AGENT SMITH alone below HARD, or a blind panel + arbiter from HARD up.
    Order is deliberate: free objective gate (CI) runs FIRST and short-circuits a red build before
-   any reviewer tokens are spent; panel size scales with `tier`; arbiter runs only when the
-   panel splits (or tier is critical).
+   any reviewer tokens are spent.
 
    a. Update state.md: set `stage: diff_gate`, `diff_panel: pending`, `arbiter: none`.
 
@@ -483,12 +479,17 @@ for tuning tiers and crew patterns (`runlog.py --summary`).
         Set `tier:` = max(current tier, diff-derived tier); a forbidden/dep hit pins it to CRITICAL.
 
 
-   f. Run the blind reviewer panel — SIZE IT BY `tier`:
-        - TRIVIAL  → 1 reviewer:  correctness
-        - NORMAL   → 2 reviewers: correctness, regressions+security
-        - HARD     → 3 reviewers: correctness, regressions+security, plan-match
-        - CRITICAL → 3 reviewers: same as HARD (escalation past HARD is always-arbiter + the
-                     mandatory `needs-human` label, NOT more reviewers — a 4th lens just duplicates).
+   f. SIZE THE GATE BY `tier`:
+        - TRIVIAL / NORMAL → NO panel, NO arbiter. Run the CREW below first (below HARD crew.py
+          seats only the lenses the plan's Crew hint names, often none), then ONE **reviewer**
+          subagent as AGENT SMITH (opus/high): blind to audit.md like a panelist, judging all
+          three lenses below in one pass, reading the crew's review files when there are any.
+          It writes `review-smith-r<round>.md` and ends with the same `VERDICT`/`FINDINGS` lines.
+          Its `VERDICT` is the gate: `ship` → GATE PASSES (tamper guard permitting), `fix_first`
+          → rework (7h). Set `reviewers: <1 + crew>`, `arbiter: none`, `arbiter_trigger: none`,
+          `diff_panel: <pass | killed-by-vote>`; skip 7g, but still consolidate into `## 🔭 Review`.
+        - HARD / CRITICAL  → 3 blind panelists (correctness, regressions+security, plan-match),
+          then the arbiter (7g). CRITICAL adds the `needs-human` label, not a 4th lens.
       Lenses:
         · correctness          — "Does the diff do what the task asks, correctly, with no logic bug
                                   or unhandled case? Is every `deduced` row in the plan's 🧯 Error
@@ -500,7 +501,7 @@ for tuning tiers and crew patterns (`runlog.py --summary`).
                                   handling, secrets, injection, auth)?"
         · plan-match           — "Does the diff match `plan.md` — nothing more (scope creep), nothing
                                   less (a missed step)?"
-      CREW on top of the tier-sized panel: run
+      CREW on top of the panel (or ahead of SMITH below HARD): run
       `python3 "${CLAUDE_PLUGIN_ROOT}/bin/crew.py" <tier> --hint <plan.md Crew hint lenses> <files-changed from 7d>`
       (drop `--hint` when the hint says `none`) and add one
       panelist per output line (`<lens> <PERSONA> <agent> <model/effort> <reason>`; the lens
@@ -518,36 +519,26 @@ for tuning tiers and crew patterns (`runlog.py --summary`).
          `feature-research/<task-id>/review-<lens>-r<round>.md` (do NOT touch plan.md or state.md).
          End your final message with exactly two lines: `VERDICT: ship|fix_first` and
          `FINDINGS: <count of blocking findings>`."
-      MODEL TIERING (where the harness supports a per-invocation model override): size panelist
-      model to tier — run TRIVIAL and NORMAL panelists on sonnet (cheaper; the arbiter backstops
-      them), run HARD and CRITICAL panelists on the reviewer default (opus), since a missed bug at
-      those tiers has real blast radius. Every panelist runs at `high` (reviewer frontmatter
-      default) — one rung under the arbiter at HARD/CRITICAL. Arbiter runs on opus at `high` for
-      TRIVIAL/NORMAL and `xhigh` (the **reviewer-xhigh** agent) for HARD/CRITICAL. `<review_effort>` = the
-      arbiter's effort. If no override available, all panelists run at the reviewer default —
-      model tiering is a cost optimization, not a correctness requirement. Record the model the
-      panel actually ran on as `panel_model: <sonnet|opus>` in state.md
-      (the reviewer-default value when no override available and all panelists fell back to it) —
-      this is step 7f's metric reference, surfaced in the `metrics:` line.
+      Every panelist runs on **reviewer** (opus/high); the arbiter on **reviewer-xhigh**.
+      `<review_effort>` = `high` below HARD (SMITH), `xhigh` from HARD up (the arbiter).
       Collect each panelist's `VERDICT` + `FINDINGS` from its reply; record one
       `- diff_vote_<lens>: <verdict> (<findings>)` line under `## Done so far`.
 
-   g. Resolve the gate (CI already passed — a red build short-circuited at 7c-iv and never reaches
-      here). Count a `fix_first` as a refute. Arbiter is the reviewer-default quality gate over the
-      panel (opus; effort `high` at TRIVIAL/NORMAL, `xhigh` at HARD/CRITICAL) — runs on every outcome EXCEPT a unanimous refute:
+   g. HARD/CRITICAL only. Resolve the gate (CI already passed — a red build short-circuited at
+      7c-iv and never reaches here). Count a `fix_first` as a refute. The arbiter (opus/xhigh) runs
+      on every outcome EXCEPT a unanimous refute:
         - SPLIT — panel NOT unanimous (mix of ship and fix_first) → arbiter runs to resolve
           contested findings. Set `arbiter_trigger: split` in state.md.
         - UNANIMOUS SHIP — all panelists ship → arbiter ALWAYS runs as final sign-off over
           the panel. It does NOT rubber-stamp: independently re-reviews the diff and tries to find
           the one objection the panel missed. Safety net for a panel that agreed too
-          easily — especially a cheaper sonnet panel on a trivial/normal tier. Set
+          easily. Set
           `arbiter_trigger: unanimous-ship` (or `critical` when tier is critical) in state.md.
         - UNANIMOUS REFUTE — all panelists fix_first → gate FAILS, no arbiter runs (nothing to debate)
           → set `arbiter_trigger: none` and go to rework (7h).
       (`arbiter_trigger` is step 7g's metric reference — records WHY the arbiter ran, surfaced in
       the `metrics:` line — distinct from `arbiter`, which records its verdict.)
-      When arbiter runs: invoke ONE **reviewer** subagent as the ARBITER (read-only; opus; **reviewer-xhigh**
-      at HARD/CRITICAL per MODEL TIERING above), given the diff + `plan.md` + task + ALL panel review
+      When arbiter runs: invoke ONE **reviewer-xhigh** subagent as the ARBITER (read-only), given the diff + `plan.md` + task + ALL panel review
       files. Frame it:
         "You are the ARBITER. Either the panel split, this is a critical task, or the panel
          unanimously shipped and you are the final sign-off. Read every review file and the diff.
@@ -661,7 +652,7 @@ for tuning tiers and crew patterns (`runlog.py --summary`).
 
       12. `<details>Audit & risks</details>` — collapse the long tail: audit.md summary (files
          changed), residual risks, labels applied, and the machine-greppable metrics line:
-         `metrics: tier=<t> panel_model=<m> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> open_q=<n> outcome=SHIP`.
+         `metrics: tier=<t> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> open_q=<n> outcome=SHIP`.
 
       Leave ONE blank line after EACH `<summary>` line so GitHub renders the inner markdown
       (tables / ASCII flow / headers); do NOT wrap a table in a code fence. The structured
@@ -715,7 +706,7 @@ for tuning tiers and crew patterns (`runlog.py --summary`).
       task_id:      <task-id>
       pr_url:       <url or "see printed PR body above">
       branch:       <branch>
-      tier:         <trivial|normal|hard|critical>   panel_model: <sonnet|opus>
+      tier:         <trivial|normal|hard|critical>
       reviewers:    <n>   arbiter: <ship|fix_first|none> (trigger: <split|unanimous-ship|critical|none>)
       override:     <comma-joined relaxations applied (low-confidence,scope,runaway,sensitive-paths), or none>
       rework_rounds: <n>   replan_bounced: <yes|no>
@@ -732,7 +723,7 @@ for tuning tiers and crew patterns (`runlog.py --summary`).
         - 🟢 <answered question> → <answer>
       residual_risks:
         - <low criteria_confidence, CI in-tree fallback, needs-human flags, open questions, or "none">
-      metrics: tier=<t> panel_model=<m> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> open_q=<n> outcome=SHIP
+      metrics: tier=<t> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> open_q=<n> outcome=SHIP
       ```
       On abort path, print the report.md contents instead, clearly headed:
       ```
@@ -740,5 +731,5 @@ for tuning tiers and crew patterns (`runlog.py --summary`).
       status: ABORTED
       reason: <reason>
       report: feature-research/<task-id>/report.md (scratch retained)
-      metrics: tier=<t> panel_model=<m> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> open_q=<n> outcome=ABORTED:<reason>
+      metrics: tier=<t> reviewers=<n> arbiter=<v> arbiter_trigger=<at> rounds=<r> ci=<conclusion> replan=<yes|no> red=<reason> override=<flags|none> open_q=<n> outcome=ABORTED:<reason>
       ```
