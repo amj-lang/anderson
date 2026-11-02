@@ -307,6 +307,19 @@ for tuning tiers and crew patterns (`runlog.py --summary`).
       Set `open_questions: <count of [open] lines>` in state.md. Non-zero count forces the
       `needs-human` label at SHIP (step 8c) — auto must not invent a business answer it lacks context
       for; it ships the question to the human.
+      GRADE every `[open]` line with the grill's scale (start.md step 4): 🔴 ARCH = the answer
+      changes the architecture, data model or scope; 🟡 BEHAVIOR = edge cases, error handling,
+      UX semantics; 🟢 PREF = naming, defaults, cosmetics. Prefix each line with its dot.
+      ANY 🔴 → STOP before RED: building on a guessed architecture burns the whole run. Hand the
+      task to the gated grill: in state.md set `mode: gated`, `stage: grill`, `gate: none`
+      (plan.md stays; do NOT log the run, the gated run logs the whole cost when it ships), print
+      ```
+      🔴 GRILL NEEDED · auto stopped before implement
+        <n> question(s) change the architecture, data model or scope:
+          🔴 <question> — <why>
+        → /anderson:start <task-id>   (resumes at the grill, plan already written)
+      ```
+      and STOP. Only 🟡/🟢 → continue as above.
 
 5. RED — write failing test encoding the acceptance criteria, confirm it fails for the right
    reason, then freeze it.

@@ -61,5 +61,19 @@ class TestTierRuleDrift(unittest.TestCase):
         self.assertIn("Testability ≥ 7", labels)
 
 
+class TestAutoGrillHandoff(unittest.TestCase):
+    """Auto stops on a 🔴 question and start.md must pick the task up at the grill."""
+
+    def test_handoff_both_sides(self):
+        with open(os.path.join(COMMANDS, "auto.md"), encoding="utf-8") as f:
+            auto = f.read()
+        with open(os.path.join(COMMANDS, "start.md"), encoding="utf-8") as f:
+            start = f.read()
+        self.assertIn("`mode: gated`, `stage: grill`", auto)
+        self.assertIn("RESUME FROM AUTO", start)
+        self.assertIn("`stage: grill`", start[start.index("RESUME FROM AUTO"):][:300])
+        self.assertIn("NO 🔴 AND NO 🎨", start)
+
+
 if __name__ == "__main__":
     unittest.main()
