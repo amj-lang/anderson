@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.75.0-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.75.1-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -74,7 +74,7 @@ flowchart LR
 In plain words:
 
 1. **Plan.** THE ARCHITECT reads the ticket, the design and the code, and writes `plan.md`.
-2. **Grill.** You get asked about the plan, one question at a time, until nothing is ambiguous.
+2. **Grill.** You answer the plan's open questions, graded 🔴 architecture · 🟡 behavior · 🟢 preference. No 🔴? No conversation: it prints its defaults and you can override them at Gate 1.
 3. **Plan review.** THE ORACLE, a stronger model, rewrites the weak parts of the plan. It can send it back to the grill. **Gate 1:** you approve the plan.
 4. **Implement.** NEO writes the code and records the evidence for every acceptance criterion. If the tests go red, TRINITY finds the root cause instead of looping NEO (and may never weaken a test to get green).
 5. **Diff review.** AGENT SMITH, who didn't write the code, reviews it against the plan. `fix_first` sends it back to NEO, up to `max_iterations`. **Gate 2:** you approve the code.
