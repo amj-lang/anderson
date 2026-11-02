@@ -41,7 +41,7 @@ This is the crew band that sits just above the prompt during a live run (colors 
 ── 6. diff_review: crew of 4, mixed
 ⌐■-■ ●●●●●◐○ diff_review 6/7 · 4:00 · I: 5.6M / O: 131k  2 live ──────────────────────────────────────────────
 ┌ NIOBE ⠸ ────────── performance ┐ ┌ THE MEROVINGIAN ⠸ ──────── api ┐ [ SMITH ✗ 1 blocking ]
-│ opus/medium    4:00            │ │ opus/medium    4:00            │ [ SERAPH ✓ 0 blocking ]
+│ opus/high      4:00            │ │ opus/high      4:00            │ [ SERAPH ✓ 0 blocking ]
 └ ▸ Grep rate_limit ─────────────┘ └ ▸ Read api/routes.py ──────────┘
 
 ── 7. diff_review gate: blocking → rework

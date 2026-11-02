@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.73.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.74.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -24,15 +24,11 @@ never self-approval (the maker never grades its own homework, which is what infl
 |----------|-----------|----------------|----------------------|
 | *both gates — objective* | **CI veto** — GitHub Actions run, or the in-tree suite as fallback | — *(no model)* | Runs FIRST; a red build/suite fails the gate **before a single reviewer token is spent** — the one gate the model can't argue past. |
 | **Gate 1 — plan** *(was: human grill + approve)* | criteria-coverage check + **one `plan-reviewer`** (every tier) | **opus · high** (critical: **xhigh**) | Refute the plan — find why it fails or misses an acceptance criterion; default to reject if uncertain; fix inline. |
-| **Gate 2 — diff** *(was: human review)* | **tier-sized blind `reviewer` panel** — 1 / 2 / 3 by difficulty, run in parallel | **sonnet · high** (trivial/normal) · **opus · high** (hard/critical) \* | Each judges ONE lens — *correctness* · *regressions+security* · *plan-match* — from the diff + plan only, **blind** to `audit.md` and to each other; refute, default reject. |
-| **Gate 2 — arbiter** | **one `reviewer` as the arbiter** — runs on every split AND every unanimous *ship* (final sign-off); skipped only on a unanimous refute | **opus · high** (hard/critical: **xhigh**) | Resolve contested findings **on merit, not headcount** (a lone correct reviewer beats two wrong ones); on a clean ship, re-review independently rather than rubber-stamp. Justify the call in a required `## Options considered` (+/−) table. |
+| **Gate 2 — diff** *(was: human review)* | trivial/normal: **AGENT SMITH alone**, all three lenses in one pass · hard/critical: **3 blind `reviewer`s** in parallel | **opus · high** | Judge *correctness* · *regressions+security* · *plan-match* from the diff + plan only, **blind** to `audit.md` (and, on the panel, to each other); refute, default reject. |
+| **Gate 2 — arbiter** *(hard/critical)* | **one `reviewer` as the arbiter** — runs on every split AND every unanimous *ship* (final sign-off); skipped only on a unanimous refute | **opus · xhigh** | Resolve contested findings **on merit, not headcount** (a lone correct reviewer beats two wrong ones); on a clean ship, re-review independently rather than rubber-stamp. Justify the call in a required `## Options considered` (+/−) table. |
 
-\* Panel model is **tiered**: trivial/normal panels take a **sonnet** override as a cost optimization
-(a one-line fix doesn't pay for opus reviewers); hard/critical panels run on the reviewer default
-**opus · high**, where a missed bug has real blast radius. Every panelist runs at the `reviewer`
-frontmatter default `high`, one rung under the hard/critical arbiter; if no per-agent override is
-available, all panelists run at opus · high. The arbiter runs at **opus · high** on trivial/normal and
-**opus · xhigh** on hard/critical, and backstops every panel that doesn't unanimously refute.
+Below HARD a panel only fed an arbiter that re-reviewed the diff anyway, so SMITH's verdict is
+the gate there (0.74.0).
 
 Two non-gate mechanisms make those verdicts trustworthy: the **RED test** (frozen, must fail on a
 real assertion — *red-for-right-reason*) and the **test-tamper guard** (content-hash check at the diff
@@ -63,21 +59,20 @@ gate). They are the executable ground truth the panel reasons against.
 - **CI veto first (step 7c).** When the repo has GitHub Actions + a remote + `gh`, the branch is
   pushed and the run's conclusion is awaited; a red build fails the gate and **short-circuits before
   any reviewer tokens are spent**. Falls back to the in-tree suite when CI isn't available.
-- **Tier-sized blind diff panel (step 7f).** 1 / 2 / 3 `reviewer`s by tier (correctness ·
+- **Tier-sized diff gate (step 7f).** Trivial/normal: AGENT SMITH alone (opus · high), all three
+  lenses in one blind pass, his verdict is the gate. Hard/critical: 3 `reviewer`s (correctness ·
   regressions+security · plan-match), run **in parallel** (each writes its own file + returns a
-  verdict, so no shared-state collision), blind to `audit.md` and to each other. **Panel model is
-  tiered:** trivial/normal panels run on **sonnet** (cost), hard/critical on **opus** (a missed bug
-  there has real blast radius).
-- **Arbiter always backstops the panel (step 7g).** One **opus** arbiter runs on every outcome except
+  verdict), blind to `audit.md` and to each other.
+- **Arbiter backstops the hard/critical panel (step 7g).** One **opus · xhigh** arbiter runs on every outcome except
   a unanimous refute: it resolves a split **on merit, not headcount**, and on a unanimous *ship* it
   runs as a final sign-off that independently re-reviews the diff rather than rubber-stamping.
   It must justify its call in a required `## Options considered` (+/−) table. Only a unanimous refute
   skips it (nothing to debate → straight to rework).
 - **Red-for-right-reason (step 5).** The RED test must fail on an *assertion*; an import/syntax/
   collection error (a hollow red) triggers one bounded rewrite, then aborts.
-- **Calibration metrics.** Every run emits a one-line `metrics:` record — `tier · panel_model ·
+- **Calibration metrics.** Every run emits a one-line `metrics:` record — `tier ·
   reviewers · arbiter · arbiter_trigger · rounds · ci · replan · red · override · outcome` — to the PR
-  + report, so each new behavior is greppable (which model the panel ran on, why the arbiter fired,
+  + report, so each new behavior is greppable (why the arbiter fired,
   which soft guardrails were relaxed) and the thresholds can be tuned from real outcomes.
 - **PR body is the plan minus the how.** The draft PR opens with the source-ticket link (from the
   TaskSpec `source_url`, when present), What & why, the acceptance-criteria table with its Evidence
@@ -135,8 +130,9 @@ The fleet terminal boots into the same rain:
 | THE ONE          | `done`        | shipped — commit + PR                  | — (terminal)   |
 
 SERAPH, NIOBE and THE MEROVINGIAN are not agents of their own: each is the `reviewer` agent in a
-lens seat. `bin/crew.py` summons them from what the diff touches (paths and changed lines, no
-model call): SERAPH for auth, sessions, API routes, input parsing, SQL/shell/HTML building,
+lens seat. From HARD up `bin/crew.py` summons them from what the diff touches (paths and changed
+lines, no model call); below HARD only the plan's `**Crew hint:**` seats one at diff review, since
+the pattern seats there confirmed 0 of 6 findings: SERAPH for auth, sessions, API routes, input parsing, SQL/shell/HTML building,
 secrets, dependencies, and always from HARD up; NIOBE for queries, loops over I/O, React effects,
 caching; THE MEROVINGIAN whenever the diff changes or removes existing code. They review blind
 into their own files first, then AGENT SMITH (or the auto arbiter) rules on their findings.
@@ -420,7 +416,7 @@ opening when a line raises doubt.
 Each agent declares its own `model` + `effort` in frontmatter, and these switch
 automatically per stage (planner opus/medium, plan-reviewer opus/high, implementer
 sonnet/medium, test-fixer opus/high, reviewer opus/high; the tier raises review effort to xhigh by switching to the `plan-reviewer-xhigh` /
-`reviewer-xhigh` twins, since effort is frontmatter-only and the Agent tool has no per-call effort). Resolution order is: `CLAUDE_CODE_SUBAGENT_MODEL`
+`reviewer-xhigh` twins: effort lives in frontmatter, which is what the band reads). Resolution order is: `CLAUDE_CODE_SUBAGENT_MODEL`
 env var → per-invocation override → **agent frontmatter** → main session. The rank of
 the first two against each other is unverified — if you set the env var, the transcript
 grep below is ground truth for what actually ran.
@@ -432,8 +428,7 @@ needs no anderson change; the plugin pins no dated ID.
 arbiter) — runs on **Opus** (`model: opus` in the `reviewer` / `plan-reviewer` frontmatter). Opus
 5.5 beats Fable 5.1 on every published benchmark at a fraction of the per-token price
 ([docs/tiering.md](docs/tiering.md)), so the old `--opus` flag and the `review_model` state field
-are gone; the tier alone sizes review effort. In auto mode the TRIVIAL/NORMAL panel stays on
-sonnet (`panel_model` metric reads `sonnet` or `opus`).
+are gone; the tier alone sizes review effort.
 
 **Set your own models permanently.** Set `env` in `~/.claude/settings.json`
 (user-wide) or `.claude/settings.json` (project) to pin every stage to one

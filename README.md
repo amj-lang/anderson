@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.73.0-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.74.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -120,12 +120,12 @@ Not every task deserves the same scrutiny. The planner scores each plan on risk,
 
 | Tier     | Plan review   | Diff review   | auto panel        |
 | -------- | ------------- | ------------- | ----------------- |
-| trivial  | opus · high   | opus · high   | 1 × sonnet · high |
-| normal   | opus · high   | opus · high   | 2 × sonnet · high |
+| trivial  | opus · high   | opus · high   | SMITH alone       |
+| normal   | opus · high   | opus · high   | SMITH alone       |
 | hard     | opus · high   | opus · xhigh  | 3 × opus · high   |
 | critical | opus · xhigh  | opus · xhigh  | 3 × opus · high   |
 
-\* The plan review always runs a step above the planner. Crew seats run opus · high for security, and opus · medium (high from HARD up) for performance and dead code.
+\* The plan review always runs a step above the planner. Crew seats run opus · high for security, and opus · medium (high from HARD up) for performance and dead code. Below HARD the diff-review crew sits only when the plan's Crew hint asks for it.
 
 **Why Opus, not Fable, for the reviews.** Until 0.52 both gates ran on Fable. Opus 5.5 beat Fable 5.1 on every benchmark Anthropic published at launch, at 2.5× less per token, so since 0.53 every review seat runs on Opus. There is no public head-to-head on code review itself, but a model that only matched Fable at 40% of the price would still win the seat. Tables and history: [docs/tiering.md](plugins/anderson/docs/tiering.md).
 

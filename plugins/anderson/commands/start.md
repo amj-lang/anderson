@@ -19,8 +19,7 @@ below; `<task>` means the key.
 
 MODELS: fixed, no flag. Planner opus/medium, plan-reviewer opus (effort per REVIEW EFFORT),
 implementer sonnet/medium, test-fixer opus/high, diff reviewer opus (effort per REVIEW EFFORT).
-Opus 5.5 outscores Fable 5.1 on every published benchmark at a fraction of the per-token price,
-so no stage runs on Fable (see docs/tiering.md).
+Why: docs/tiering.md.
 
 TIER: difficulty routing, so a one-line fix does not pay for a two-xhigh-critique pipeline.
 Computed ONCE at step 5 from the planner's `## 📈 Scorecard` (it does not exist before the
@@ -38,17 +37,14 @@ re-tiers against the actual diff and takes the MAX (tier only ever escalates, ne
 
 REVIEW EFFORT: derived from `tier`. The plan critique always runs at least ONE rung ABOVE the
 planner (opus/medium), because plan.md is the reference every downstream check validates
-against — the implementer executes it verbatim and the diff reviewer checks the diff AGAINST it,
-so a wrong plan is invisible to everything after it. Every tier gets a plan critique.
+against. Every tier gets a plan critique.
   | tier     | PLAN_REVIEW | DIFF_REVIEW |
   | trivial  | high        | high        |
   | normal   | high        | high        |
   | hard     | high        | xhigh       |
   | critical | xhigh       | xhigh       |
-Never `max` (buys +0.6 points for +20k tokens) and never `low` (quality falls off a cliff below
-medium). The usable band is medium → xhigh.
-Effort is frontmatter-only (the Agent tool has no effort parameter), so the effort picks the
-agent: `high` → **plan-reviewer** / **reviewer**, `xhigh` → **plan-reviewer-xhigh** /
+Never `max`, never `low`. Effort lives in agent frontmatter (the band reads it), so the effort
+picks the agent: `high` → **plan-reviewer** / **reviewer**, `xhigh` → **plan-reviewer-xhigh** /
 **reviewer-xhigh** (same instructions, kept identical by test/test_agent_variants.py).
 
 TIER LINE: the tier and the crew it summons are never implicit. Whenever the tier is computed or
