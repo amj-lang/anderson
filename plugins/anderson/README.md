@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.75.0-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.75.1-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -179,7 +179,7 @@ medium [ YOU ]   high* (edits)            medium        high* (read-only)
 | Stage        | Agent          | Model  | Effort | Gate  | Does                                  |
 |--------------|----------------|--------|--------|-------|---------------------------------------|
 | plan         | `planner`      | opus   | medium | —     | writes `plan.md` + blast radius + scorecard |
-| grill        | *(you)*        | —      | —      | human | triages questions from the plan's own decision tree + ✅ criteria (`derived` rows are 🔴) + 💥 blast radius + 🧯 error rows, grades 🔴 ARCH/🟡 BEHAVIOR/🟢 PREF, prints a one-line manifest, asks 🔴→🟡 as 3-line cards (`🔴 n/N ▰▰▱▱…` + question + recommendation) with an adaptive progress bar, batches 🟢; folds decisions into `plan.md` — no subagent |
+| grill        | *(you)*        | —      | —      | human | triages questions from the plan's own decision tree + ✅ criteria (`derived` rows are 🔴) + 💥 blast radius + 🧯 error rows, grades 🔴 ARCH/🟡 BEHAVIOR/🟢 PREF, prints a one-line manifest, asks 🔴→🟡 as 3-line cards (`🔴 n/N ▰▰▱▱…` + question + recommendation) with an adaptive progress bar, batches 🟢; folds decisions into `plan.md` — no subagent. No 🔴 and no 🎨 → skipped: one printed block (🟢 defaults, 🟡 left `[open]`) |
 | plan_review  | `plan-reviewer`| opus   | high\* | human | **edits** `plan.md` inline + appends review to `## 🔭 Review`; re-scores + checks blast radius; verdict `ship`/`fix_first`/`regrill` |
 | implement    | `implementer`  | sonnet | medium | —     | writes `audit.md`; ONE try at a failing test, then hands off |
 | repair       | `test-fixer`   | opus   | high   | —     | only when tests are red: root-causes the failure, writes `repair.md` — never tiered |
@@ -235,9 +235,10 @@ autonomous between-gate chaining* below.
 
 **Autonomous / `auto`** — `plan → plan-gate → RED test → implement → diff-gate → draft PR`, no human
 in the loop. The human gates are replaced by a **CI veto** (a red build short-circuits before any
-reviewer tokens) + a **tier-sized blind reviewer panel** + an **arbiter on split**. A difficulty
-*tier* (trivial/normal/hard/critical) sizes the whole harness, so a one-line fix doesn't pay for a
-3-agent panel. Under the **operator override policy** it pushes through soft guardrails to finish the
+reviewer tokens) + **AGENT SMITH** (a blind panel + arbiter from HARD up). A difficulty *tier*
+(trivial/normal/hard/critical) sizes the whole harness, so a one-line fix doesn't pay for a
+3-agent panel. A 🔴 question (architecture, data model, scope) stops it before any code is
+written: `/anderson:start <task>` picks it up at the grill. Under the **operator override policy** it pushes through soft guardrails to finish the
 task; two hard rules never bend — **never authors a migration**, **never force-pushes outside its own
 branch**. Always opens a **draft PR** (never auto-merges). See *auto mode (experimental)* at the top.
 
