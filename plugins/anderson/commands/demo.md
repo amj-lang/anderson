@@ -1,5 +1,6 @@
 ---
 description: "Preview the full anderson pipeline UX (the crew band at every stage + both gates). No agents, no tokens spent on the loop."
+effort: low
 ---
 Print a dry-run of the whole loop and NOTHING else: do NOT invoke any subagent
 and do NOT touch any files. Print, verbatim and in order, the frames and the two gate
@@ -47,7 +48,7 @@ This is the crew band that sits just above the prompt during a live run (colors 
 ── 7. diff_review gate: blocking → rework
 ⌐■-■ ●●●●●◐○ your turn ▸ /anderson:rework · 6:00 · I: 6.2M / O: 140k ─────────────────────────────────────────
 ┌ AGENT SMITH ✗ ─────────────────┐ ┌ SERAPH ✓ ──────────── security ┐
-│ opus/xhigh     3:00  820k tok  │ │ opus/high      2:00  410k tok  │
+│ fable/high     3:00  820k tok  │ │ opus/high      2:00  410k tok  │
 └ ✗ 1 blocking · 2 nits ─────────┘ └ ✓ 0 blocking ──────────────────┘
 
 ── 8. shipped

@@ -22,7 +22,7 @@ export const PERSONA: Record<string, string> = {
   prototyper: 'THE CONSTRUCT',
 }
 
-/** The agent file a subagent type runs from (`anderson:reviewer-xhigh` → `reviewer-xhigh`), or undefined for other plugins. */
+/** The agent file a subagent type runs from (`anderson:reviewer-fable` → `reviewer-fable`), or undefined for other plugins. */
 export const agentFile = (subagentType: string) => (subagentType.startsWith('anderson:') ? subagentType.slice(9) : undefined)
 
 /** Frontmatter `effort:` of an agent .md, or ''. */
@@ -32,7 +32,7 @@ export const effortOf = (md: string) => /^effort:\s*(\S+)/m.exec(md)?.[1] ?? ''
 export function persona(subagentType: string, prompt: string, model: string, effort: string) {
   const fam = /opus|sonnet|haiku|fable/i.exec(model)?.[0].toLowerCase() ?? model
   const file = agentFile(subagentType)
-  const kind = file?.replace(/-(xhigh|medium)$/, '')
+  const kind = file?.replace(/-(fable|medium)$/, '')
   const who = kind ? (PERSONA[kind] ?? kind.toUpperCase()) : subagentType
   // Crew prompts open with "You are <PERSONA>, the <lens> lens seat ..." (commands/approve-plan.md);
   // a hand-written brief ("You are seated as SERAPH, the security lens of ...") must land the same seat.

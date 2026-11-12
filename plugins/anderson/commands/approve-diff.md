@@ -2,6 +2,7 @@
 description: "Approve the diff review and SHIP for real: commit cleanly on a branch, push, open the PR (all guarded), then remove the scratch dir."
 argument-hint: <task-slug>
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(rm:*), Bash(cat:*), Bash(echo:*)
+effort: medium
 ---
 Task slug = "$ARGUMENTS". GATE 2 passing — you've read the diff. In state.md
 set diff_verdict=ship, stage=done. Command has side effects (commit, push, PR);
@@ -13,7 +14,8 @@ step. NEVER force-push; never touch an existing branch destructively.
      `## 📈 Scorecard`, `## 🗺 Design`, `## 💥 Blast radius`, `## 🧯 Error handling`, and the
      `## 🔭 Review` verdict + criteria count. Read from `audit.md`: "Files changed", blocking
      count, and `## ⚙️ Setup & test` (test command, manual steps, config/env vars).
-   - Commit subject (≤72 chars): `<goal>  (review: ship · <N> blocking resolved)`
+   - Commit subject (≤72 chars): `<goal>  (review: ship · <N> blocking resolved)`; at tier
+     TRIVIAL no diff review ran (`diff_verdict: unreviewed`), so `<goal>  (trivial · you reviewed the diff)`.
    - PR body (markdown) — the whole plan MINUS the how: 🛠 How and ✅ Decisions are DELIBERATELY
      excluded (the diff IS the how — don't double it up). An EMPTY section is OMITTED, never
      printed as "none" filler. Normal (open) sections first, the three reference collapses last.

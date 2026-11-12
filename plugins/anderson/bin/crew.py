@@ -7,7 +7,7 @@ usage: crew.py <tier> [--hint lens,lens] [--plan plan.md] <file>...   (run from 
   the plan's Crew hint seats a lens (the pattern seats confirmed 0 of 6 findings there).
   plan review (--plan): files = plan.md "Files touched"; the plan's text stands in for changed
   lines, and only security + performance sit (leftovers needs a diff; the plan-reviewer's
-  blast-radius check owns planned dead code).
+  blast-radius check owns planned dead code). At TRIVIAL only the Crew hint seats a lens.
 prints one line per summoned lens: `<lens> <PERSONA> <agent> <model/effort> <reason>`, or `none`.
 Every seat runs on opus; effort is frontmatter-only, so the effort picks the agent.
 
@@ -64,15 +64,18 @@ PLAN_LENSES = ("security", "performance")
 def crew(tier, files, hints=(), plan=None):
     """plan: the plan.md lines at plan review (no diff yet), None at diff review."""
     hard = tier in ("hard", "critical")
+    # TRIVIAL (Risk ≤ 2, and the HARD rule already took anything touching auth/secrets/entry
+    # points) pays for no pattern seat at either review; only the plan's Crew hint seats one.
+    plan_patterns = plan is not None and tier != "trivial"
     picks = {}
-    if plan is not None:
+    if plan_patterns:
         if any(SEC_CODE.search(l) for l in plan):
             picks["security"] = "plan text"
         if any(PERF_CODE.search(l) for l in plan):
             picks["performance"] = "plan text"
     # ponytail: below HARD the diff crew rode regex hits and confirmed 0 of 6 findings (runs.jsonl,
     # 0.74.0); AGENT SMITH covers it. Only the plan's Crew hint seats a lens there now.
-    if plan is not None or hard:
+    if plan_patterns or hard:
         for path in files:
             added, removed = changed(path) if plan is None else ([], [])
             if SEC_PATH.search(path):

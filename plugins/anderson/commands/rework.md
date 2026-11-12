@@ -1,6 +1,7 @@
 ---
 description: "Loop the implementer on the checker's blocking findings, then diff-review and halt."
 argument-hint: <task-slug>
+effort: medium
 ---
 Task slug = "$ARGUMENTS". Blocking findings are already in state.md "Still open".
 Read `${CLAUDE_PLUGIN_ROOT}/commands/approve-plan.md` and run it top to bottom for this slug

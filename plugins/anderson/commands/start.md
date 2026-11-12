@@ -2,6 +2,7 @@
 description: "Start the gated build loop: plan, grill the plan with you, then plan-review, then halt. Invoke as /anderson:start."
 argument-hint: <task-slug> <one-line goal>
 allowed-tools: Bash(grep:*), Bash(echo:*), Bash(sed:*)
+effort: medium
 ---
 State first, so the fleet monitor shows this task's row before any thinking starts (idempotent;
 also adds `feature-research/` to .gitignore):
@@ -17,12 +18,11 @@ add `branch:          <slug as given>` to the STATE block right after `task:` �
 verbatim as the branch name instead of `anderson/<task>`. Refer to the task by its key everywhere
 below; `<task>` means the key.
 
-MODELS: fixed, no flag. Planner opus/medium, plan-reviewer opus (effort per REVIEW EFFORT),
-implementer sonnet/medium, test-fixer opus/high, diff reviewer opus (effort per REVIEW EFFORT).
-Why: docs/tiering.md.
+MODELS: fixed per tier, no flag. Planner opus/medium, implementer sonnet/medium, test-fixer
+opus/high; the two review seats per REVIEW SEATS. Why: docs/tiering.md.
 
-TIER: difficulty routing, so a one-line fix does not pay for a two-xhigh-critique pipeline.
-Computed ONCE at step 5 from the planner's `## 📈 Scorecard` (it does not exist before the
+TIER: difficulty routing, so a one-line fix does not pay for the pipeline a risky change needs.
+Computed at step 3b from the planner's `## 📈 Scorecard` (it does not exist before the
 planner runs, which is why the seed leaves `tier: pending`). First match wins, top-down:
   - CRITICAL — Risk ≥ 9.
   - HARD     — Risk ≥ 7 OR Coupling ≥ 8 OR Confidence ≤ 3 OR Testability ≥ 7 (needs a human/manual
@@ -33,24 +33,27 @@ planner runs, which is why the seed leaves `tier: pending`). First match wins, t
   - TRIVIAL  — Risk ≤ 2 AND Coupling ≤ 3 AND Confidence ≥ 8 (all three, or it is not trivial).
   - NORMAL   — anything else (default).
 Record `tier: <trivial|normal|hard|critical>` in state.md. PROVISIONAL — `/anderson:approve-plan`
-re-tiers against the actual diff and takes the MAX (tier only ever escalates, never drops).
+re-tiers against the plan-reviewer's scores and the actual diff and takes the MAX
+(tier only ever escalates, never drops).
 
-REVIEW EFFORT: derived from `tier`. The plan critique always runs at least ONE rung ABOVE the
-planner (opus/medium), because plan.md is the reference every downstream check validates
-against. Every tier gets a plan critique.
-  | tier     | PLAN_REVIEW | DIFF_REVIEW |
-  | trivial  | high        | high        |
-  | normal   | high        | high        |
-  | hard     | high        | xhigh       |
-  | critical | xhigh       | xhigh       |
-Never `max`, never `low`. Effort lives in agent frontmatter (the band reads it), so the effort
-picks the agent: `high` → **plan-reviewer** / **reviewer**, `xhigh` → **plan-reviewer-xhigh** /
-**reviewer-xhigh** (same instructions, kept identical by test/test_agent_variants.py).
+REVIEW SEATS: derived from `tier`. plan.md is the reference every downstream check validates
+against, so every tier gets a plan critique. A harder tier buys a stronger model (fable), not
+more effort on the same one.
+  | tier     | PLAN_REVIEW  | agent                | DIFF_REVIEW | agent          |
+  | trivial  | opus/medium  | plan-reviewer-medium | none        | NO DIFF REVIEW |
+  | normal   | opus/high    | plan-reviewer        | opus/high   | reviewer       |
+  | hard     | opus/high    | plan-reviewer        | fable/high  | reviewer-fable |
+  | critical | fable/high   | plan-reviewer-fable  | fable/high  | reviewer-fable |
+Model and effort live in agent frontmatter (the band reads them), so the tier picks the agent;
+the twins carry the same instructions (kept identical by test/test_agent_variants.py).
+TRIVIAL is the short path: plan → grill → plan review → implement, then Gate 2 with you as
+the only reviewer of the diff. No crew seat sits at either review unless the plan's Crew hint
+names one.
 
 TIER LINE: the tier and the crew it summons are never implicit. Whenever the tier is computed or
 re-computed, rewrite the `**Tier:**` line directly under the plan.md H1 (`# <task> — plan`) to
 exactly:
-  `**Tier:** <TIER> — plan_review opus/<effort> · implement sonnet/medium · diff_review opus/<effort>`
+  `**Tier:** <TIER> — plan_review <model/effort> · implement sonnet/medium · diff_review <model/effort | none>`
 (planner is always opus/medium and already ran.) It sits at the top of the plan, above 🎯 What, so the tier is the
 first thing read; it is echoed again on the Gate 1 card, so you see the
 bill before you approve it. `/anderson:approve-plan` and `/anderson:rework` rewrite it on re-tier.
@@ -63,7 +66,8 @@ the one exception: they all read the same finished plan and each writes only its
 
 RESUME FROM AUTO: when `feature-research/<task>/plan.md` already exists and state.md says
 `stage: grill` (an auto run stopped on a 🔴 question, auto.md step 4g), do steps 1-2's state
-checks only, skip the planner (step 3) and go straight to step 4 GRILL on that plan.
+checks only, skip the planner (step 3) and go straight to step 4 GRILL on that plan (auto
+already routed the tier).
 
 1. The seed line at the top already did the setup: `.gitignore` has `feature-research/` and
    `feature-research/<task>/state.md` exists (`state: … seeded` or `… already there`). Do NOT
@@ -128,7 +132,15 @@ checks only, skip the planner (step 3) and go straight to step 4 GRILL on that p
    Pass to the planner: goal + ticket criteria (verbatim) + the `design/` path when present.
 
 3. Invoke the **planner** subagent (goal = rest of $ARGUMENTS) → writes plan.md. Set stage=grill.
+3b. ROUTE — read the `## 📈 Scorecard` Planner column from plan.md (Risk, Coupling, Confidence,
+   Testability) and compute the tier per TIER above. Write `tier: <t>` to state.md and rewrite
+   the plan.md `**Tier:**` line per TIER LINE (one Edit). The tier comes before the grill
+   because it sizes the grill too.
 4. GRILL.
+   TRIVIAL GRILL (tier is trivial): no triage pass and no table walks. Ask only what a human
+   must ratify: each LB row of `## ✅ Decisions` and each `derived` criterion, as 🔴 questions in
+   the card shape below. None of either → print `grill · trivial · nothing to ratify · skipped`,
+   set stage=plan_review and go to step 5. Everything else in this step is for NORMAL and up.
    SLICE MODE (state.md has `slice:`): first print this one line
    `slice <k>/<n> · <ticket id> <slice name> · parent <parent id> · contracts in: <name> ✓ …`
    (✎ instead of ✓ when a ripple changed a contract, with the slice that did), then grill as
@@ -220,17 +232,15 @@ checks only, skip the planner (step 3) and go straight to step 4 GRILL on that p
      decides the big ones, and it can NEVER skip an LB row. If any LB row is still ✗, do not exit:
      print the unconfirmed LB rows and ask me to resolve them. Only once every LB row is ✓ set
      stage=plan_review and continue to the reviewer.
-5. ROUTE — read the `## 📈 Scorecard` Planner column from plan.md (Risk, Coupling, Confidence,
-   Testability) and compute the tier per TIER above. Write `tier: <t>` to state.md. Then read the
-   PLAN_REVIEW row of the REVIEW EFFORT table for `<review_effort>`. Rewrite the plan.md
-   `**Tier:**` line per TIER LINE (one Edit).
+5. PLAN REVIEW. When a grill answer changed the Scorecard, recompute the tier first (it only
+   escalates) and rewrite the `**Tier:**` line.
 
    PLAN CREW — who sits before THE ORACLE, so security and performance calls land in the plan,
    not in a rework after the code exists. From the repo root run
    `python3 "${CLAUDE_PLUGIN_ROOT}/bin/crew.py" <tier> --plan feature-research/<task>/plan.md --hint <lenses> <plan.md "Files touched">`
    (lenses from plan.md's `**Crew hint:**` line; drop `--hint` when it says `none`): one line per
-   seat, `<lens> <PERSONA> <agent> <model/effort> <reason>`, or `none`. Only SERAPH and NIOBE sit
-   here; THE MEROVINGIAN needs a diff. Record `plan_crew: <PERSONA + … | none>` in the state.md
+   seat, `<lens> <PERSONA> <agent> <model/effort> <reason>`, or `none` (always `none` at TRIVIAL
+   unless the hint names a lens). Only SERAPH and NIOBE sit here; THE MEROVINGIAN needs a diff. Record `plan_crew: <PERSONA + … | none>` in the state.md
    STATE block.
 
    Then, unless the plan crew is `none`, invoke one subagent per crew line IN ONE MESSAGE, using
@@ -238,8 +248,8 @@ checks only, skip the planner (step 3) and go straight to step 4 GRILL on that p
    review of task <task>. Scope: <Files touched>. Review plan.md through your lens only; do NOT
    read any other review. Write ONLY `feature-research/<task>/plan-review-<lens>.md`; do not touch
    plan.md or state.md." Wait for every seat.
-   Then invoke the **plan-reviewer** subagent (**plan-reviewer-xhigh** when
-   `<review_effort>` is xhigh) → reads the crew's files, makes inline strike-through
+   Then invoke the plan-review agent REVIEW SEATS names for the tier (**plan-reviewer**,
+   **plan-reviewer-medium** at TRIVIAL, **plan-reviewer-fable** at CRITICAL) → reads the crew's files, makes inline strike-through
    edits and appends its review under `## 🔭 Review` in plan.md; sets plan_verdict.
 6. Print the GATE 1 TL;DR card and STOP. Fill EVERY value from plan.md/state.md (real slug,
    real verdict, real counts — copy-pasteable, no literal `<task>`); omit zero-count entries
@@ -250,7 +260,7 @@ checks only, skip the planner (step 3) and go straight to step 4 GRILL on that p
      criteria <N> (<t> ticket · <d> design · <x> derived · <n> contract) · proof: <a> test · <b> visual · <c> e2e · <p> contract · <m> manual
      assumptions: <n> load-bearing · all confirmed ✓   (each criterion has its own proof)
      scorecard: Risk <r> · Confidence <c> · Coupling <k> · Reversibility <v>
-     tier <TIER> · plan_review opus/<effort> · implement sonnet/medium · diff_review opus/<effort>
+     tier <TIER> · plan_review <model/effort> · implement sonnet/medium · diff_review <model/effort | none (trivial: you review the diff)>
      plan crew <PERSONA + … | none><, plan_tally line — or "">
      verdict <plan_verdict> → /anderson:approve-plan <task> — or "approved, go" · full plan: feature-research/<task>/plan.md
    ```

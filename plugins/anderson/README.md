@@ -1,7 +1,7 @@
 # anderson
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.75.1-blue)](https://github.com/amj-lang/anderson)
+[![version](https://img.shields.io/badge/version-0.76.0-blue)](https://github.com/amj-lang/anderson)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 
@@ -23,9 +23,9 @@ never self-approval (the maker never grades its own homework, which is what infl
 | Replaces | Mechanism | Model · effort | Directive (one line) |
 |----------|-----------|----------------|----------------------|
 | *both gates — objective* | **CI veto** — GitHub Actions run, or the in-tree suite as fallback | — *(no model)* | Runs FIRST; a red build/suite fails the gate **before a single reviewer token is spent** — the one gate the model can't argue past. |
-| **Gate 1 — plan** *(was: human grill + approve)* | criteria-coverage check + **one `plan-reviewer`** (every tier) | **opus · high** (critical: **xhigh**) | Refute the plan — find why it fails or misses an acceptance criterion; default to reject if uncertain; fix inline. |
-| **Gate 2 — diff** *(was: human review)* | trivial/normal: **AGENT SMITH alone**, all three lenses in one pass · hard/critical: **3 blind `reviewer`s** in parallel | **opus · high** | Judge *correctness* · *regressions+security* · *plan-match* from the diff + plan only, **blind** to `audit.md` (and, on the panel, to each other); refute, default reject. |
-| **Gate 2 — arbiter** *(hard/critical)* | **one `reviewer` as the arbiter** — runs on every split AND every unanimous *ship* (final sign-off); skipped only on a unanimous refute | **opus · xhigh** | Resolve contested findings **on merit, not headcount** (a lone correct reviewer beats two wrong ones); on a clean ship, re-review independently rather than rubber-stamp. Justify the call in a required `## Options considered` (+/−) table. |
+| **Gate 1 — plan** *(was: human grill + approve)* | criteria-coverage check + **one `plan-reviewer`** (every tier) | **opus · high** (trivial: **opus · medium**, critical: **fable · high**) | Refute the plan — find why it fails or misses an acceptance criterion; default to reject if uncertain; fix inline. |
+| **Gate 2 — diff** *(was: human review)* | trivial: **no diff review** (CI veto + frozen test only) · normal: **AGENT SMITH alone**, all three lenses in one pass · hard/critical: **3 blind `reviewer`s** in parallel | **opus · high** | Judge *correctness* · *regressions+security* · *plan-match* from the diff + plan only, **blind** to `audit.md` (and, on the panel, to each other); refute, default reject. |
+| **Gate 2 — arbiter** *(hard/critical)* | **one `reviewer` as the arbiter** — runs on every split AND every unanimous *ship* (final sign-off); skipped only on a unanimous refute | **fable · high** | Resolve contested findings **on merit, not headcount** (a lone correct reviewer beats two wrong ones); on a clean ship, re-review independently rather than rubber-stamp. Justify the call in a required `## Options considered` (+/−) table. |
 
 Below HARD a panel only fed an arbiter that re-reviewed the diff anyway, so SMITH's verdict is
 the gate there (0.74.0).
@@ -55,15 +55,16 @@ gate). They are the executable ground truth the panel reasons against.
   Confidence / Testability) and re-computed against the actual diff size at the gate — it only ever
   escalates. The tier sizes everything downstream, so a one-line fix never pays for a 3-agent panel.
 - **Plan gate (step 4).** Criteria-coverage check + **one** `plan-reviewer` on every tier (opus ·
-  high, xhigh at critical — a rung above the opus · medium planner). Plan errors are cheap to fix, so the rigor budget is spent at the diff gate.
+  high; opus · medium at trivial, fable · high at critical). Plan errors are cheap to fix, so the rigor budget is spent at the diff gate.
 - **CI veto first (step 7c).** When the repo has GitHub Actions + a remote + `gh`, the branch is
   pushed and the run's conclusion is awaited; a red build fails the gate and **short-circuits before
   any reviewer tokens are spent**. Falls back to the in-tree suite when CI isn't available.
-- **Tier-sized diff gate (step 7f).** Trivial/normal: AGENT SMITH alone (opus · high), all three
+- **Tier-sized diff gate (step 7f).** Trivial: no reviewer at all; the CI veto and the frozen
+  test are the gate, and the draft PR says no review ran. Normal: AGENT SMITH alone (opus · high), all three
   lenses in one blind pass, his verdict is the gate. Hard/critical: 3 `reviewer`s (correctness ·
   regressions+security · plan-match), run **in parallel** (each writes its own file + returns a
   verdict), blind to `audit.md` and to each other.
-- **Arbiter backstops the hard/critical panel (step 7g).** One **opus · xhigh** arbiter runs on every outcome except
+- **Arbiter backstops the hard/critical panel (step 7g).** One **fable · high** arbiter runs on every outcome except
   a unanimous refute: it resolves a split **on merit, not headcount**, and on a unanimous *ship* it
   runs as a final sign-off that independently re-reviews the diff rather than rubber-stamping.
   It must justify its call in a required `## Options considered` (+/−) table. Only a unanimous refute
@@ -123,7 +124,7 @@ The fleet terminal boots into the same rain:
 | THE ORACLE       | `plan_review` | edits the plan inline + appends review to `## 🔭 Review` | opus / high\* |
 | NEO              | `implement`   | executes the approved plan             | sonnet / medium|
 | TRINITY          | `repair`      | root-causes a red suite (only when red)| opus / high    |
-| AGENT SMITH      | `diff_review` | read-only diff review                  | opus / high\*  |
+| AGENT SMITH      | `diff_review` | read-only diff review (none at trivial) | opus / high\*  |
 | SERAPH           | `plan_review` + `diff_review` | security lens seat, summoned by the plan and the diff | opus / high  |
 | NIOBE            | `plan_review` + `diff_review` | performance lens seat, summoned by the plan and the diff | opus / medium (high from HARD) |
 | THE MEROVINGIAN  | `diff_review` | dead-code lens seat: what this diff orphaned | opus / medium (high from HARD) |
@@ -185,10 +186,10 @@ medium [ YOU ]   high* (edits)            medium        high* (read-only)
 | repair       | `test-fixer`   | opus   | high   | —     | only when tests are red: root-causes the failure, writes `repair.md` — never tiered |
 | diff_review  | `reviewer`     | opus   | high\* | human | diff review appended to `plan.md` `## 🔭 Review` |
 
-\* Review effort is not fixed: both critiques are sized by the **tier** computed from the plan's
-Scorecard (plan-review/diff-review: trivial and normal → high/high; hard → high/xhigh; critical →
-xhigh/xhigh — see [docs/tiering.md](docs/tiering.md)). The plan critique always runs a rung above
-the opus/medium planner.
+\* The review seats are not fixed: both critiques are sized by the **tier** computed from the plan's
+Scorecard (plan-review/diff-review: trivial → opus/medium and no diff review; normal → opus/high
+for both; hard → opus/high and fable/high; critical → fable/high for both — see
+[docs/tiering.md](docs/tiering.md)). A harder tier buys a stronger model, not more effort.
 
 The tier and the crew it summons are printed, never implicit: a `**Tier:** <TIER> — plan_review
 <model>/<effort> · implement sonnet/medium · diff_review <model>/<effort>` line sits under
@@ -236,8 +237,8 @@ autonomous between-gate chaining* below.
 **Autonomous / `auto`** — `plan → plan-gate → RED test → implement → diff-gate → draft PR`, no human
 in the loop. The human gates are replaced by a **CI veto** (a red build short-circuits before any
 reviewer tokens) + **AGENT SMITH** (a blind panel + arbiter from HARD up). A difficulty *tier*
-(trivial/normal/hard/critical) sizes the whole harness, so a one-line fix doesn't pay for a
-3-agent panel. A 🔴 question (architecture, data model, scope) stops it before any code is
+(trivial/normal/hard/critical) sizes the whole harness, so a small fix doesn't pay for a
+3-agent panel (a trivial one pays for no diff reviewer at all). A 🔴 question (architecture, data model, scope) stops it before any code is
 written: `/anderson:start <task>` picks it up at the grill. Under the **operator override policy** it pushes through soft guardrails to finish the
 task; two hard rules never bend — **never authors a migration**, **never force-pushes outside its own
 branch**. Always opens a **draft PR** (never auto-merges). See *auto mode (experimental)* at the top.
@@ -416,20 +417,21 @@ opening when a line raises doubt.
 
 Each agent declares its own `model` + `effort` in frontmatter, and these switch
 automatically per stage (planner opus/medium, plan-reviewer opus/high, implementer
-sonnet/medium, test-fixer opus/high, reviewer opus/high; the tier raises review effort to xhigh by switching to the `plan-reviewer-xhigh` /
-`reviewer-xhigh` twins: effort lives in frontmatter, which is what the band reads). Resolution order is: `CLAUDE_CODE_SUBAGENT_MODEL`
-env var → per-invocation override → **agent frontmatter** → main session. The rank of
-the first two against each other is unverified — if you set the env var, the transcript
-grep below is ground truth for what actually ran.
+sonnet/medium, test-fixer opus/high, reviewer opus/high; the tier moves a review seat by switching to a twin agent:
+`plan-reviewer-fable` / `reviewer-fable` (fable/high) where it escalates, `plan-reviewer-medium` at trivial. Model and effort
+live in frontmatter, which is what the band reads). Resolution order is: per-invocation override → **agent frontmatter** →
+`CLAUDE_CODE_SUBAGENT_MODEL` (a default only) → main session. The env var beats frontmatter only together with
+`CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1`; the transcript grep below is ground truth for what actually ran.
 `model:` in agent frontmatter is a floating tier alias — `opus` resolved to
 `claude-opus-5` the day Opus 5 shipped, with no edit here — so a model release
 needs no anderson change; the plugin pins no dated ID.
 
-**No Fable, no model flag.** Every critique stage — plan-review and diff-review (panel +
-arbiter) — runs on **Opus** (`model: opus` in the `reviewer` / `plan-reviewer` frontmatter). Opus
-5.5 beats Fable 5.1 on every published benchmark at a fraction of the per-token price
-([docs/tiering.md](docs/tiering.md)), so the old `--opus` flag and the `review_model` state field
-are gone; the tier alone sizes review effort.
+**No model flag; Fable where the tier escalates.** Critique runs on **Opus** by default
+(`model: opus` in the `reviewer` / `plan-reviewer` frontmatter). Three seats run **Fable 5.2 at
+high** through the `-fable` twins: the critical plan review, the hard and critical diff review,
+and auto's arbiter ([docs/tiering.md](docs/tiering.md) says why those and no others). Nothing
+runs at `xhigh`. The old `--opus` flag and the `review_model` state field stay gone; the tier
+alone picks the seat.
 
 **Set your own models permanently.** Set `env` in `~/.claude/settings.json`
 (user-wide) or `.claude/settings.json` (project) to pin every stage to one
@@ -439,23 +441,27 @@ model for all future runs:
 {
   "env": {
     "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
+    "CLAUDE_CODE_SUBAGENT_MODEL_FORCE": "1",
     "ANTHROPIC_MODEL": "sonnet"
   }
 }
 ```
 
-`CLAUDE_CODE_SUBAGENT_MODEL` covers every subagent, `ANTHROPIC_MODEL` the main
-thread. Consequence: with it set, every stage runs on that one model, so
+`CLAUDE_CODE_SUBAGENT_MODEL` with `_FORCE=1` covers every subagent (without `_FORCE` it is
+only a default and the frontmatter models still run), `ANTHROPIC_MODEL` the main
+thread. Consequence: with both set, every stage runs on that one model, so
 per-stage tiering flattens. `/anderson:status` reports the override for you;
 or check directly what's actually running:
 
 ```
-echo "${CLAUDE_CODE_SUBAGENT_MODEL:-<unset>}"
+echo "${CLAUDE_CODE_SUBAGENT_MODEL:-<unset>} force=${CLAUDE_CODE_SUBAGENT_MODEL_FORCE:-<unset>}"
 ```
 
 **What to start the main session as.** The main thread here is only an
 orchestrator (reads state, dispatches) — it does no heavy
-thinking, so run it cheap: `claude --model sonnet`. The subagents override it from
+thinking, so run it cheap: `claude --model sonnet`. Whatever you run it on, `/anderson:start`,
+`approve-plan`, `rework` and `approve-diff` set `effort: medium` for their own turn, so a session
+left at `high` does not think through every routing step. The subagents override it from
 frontmatter regardless. Bonus: keeping main on a *different* model than a given
 agent makes a failed switch obvious.
 
@@ -466,7 +472,8 @@ transcripts log the model used, at `~/.claude/projects/<proj>/<session>/subagent
 grep -rho 'claude-[a-z0-9.-]*' ~/.claude/projects/*/*/subagents/ | sort | uniq -c
 ```
 
-You should see opus IDs for planner/reviewers and a sonnet ID for the implementer.
+You should see opus IDs for planner/reviewers, a sonnet ID for the implementer, and a fable ID
+on hard and critical tasks.
 The `/agents` Running tab also shows each live subagent and its colour. (Effort
 isn't always surfaced in the UI; the frontmatter sets it and it overrides the
 session level while the agent is active — trust the declared value, or inspect the

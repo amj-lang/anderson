@@ -1,10 +1,12 @@
-"""The effort twins (-xhigh, -medium) exist because the band reads effort from agent frontmatter
+"""The twins (-fable, -medium) exist because the band reads model and effort from agent frontmatter
 (the spawn event carries no per-call effort). Their instructions must never drift from the base agent they twin."""
 import os
 import unittest
 
 AGENTS = os.path.join(os.path.dirname(__file__), "..", "agents")
-TWINS = [("plan-reviewer", "xhigh"), ("reviewer", "xhigh"), ("reviewer", "medium")]
+# (base, twin suffix, twin model, twin effort): -fable escalates the model, -medium lowers the effort
+TWINS = [("plan-reviewer", "fable", "fable", "high"), ("reviewer", "fable", "fable", "high"),
+         ("plan-reviewer", "medium", "opus", "medium"), ("reviewer", "medium", "opus", "medium")]
 
 
 def split(name):
@@ -15,17 +17,23 @@ def split(name):
 
 class TestEffortTwins(unittest.TestCase):
     def test_twins_match_base(self):
-        for base, effort in TWINS:
-            twin = f"{base}-{effort}"
+        for base, suffix, model, effort in TWINS:
+            twin = f"{base}-{suffix}"
             with self.subTest(twin=twin):
                 bfm, bbody = split(base)
                 tfm, tbody = split(twin)
                 self.assertEqual(tbody, bbody, f"{twin}.md body drifted: copy the body of {base}.md")
                 self.assertEqual(tfm["name"].strip(), twin)
-                self.assertEqual(tfm["effort"].strip(), effort)
-                self.assertEqual(bfm["effort"].strip(), "high")
-                for k in ("tools", "model", "color"):
+                self.assertEqual((tfm["model"].strip(), tfm["effort"].strip()), (model, effort))
+                self.assertEqual((bfm["model"].strip(), bfm["effort"].strip()), ("opus", "high"))
+                for k in ("tools", "color"):
                     self.assertEqual(tfm[k], bfm[k], f"{twin}.md frontmatter '{k}' drifted")
+
+    def test_no_xhigh_seat_is_left(self):
+        """0.76.0: the escalation seat is fable/high; nothing runs opus/xhigh."""
+        for name in os.listdir(AGENTS):
+            with open(os.path.join(AGENTS, name), encoding="utf-8") as f:
+                self.assertNotIn("effort: xhigh", f.read(), name)
 
 
 COMMANDS = os.path.join(os.path.dirname(__file__), "..", "commands")
@@ -73,6 +81,38 @@ class TestAutoGrillHandoff(unittest.TestCase):
         self.assertIn("RESUME FROM AUTO", start)
         self.assertIn("`stage: grill`", start[start.index("RESUME FROM AUTO"):][:300])
         self.assertIn("NO 🔴 AND NO 🎨", start)
+
+
+class TestLeanTrivial(unittest.TestCase):
+    """TRIVIAL is plan → grill → plan review → implement: no crew, no diff reviewer, in both modes."""
+
+    def text(self, name):
+        with open(os.path.join(COMMANDS, name), encoding="utf-8") as f:
+            return f.read()
+
+    def test_tier_is_routed_before_the_grill(self):
+        start = self.text("start.md")
+        self.assertLess(start.index("3b. ROUTE"), start.index("4. GRILL"))
+        self.assertIn("TRIVIAL GRILL", start)
+
+    def test_trivial_skips_the_diff_reviewer_everywhere(self):
+        for name in ("start.md", "approve-plan.md", "auto.md"):
+            with self.subTest(name=name):
+                t = self.text(name)
+                self.assertIn("NO DIFF REVIEW", t)
+                if name != "approve-plan.md":  # approve-plan starts after the plan review
+                    self.assertIn("plan-reviewer-medium", t)
+        with open(os.path.join(DOCS, "tiering.md"), encoding="utf-8") as f:
+            self.assertIn("NO DIFF REVIEW", f.read())
+
+    def test_fable_twins_are_named_where_the_tier_escalates(self):
+        self.assertIn("plan-reviewer-fable", self.text("start.md"))
+        self.assertIn("reviewer-fable", self.text("approve-plan.md"))
+        auto = self.text("auto.md")
+        self.assertIn("plan-reviewer-fable", auto)
+        self.assertIn("reviewer-fable", auto)
+        for name in ("start.md", "approve-plan.md", "auto.md", "status.md", "help.md"):
+            self.assertNotIn("xhigh", self.text(name), name)
 
 
 if __name__ == "__main__":

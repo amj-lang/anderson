@@ -8,14 +8,14 @@ const text = (ls: [string, string][][]) => ls.map(l => l.map(s => s[0]).join('')
 
 test('persona: anderson agents, crew seats, effort twins, others', () => {
   expect(persona('anderson:implementer', 'go', 'claude-sonnet-5-5', 'medium')).toEqual({ name: 'NEO', model: 'sonnet/medium', why: undefined })
-  expect(persona('anderson:reviewer-xhigh', 'review', 'claude-opus-5-5', 'xhigh')).toEqual({ name: 'AGENT SMITH', model: 'opus/xhigh', why: undefined })
+  expect(persona('anderson:reviewer-fable', 'review', 'claude-fable-5-2', 'high')).toEqual({ name: 'AGENT SMITH', model: 'fable/high', why: undefined })
   expect(persona('anderson:reviewer-medium', 'You are NIOBE, the performance lens seat on the diff review', 'claude-opus-5-5', 'medium'))
     .toEqual({ name: 'NIOBE', model: 'opus/medium', why: 'performance' })
   expect(persona('anderson:reviewer-medium', "You are seated as SERAPH, the security lens of anderson's crew.", 'claude-opus-5-5', 'medium'))
     .toEqual({ name: 'SERAPH', model: 'opus/medium', why: 'security' })
   expect(persona('anderson:reviewer-medium', 'You are THE MEROVINGIAN, the leftovers lens seat on the diff review', 'claude-opus-5-5', 'medium').name).toBe('THE MEROVINGIAN')
   expect(persona('Explore', 'find x', 'claude-haiku-5-5', '')).toEqual({ name: 'Explore', model: 'haiku', why: undefined })
-  expect(agentFile('anderson:reviewer-xhigh')).toBe('reviewer-xhigh')
+  expect(agentFile('anderson:reviewer-fable')).toBe('reviewer-fable')
   expect(effortOf('---\nname: reviewer\nmodel: opus\neffort: high\n---')).toBe('high')
 })
 

@@ -1,7 +1,7 @@
 # ⌐■-■ **anderson** ⌐■-■
 
 [![ci](https://github.com/amj-lang/anderson/actions/workflows/ci.yml/badge.svg)](https://github.com/amj-lang/anderson/actions/workflows/ci.yml)
-[![version](https://img.shields.io/badge/version-0.75.1-blue)](https://github.com/amj-lang/anderson/releases)
+[![version](https://img.shields.io/badge/version-0.76.0-blue)](https://github.com/amj-lang/anderson/releases)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A2BE2)](https://github.com/amj-lang/anderson)
 [![unique clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/amj-lang/anderson/main/metrics/badge.json)](metrics/traffic.json)
@@ -75,9 +75,9 @@ In plain words:
 
 1. **Plan.** THE ARCHITECT reads the ticket, the design and the code, and writes `plan.md`.
 2. **Grill.** You answer the plan's open questions, graded 🔴 architecture · 🟡 behavior · 🟢 preference. No 🔴? No conversation: it prints its defaults and you can override them at Gate 1.
-3. **Plan review.** THE ORACLE, a stronger model, rewrites the weak parts of the plan. It can send it back to the grill. **Gate 1:** you approve the plan.
+3. **Plan review.** THE ORACLE, a second and usually stronger read, rewrites the weak parts of the plan. It can send it back to the grill. **Gate 1:** you approve the plan.
 4. **Implement.** NEO writes the code and records the evidence for every acceptance criterion. If the tests go red, TRINITY finds the root cause instead of looping NEO (and may never weaken a test to get green).
-5. **Diff review.** AGENT SMITH, who didn't write the code, reviews it against the plan. `fix_first` sends it back to NEO, up to `max_iterations`. **Gate 2:** you approve the code.
+5. **Diff review.** AGENT SMITH, who didn't write the code, reviews it against the plan. `fix_first` sends it back to NEO, up to `max_iterations`. **Gate 2:** you approve the code. A trivial task skips SMITH: Gate 2 hands you the diff directly.
 6. **Ship.** A branch, a commit and a pull request. Never a force-push.
 
 **The crew.** Specialist reviewers join when the change calls for them, picked by what the plan or diff touches (`bin/crew.py`), not by a model's mood: SERAPH for security (auth, APIs, input, secrets, dependencies), NIOBE for performance (queries, loops over I/O, React effects), THE MEROVINGIAN for dead code a diff leaves behind. They review independently; THE ORACLE and AGENT SMITH rule on their findings.
@@ -90,7 +90,7 @@ At each gate you get a short card: what changes, how each criterion is proven, t
 
 `/anderson:auto <task-id> <title> [body|@file]` runs the same pipeline without stopping for you and ends at a **draft** PR. Experimental.
 
-Instead of you, three checks guard each gate, in order: CI must be green; then 1 to 3 independent reviewers (more for harder tasks), each on one angle and blind to each other; then an opus arbiter decides on the merits, not by counting votes.
+Instead of you, three checks guard each gate, in order: CI must be green; then, from NORMAL up, 1 to 3 independent reviewers (more for harder tasks), each on one angle and blind to each other; then, from HARD up, a Fable arbiter decides on the merits, not by counting votes. A trivial task ships its draft PR on CI alone and says so.
 
 Two rules never bend: auto never writes or runs a database migration, and never force-pushes anything but its own `anderson/auto/*` branch. Details: [docs/auto-mode.md](plugins/anderson/docs/auto-mode.md).
 
@@ -116,18 +116,20 @@ Every finished run also adds one line to a local log (`~/.claude/anderson/runs.j
 
 ## Difficulty tiers
 
-Not every task deserves the same scrutiny. The planner scores each plan on risk, coupling, confidence and testability, which gives a tier: trivial, normal, hard or critical. The tier is checked again against the real diff and can only go up, so a one-line fix never pays for a three-reviewer panel, and a risky change never slips through on a light one.
+Not every task deserves the same scrutiny. The planner scores each plan on risk, coupling, confidence and testability, which gives a tier: trivial, normal, hard or critical. The tier is checked again against the real diff and can only go up, so a small fix never pays for a three-reviewer panel, and a risky change never slips through on a light one. A harder tier buys a stronger model (Fable), not more effort on the same one.
 
 | Tier     | Plan review   | Diff review   | auto panel        |
 | -------- | ------------- | ------------- | ----------------- |
-| trivial  | opus · high   | opus · high   | SMITH alone       |
+| trivial  | opus · medium | none: you read the diff | none: CI only      |
 | normal   | opus · high   | opus · high   | SMITH alone       |
-| hard     | opus · high   | opus · xhigh  | 3 × opus · high   |
-| critical | opus · xhigh  | opus · xhigh  | 3 × opus · high   |
+| hard     | opus · high   | fable · high  | 3 × opus · high + fable arbiter |
+| critical | fable · high  | fable · high  | 3 × opus · high + fable arbiter |
 
-\* The plan review always runs a step above the planner. Crew seats run opus · high for security, and opus · medium (high from HARD up) for performance and dead code. Below HARD the diff-review crew sits only when the plan's Crew hint asks for it.
+\* The model and effort in the stage table are the NORMAL tier's. Crew seats run opus · high for security, and opus · medium (high from HARD up) for performance and dead code. At NORMAL the diff-review crew sits only when the plan's Crew hint asks for it; at TRIVIAL no crew sits at all.
 
-**Why Opus, not Fable, for the reviews.** Until 0.52 both gates ran on Fable. Opus 5.5 beat Fable 5.1 on every benchmark Anthropic published at launch, at 2.5× less per token, so since 0.53 every review seat runs on Opus. There is no public head-to-head on code review itself, but a model that only matched Fable at 40% of the price would still win the seat. Tables and history: [docs/tiering.md](plugins/anderson/docs/tiering.md).
+**The short path.** A trivial task (low risk, low coupling, high confidence, nothing near auth or an entry point) runs plan → grill → plan review → implement and stops there. The grill only asks what a human must ratify, the plan review runs at medium, and no diff review runs: you read the diff at Gate 2. The planner, the plan reviewer and the real diff each get a say on whether it really is trivial, and any one of them can bring the diff review back. A fix you can already see needs no pipeline at all: just ask for it.
+
+**Where Fable sits.** 0.53 dropped Fable when Opus 5.5 beat Fable 5.1 at a fraction of the price. Fable 5.2 is back in three seats only, the ones that used to run opus · xhigh: the critical plan review, the hard and critical diff review, and auto's arbiter. Anthropic's guidance is that Opus stays the default and Fable is for when Opus at higher effort falls short, which is what those seats are. Everything else stays on Opus, and the implementer on Sonnet. Tables and reasons: [docs/tiering.md](plugins/anderson/docs/tiering.md).
 
 ## Fleet: every Claude session on one screen
 

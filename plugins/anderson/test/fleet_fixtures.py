@@ -14,7 +14,7 @@ def demo_rows(fleet):
     st = lambda s: PERSONA[s]
     return [
         mk(sid="demo-1", repo="fashion-webapp-2", task="ar-2270-sku-images-lightbox", stage="diff_review",
-           persona=st("diff_review")[1], pglyph=PGLYPH["smith"], mood="adversary", model="opus/xhigh",
+           persona=st("diff_review")[1], pglyph=PGLYPH["smith"], mood="adversary", model="fable/high",
            iteration="1", max_iter="2", dejavu=True, status="ring", now=f"{G['ring']} ring",
            text="47 passed, 0 failed. Verdict: fix_first, one unproven criterion.", cost=1.42, ctx_pct=61,
            start=now - 12 * 60, diff_verdict="fix_first", tier="hard"),
