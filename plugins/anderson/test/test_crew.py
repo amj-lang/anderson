@@ -71,6 +71,12 @@ class TestCrew(unittest.TestCase):
         self.assertEqual(self.run_crew("normal", "src/list.tsx", plan=plan),
                          {"performance": "reviewer-medium"})
 
+    def test_plan_mode_trivial_seats_only_the_hint(self):
+        plan = "## 🛠 How\n- load every order with `prisma.order.findMany()` per customer\n"
+        self.assertEqual(self.run_crew("trivial", "src/auth/login.ts", plan=plan), {})
+        self.assertEqual(self.run_crew("trivial", "src/list.tsx", hint="performance", plan=plan),
+                         {"performance": "reviewer-medium"})
+
     def test_plan_mode_seats_security_on_path_and_never_merovingian(self):
         self.assertEqual(self.run_crew("normal", "src/auth/login.ts", "src/list.tsx",
                                        hint="leftovers", plan="rename old() and drop it\n"),

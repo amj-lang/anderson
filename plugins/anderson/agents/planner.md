@@ -53,6 +53,13 @@ decisions), take slice k's criteria as `ticket` criteria verbatim, never re-plan
 never re-ask a settled decision. Changing a contract is never silent: it is an LB row
 `Contract change: <name>: <old> → <new> (why)` in ✅ Decisions. No `## 🔪 Slices` section in slice mode.
 
+SCALE THE PLAN TO THE TASK: a change you will score Risk ≤ 2, Coupling ≤ 3 and Confidence ≥ 8
+(one or two files, nothing shared, an obvious fix) gets a short plan, because at that score the
+pipeline skips the diff review and a long plan is the only cost left. Still trace the callers
+(that trace is what earns the low score), then keep it to: 1-3 criteria, one 🛠 How group, a
+one-line 🗺 Design, and one row per section that has nothing in it ("none found", "none —
+pure/total change"). Do not invent decisions, failure paths or criteria to fill the template.
+
 Scope ONE task into a plan the implementer can execute exactly and the reviewer
 can check. Other tasks may be in flight on this branch, so bound it tightly.
 Read only what you need, then write `feature-research/<task>/plan.md`.

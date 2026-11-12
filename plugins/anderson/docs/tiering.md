@@ -1,12 +1,15 @@
 # Difficulty tiering — what each stage runs on, and why
 
-Every stage has a fixed model. The tier only sizes the **effort** of the critique stages. There is
-no model flag: since Opus 5.5, no stage runs on Fable (see [Why no Fable](#why-no-fable)).
+Every stage has a fixed seat per tier. The tier sizes the **critique**: how many reviews run and
+on which model. There is no model flag. Opus 5.5 is the default seat; Fable 5.2 takes the seats
+where a wrong call is most expensive (see [Where Fable sits](#where-fable-sits)); TRIVIAL drops
+the diff review altogether (see [The short path](#the-short-path-trivial)).
 
 ## The tier
 
-Computed once at `start.md` step 5 from the planner's `## 📈 Scorecard`, then re-computed against
-the real diff at `approve-plan` / `rework`. **First match wins, top-down. Tier only escalates.**
+Computed at `start.md` step 3b from the planner's `## 📈 Scorecard` (before the grill, which it
+also sizes), then re-computed at `approve-plan` / `rework` against the plan-reviewer's scores and
+the real diff. **First match wins, top-down. Tier only escalates.**
 
 | Tier | Rule |
 |---|---|
@@ -15,7 +18,8 @@ the real diff at `approve-plan` / `rework`. **First match wins, top-down. Tier o
 | TRIVIAL | `Risk ≤ 2` AND `Coupling ≤ 3` AND `Confidence ≥ 8` |
 | NORMAL | everything else |
 
-Re-tier triggers at the diff gate: `≥400` changed lines OR `≥15 files`, excluding tests, lockfiles and generated files → at least HARD. "Generated" = marked `linguist-generated` in `.gitattributes` or carrying a generated / do-not-edit header; vendored and minified code counts toward the size.
+Re-tier triggers at the diff gate: the tier rule applied to the Scorecard's Reviewer column
+(a plan the reviewer scored out of TRIVIAL gets a diff review), and `≥400` changed lines OR `≥15 files`, excluding tests, lockfiles and generated files → at least HARD. "Generated" = marked `linguist-generated` in `.gitattributes` or carrying a generated / do-not-edit header; vendored and minified code counts toward the size.
 
 CRITICAL and HARD fire on **any one** dimension going bad; TRIVIAL needs **all three** to be good.
 Deliberately biased toward escalation: over-reviewing costs tokens, under-reviewing ships a bug.
@@ -47,22 +51,22 @@ Replay of the logged runs with a GitHub PR under the new rules: 15 of 32 runs re
 | # | Step | Persona | trivial | normal | hard | critical |
 |---|---|---|---|---|---|---|
 | 1 | PLAN | THE ARCHITECT | opus/medium | opus/medium | opus/medium | opus/medium |
-| 2 | GRILL | THE INTERROGATOR | you | you | you | you |
-| 3 | PLAN_REVIEW → Gate 1 | THE ORACLE | opus/high | opus/high | opus/high | opus/xhigh |
+| 2 | GRILL | THE INTERROGATOR | you (LB rows only) | you | you | you |
+| 3 | PLAN_REVIEW → Gate 1 | THE ORACLE | opus/medium | opus/high | opus/high | fable/high |
 | 4 | IMPLEMENT | NEO | sonnet/medium | sonnet/medium | sonnet/medium | sonnet/medium |
 | 4b | REPAIR (red only) | TRINITY | opus/high | opus/high | opus/high | opus/high |
-| 5 | DIFF_REVIEW → Gate 2 | AGENT SMITH | opus/high | opus/high | opus/xhigh | opus/xhigh |
+| 5 | DIFF_REVIEW → Gate 2 | AGENT SMITH | NO DIFF REVIEW (you) | opus/high | fable/high | fable/high |
 
 ## Auto mode (no gates)
 
 | # | Step | Persona | trivial | normal | hard | critical |
 |---|---|---|---|---|---|---|
 | 3 | PLAN | THE ARCHITECT | opus/medium | opus/medium | opus/medium | opus/medium |
-| 4 | PLAN GATE | THE ORACLE | opus/high | opus/high | opus/high | opus/xhigh |
+| 4 | PLAN GATE | THE ORACLE | opus/medium | opus/high | opus/high | fable/high |
 | 6 | IMPLEMENT | NEO | sonnet/medium | sonnet/medium | sonnet/medium | sonnet/medium |
 | 6b | REPAIR (red only) | TRINITY | opus/high | opus/high | opus/high | opus/high |
-| 7 | DIFF REVIEW | AGENT SMITH | opus/high | opus/high | 3× opus/high panel | 3× opus/high panel |
-| 7g | ARBITER | AGENT SMITH | — | — | opus/xhigh | opus/xhigh |
+| 7 | DIFF REVIEW | AGENT SMITH | NO DIFF REVIEW (CI veto only) | opus/high | 3× opus/high panel | 3× opus/high panel |
+| 7g | ARBITER | AGENT SMITH | — | — | fable/high | fable/high |
 
 INGEST, BASELINE, RED, SHIP and REPORT are orchestrator steps: no subagent, no tiering.
 
@@ -73,9 +77,9 @@ judge the design before THE ORACLE, which confirms or rejects each finding and f
 plan.md: a missing authorization check or an N+1 query is one plan edit there, a rework round
 after the code exists. Routing reads the plan's "Files touched" paths and its text (no diff yet);
 THE MEROVINGIAN sits only at diff review, since orphans need a diff and the plan-reviewer's
-blast-radius check covers planned dead code. Plan-review seats are pattern-matched at every tier
+blast-radius check covers planned dead code. Plan-review seats are pattern-matched from NORMAL up
 (they confirmed 21 of 28 findings at NORMAL): SERAPH opus/high, NIOBE opus/medium below HARD and
-opus/high from HARD up.
+opus/high from HARD up. At TRIVIAL only the plan's `**Crew hint:**` seats a lens, at either review.
 
 At diff review the crew is summoned from the diff itself, **from HARD up only**: below HARD the
 pattern seats confirmed 0 of 6 findings in `runs.jsonl` (0.74.0), so only the plan's `**Crew hint:**`
@@ -84,64 +88,108 @@ seats a lens there. Same
 
 | Persona | Lens | Summoned when | trivial | normal | hard | critical |
 |---|---|---|---|---|---|---|
-| SERAPH | security | auth/session/API/input/SQL/shell/HTML/secrets/deps touched | hint | hint | opus/high | opus/high |
-| NIOBE | performance | queries, loops over I/O, React effects, caching touched | hint | hint | opus/high* | opus/high* |
-| THE MEROVINGIAN | leftovers | the diff changes or removes existing code | hint | hint | opus/high* | opus/high* |
+| SERAPH | security | auth/session/API/input/SQL/shell/HTML/secrets/deps touched | — | hint | opus/high | opus/high |
+| NIOBE | performance | queries, loops over I/O, React effects, caching touched | — | hint | opus/high* | opus/high* |
+| THE MEROVINGIAN | leftovers | the diff changes or removes existing code | — | hint | opus/high* | opus/high* |
 
 `*` = only when the pattern matches. `hint` = only when the plan's Crew hint names it (SERAPH
-opus/high, the others opus/medium). SERAPH is always seated from HARD up. In auto mode, when
+opus/high, the others opus/medium). `—` = no diff review runs at TRIVIAL, so no seat. The crew
+stays on Opus at every tier: a lens is a narrow question, and Fable is spent on the one seat
+that rules on everything. SERAPH is always seated from HARD up. In auto mode, when
 SERAPH sits, the `regressions+security` panel lens narrows to `regressions`.
 
 ## The rules behind the tables
 
-- **The plan critique always runs at least one rung above the planner.** The planner is opus/medium,
-  so plan-review is opus/high, and opus/xhigh at CRITICAL. `plan.md` is the reference every
-  downstream check validates against: the implementer executes it verbatim and the diff reviewer
-  checks the diff *against* it, so a wrong plan is invisible to everything after it. Every tier
-  gets a plan critique, trivial included.
+- **A harder tier buys a stronger model, not more effort.** Until 0.75 the escalation seat was
+  opus/xhigh. Anthropic's guidance for Opus 5.5 is to keep `xhigh` for work with a measured gain
+  (it thinks much longer per turn there), and for Fable 5.2 that most of the gain arrives by
+  `high`. So the escalation seat is now fable/high, and nothing runs at `xhigh`.
+- **Every tier gets a plan critique.** `plan.md` is the reference every downstream check validates
+  against: the implementer executes it verbatim and the diff reviewer checks the diff *against*
+  it, so a wrong plan is invisible to everything after it. NORMAL and HARD review it one rung
+  above the planner (opus/high), CRITICAL on fable/high. TRIVIAL reviews it at the planner's own
+  opus/medium: a second, independent read of a short plan, not a deeper one.
 - **The planner runs at medium, not high.** It cannot be tiered (the tier comes from its own
   Scorecard), and Opus 5.5 at medium beats Opus 5 at high on coding and analysis evaluations.
-- **The implementer is the cheapest model that follows a plan reliably**: sonnet/medium. Haiku is
-  cheaper per token but weaker on multi-file plans, and every extra red suite buys an opus/high
-  repair, which costs more than Haiku saves.
+- **The implementer is the cheapest model that follows a plan reliably**: sonnet/medium, which is
+  also Anthropic's starting point for agentic coding on Sonnet 5.5. Haiku is cheaper per token
+  but weaker on multi-file plans, and every extra red suite buys an opus/high repair, which
+  costs more than Haiku saves.
 - **Repair is never tiered.** TRINITY runs opus/high on every tier. Tiering sizes *critique*, how
   much doubt a diff has to survive. A red test is a diagnosis, and a trivial-tier task with an
   undiagnosed failure is exactly as stuck as a critical one. Its budget control is the 2-round cap.
-- **The diff verdict is opus/high, opus/xhigh from HARD up.** Below HARD both modes run AGENT SMITH
-  alone. From HARD up, start mode runs SMITH at xhigh; auto runs a 3× opus/high panel and an
-  opus/xhigh arbiter that backstops every outcome except a unanimous refute. A sub-HARD auto panel
-  only fed an arbiter that re-reviewed the diff anyway.
-- **Effort is set by picking the agent.** The Agent tool now takes a per-call `effort`, but the band
-  reads effort from agent frontmatter (the spawn event carries none), so each off-default effort
-  keeps a twin agent
-  (`plan-reviewer-xhigh`, `reviewer-xhigh`, `reviewer-medium`) with the same instructions (`test/test_agent_variants.py` fails if they
-  drift) and its own `effort:`. Edit the base file, then copy its body into every twin.
-- **Never `max`, never `low`.** `max` is uncapped thinking for a marginal gain; below medium,
-  critique quality drops faster than the tokens it saves.
+- **The diff verdict is opus/high at NORMAL, fable/high from HARD up, absent at TRIVIAL.** At
+  NORMAL both modes run AGENT SMITH alone. From HARD up, start mode runs SMITH on fable/high; auto
+  runs a 3× opus/high panel and a fable/high arbiter that backstops every outcome except a
+  unanimous refute. A sub-HARD auto panel only fed an arbiter that re-reviewed the diff anyway.
+- **The seat is set by picking the agent.** The Agent tool takes a per-call `model` and `effort`,
+  but the band reads both from agent frontmatter (the spawn event carries no effort), so each
+  off-default seat keeps a twin agent (`plan-reviewer-fable`, `plan-reviewer-medium`,
+  `reviewer-fable`, `reviewer-medium`) with the same instructions
+  (`test/test_agent_variants.py` fails if they drift) and its own `model:` / `effort:`. Edit the
+  base file, then copy its body into every twin.
+- **Never `max`, never `xhigh`, never `low` on a pipeline agent.** `max` is uncapped thinking for
+  a marginal gain; `xhigh` has no measured gain here; below medium, critique quality drops faster
+  than the tokens it saves.
+- **The orchestrator runs at medium.** `/anderson:start`, `approve-plan`, `rework` and
+  `approve-diff` set `effort: medium` in their frontmatter (it lasts for that turn only): they
+  route, dispatch and print cards. A main session left at `high` on Fable thinks before every
+  step of that routing. `/anderson:auto` keeps the session's own effort: it is one long
+  unattended turn, and lower effort stops early more often.
 
-## Why no Fable
+## The short path (TRIVIAL)
 
-Opus 5.5 beats Fable 5.1 on every benchmark Anthropic published at launch (2026-09-22):
+A TRIVIAL plan (Risk ≤ 2, Coupling ≤ 3, Confidence ≥ 8, and nothing the HARD rule catches) runs
+four steps and no more: **plan → grill → plan review → implement**.
 
-| Benchmark | Opus 5.5 | Fable 5.1 |
-|---|---|---|
-| Terminal-Bench 4.0 (agentic coding) | **66.4%** | 55.8% |
-| CursorBench 4.0 | **57.8%** | 51.8% |
-| FrontierCode v1.1 | **54.4%** | 50.3% |
-| AutomationBench | **40.0%** | 31.4% |
-| GDPval-AA v2.1 (Elo) | **1846** | 1735 |
-| Humanity's Last Exam | **67.7%** | 65.6% |
-| OSWorld 2.0 | **81.8%** | 80.7% |
+| Step | What runs at TRIVIAL |
+|---|---|
+| plan | opus/medium, told to keep a trivial plan short |
+| grill | only LB decisions and `derived` criteria reach you; none of either, no conversation |
+| plan review | opus/medium, no crew seats unless the plan's Crew hint names one |
+| implement | sonnet/medium, with its own tests, typecheck and lint |
+| diff review | NO DIFF REVIEW: Gate 2 shows you the diff (auto: CI veto + frozen test, then the draft PR) |
 
-It also costs 2.5× less per token (see the API pricing docs), and on a long real task (a C-to-Rust
-port) it finished faster at about half Fable's cost. Anthropic's own caveat: "the gap between
-Opus 5.5 and Claude Fable 5.1 is narrower than these scores suggest." Even at parity, a model at
-40% of the per-token price wins every critique seat, so the `--opus` / `--fable` flags and the
-`review_model` state field are gone.
+Why it is safe to skip the diff review there, and only there:
+- The tier is checked three times. The planner scores it, the plan-reviewer re-scores it in the
+  Reviewer column, and the real diff is measured. Any one of them above TRIVIAL brings the diff
+  review back; the tier only escalates.
+- The HARD rule runs first, so a change to auth, secrets, concurrency or an entry point is never
+  TRIVIAL, whatever its scores.
+- The 4 trivial runs in `runs.jsonl` had 0 rework rounds: the diff review found nothing to send
+  back at this tier.
+- You still read the diff at Gate 2 (gated) or on the draft PR (auto), and both say no review ran.
 
-What is not measured: no public head-to-head code-review benchmark exists, and these stages do
-single-pass critique, not the long agentic runs the benchmarks score. If reviews start missing
-things, lift effort in the thinnest seat first (NORMAL diff review) before reaching for a model.
+A change you can already see (a typo, a renamed label, a one-line fix) does not need anderson at
+all: ask for it directly. The pipeline starts paying for itself when the plan is worth reviewing.
+
+## Where Fable sits
+
+| Seat | Tier | Was (0.53 to 0.75) | Now |
+|---|---|---|---|
+| Plan review (THE ORACLE) | CRITICAL | opus/xhigh | fable/high |
+| Diff review (AGENT SMITH), start mode | HARD, CRITICAL | opus/xhigh | fable/high |
+| Arbiter, auto mode | HARD, CRITICAL | opus/xhigh | fable/high |
+
+Everything else stays where it was: Opus for the planner, the NORMAL reviews, the panel, the
+crew and repair; Sonnet for the implementer and the prototyper.
+
+Why these seats and no others. Anthropic's own guidance on Fable 5.2 is that Opus 5.5 stays the
+default for most workloads, and Fable is for when Opus at higher effort still falls short. That
+is the definition of the escalation seat: the tier already says this change needs more than
+opus/high. Fable 5.2 costs about twice Opus 5.5 per token (API pricing docs), so it sits where one
+verdict decides whether a risky diff ships, not on every seat. It runs at `high` because most
+of its gain arrives by `high` and the levels above it are uneven.
+
+History: 0.53.0 dropped Fable entirely, because Opus 5.5 beat Fable 5.1 on every launch benchmark
+at 2.5× less per token. Fable 5.2 is a different model at a lower price, and it comes back only
+into the seats above.
+
+What is not measured: no public head-to-head code-review benchmark exists, and this placement
+follows published guidance, not our own runs. `runlog.py --summary` prints rework rate and median
+tokens per tier; compare HARD before and after 0.76.0 before moving Fable to more seats or
+taking it off these. Fable 5.2 also runs safety classifiers that can decline security-heavy
+work; SERAPH stays on Opus, and a declined review falls back per your Claude Code settings.
 
 ## Model IDs
 

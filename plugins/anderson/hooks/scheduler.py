@@ -76,11 +76,10 @@ def main():
     nxt, gate, directive = NEXT[stage]; t = setf(t, "stage", nxt)
     if gate == "grill":
         open(path, "w").write(setf(t, "gate", "human"))
-        notice = (f"GRILL ('{task}'): plan drafted. Grill it now — relentless, one question at "
-                  "a time, down each branch of the decision tree, recommending an answer to each; "
-                  "explore the codebase instead of asking when you can; fold every resolved "
-                  "decision into plan.md. When you're satisfied it advances to plan-review. "
-                  "No subagent runs here — this step is you.")
+        notice = (f"GRILL ('{task}'): plan drafted. Run the GRILL step of /anderson:start as "
+                  "written there: route the tier first, triage the questions from plan.md, and "
+                  "skip the conversation when none is 🔴 (a TRIVIAL plan asks only its LB rows "
+                  "and `derived` criteria). No subagent runs here — this step is you.")
         emit({"hookSpecificOutput": {"hookEventName": hook_event, "additionalContext": notice}})
     elif gate:
         v = field(t, "diff_verdict" if nxt == "diff_review" else "plan_verdict")

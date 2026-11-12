@@ -126,17 +126,20 @@ rigor budget sits at the diff gate, sized by tier.
 ### Plan gate (gate 4)
 - Mechanical criteria-coverage check + **one** `plan-reviewer` with a refute posture: *"Refute this
   plan. Find why it fails or misses an acceptance criterion. Default to reject if uncertain."*
-- **Runs on every tier** (opus/high, opus/xhigh at critical). Pass requires `ship` **and** every acceptance criterion
+- **Runs on every tier** (opus/high; opus/medium at trivial, fable/high at critical). Pass requires `ship` **and** every acceptance criterion
   mapped to a plan step. One bounded plan-rework on failure, then abort.
 
 ### Diff gate (gate 7)
 - **CI is a veto, not a vote**: it runs FIRST and a red build short-circuits before any reviewer
   tokens are spent. The one gate the model cannot talk its way past.
-- **Trivial/normal: AGENT SMITH alone** (opus/high), blind to the implementer's reasoning, judging
+- **Trivial: no diff review.** The CI veto, the frozen test and the tamper guard are the gate;
+  the draft PR states that no review ran. The tier is re-checked first against the plan-reviewer's
+  scores and the real diff, and any escalation brings the review back.
+- **Normal: AGENT SMITH alone** (opus/high), blind to the implementer's reasoning, judging
   correctness, regressions/security and plan-match in one pass. His verdict is the gate. A sub-HARD
   panel only fed an arbiter that re-reviewed the diff anyway, so it was pure cost.
 - **Hard/critical: 3 blind panelists + arbiter.** Three `reviewer`s (opus/high), one lens each, run
-  in parallel, blind to `audit.md` and to each other. One opus/xhigh arbiter runs on every outcome
+  in parallel, blind to `audit.md` and to each other. One fable/high arbiter runs on every outcome
   except a unanimous refute: it resolves a split **on merit, not headcount**, and signs off a
   unanimous *ship* by re-reviewing independently, justified in a required `## Options considered`
   (+/−) table.

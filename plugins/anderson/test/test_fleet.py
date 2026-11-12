@@ -259,10 +259,10 @@ class TestRepairPersona(unittest.TestCase):
 
     def test_review_stages_size_effort_by_tier(self):
         spec = lambda stage, tier: fleet.PERSONA[stage][2].format(**fleet.review_effort(tier))
-        self.assertEqual([spec("plan_review", t) for t in ("trivial", "hard", "critical")],
-                         ["opus/high", "opus/high", "opus/xhigh"])
-        self.assertEqual([spec("diff_review", t) for t in (None, "normal", "hard", "critical")],
-                         ["opus/high", "opus/high", "opus/xhigh", "opus/xhigh"])
+        self.assertEqual([spec("plan_review", t) for t in ("trivial", "normal", "hard", "critical")],
+                         ["opus/medium", "opus/high", "opus/high", "fable/high"])
+        self.assertEqual([spec("diff_review", t) for t in (None, "trivial", "normal", "hard", "critical")],
+                         ["opus/high", "off", "opus/high", "fable/high", "fable/high"])
 
     def test_the_stage_renders_a_row_and_a_next_step(self):
         row = {**fleet._WS_BASE, "sid": "s", "repo": "r", "task": "t", "kind": None,

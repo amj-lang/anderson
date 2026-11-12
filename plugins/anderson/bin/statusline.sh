@@ -38,15 +38,19 @@ if [ -n "$st" ] && [ -f "$st" ]; then
   stage="$(field stage "$st")"
   task="$(field task "$st")"
   tier="$(field tier "$st")"
-  pre=high; dre=high                       # review effort by tier (docs/tiering.md)
-  case "$tier" in critical) pre=xhigh; dre=xhigh ;; hard) dre=xhigh ;; esac
+  pre=opus/high; dre=opus/high             # review model/effort by tier (docs/tiering.md)
+  case "$tier" in
+    critical) pre=fable/high; dre=fable/high ;;
+    hard)     dre=fable/high ;;
+    trivial)  pre=opus/medium; dre=off ;;  # trivial has no diff reviewer: Gate 2 is you
+  esac
   case "$stage" in
     plan)        who="THE ARCHITECT · opus/medium" ;;
     grill)       who="THE INTERROGATOR · you" ;;
-    plan_review) who="THE ORACLE · opus/$pre" ;;
+    plan_review) who="THE ORACLE · $pre" ;;
     implement)   who="NEO · sonnet/medium" ;;
     repair)      who="TRINITY · opus/high" ;;
-    diff_review) who="AGENT SMITH · opus/$dre" ;;
+    diff_review) who="AGENT SMITH · $dre" ;;
     done)        who="shipped" ;;
     *)           who="${stage:-?}" ;;
   esac

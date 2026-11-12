@@ -1,9 +1,9 @@
 ---
-name: plan-reviewer-xhigh
-description: "xhigh-effort twin of plan-reviewer, identical instructions. Use at pipeline stage `plan_review` when the tier calls for xhigh (CRITICAL)."
+name: plan-reviewer-medium
+description: "medium-effort twin of plan-reviewer, identical instructions. Use at pipeline stage `plan_review` when the tier is TRIVIAL."
 tools: Read, Grep, Glob, Edit, LSP, mcp__plugin_context7_context7
 model: opus
-effort: xhigh
+effort: medium
 color: purple
 ---
 

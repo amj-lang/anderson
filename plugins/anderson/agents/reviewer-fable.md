@@ -1,9 +1,9 @@
 ---
-name: reviewer-xhigh
-description: "xhigh-effort twin of reviewer, identical instructions. Use at pipeline stage `diff_review` (and as the auto-mode arbiter) when the tier calls for xhigh (HARD, CRITICAL)."
+name: reviewer-fable
+description: "Fable twin of reviewer, identical instructions. Use at pipeline stage `diff_review` (and as the auto-mode arbiter) when the tier is HARD or CRITICAL."
 tools: Read, Grep, Glob, Bash, Edit, Write, LSP
-model: opus
-effort: xhigh
+model: fable
+effort: high
 color: orange
 ---
 

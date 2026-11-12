@@ -17,13 +17,15 @@ def _run(state_body):
 
 
 class TestStatusline(unittest.TestCase):
-    def test_plan_review_high_until_critical(self):
+    def test_plan_review_medium_at_trivial_fable_at_critical(self):
+        self.assertIn(b"opus/medium", _run("task: x\nstage: plan_review\ntier: trivial\n").stdout)
         self.assertIn(b"opus/high", _run("task: x\nstage: plan_review\ntier: hard\n").stdout)
-        self.assertIn(b"opus/xhigh", _run("task: x\nstage: plan_review\ntier: critical\n").stdout)
+        self.assertIn(b"fable/high", _run("task: x\nstage: plan_review\ntier: critical\n").stdout)
 
-    def test_diff_review_xhigh_from_hard(self):
+    def test_diff_review_fable_from_hard_off_at_trivial(self):
         self.assertIn(b"opus/high", _run("task: x\nstage: diff_review\n").stdout)
-        self.assertIn(b"opus/xhigh", _run("task: x\nstage: diff_review\ntier: hard\n").stdout)
+        self.assertIn(b"fable/high", _run("task: x\nstage: diff_review\ntier: hard\n").stdout)
+        self.assertIn(b"AGENT SMITH \xc2\xb7 off", _run("task: x\nstage: diff_review\ntier: trivial\n").stdout)
 
 
 if __name__ == "__main__":

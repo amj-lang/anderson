@@ -1,5 +1,6 @@
 ---
 description: "Quick-reference card: all anderson commands, arguments, gates, and tiers. One-shot display, reads nothing."
+effort: low
 ---
 Print the reference card below exactly as written — no tools, no state reads, no
 additions, no commentary before or after. It is static help, not a dashboard
@@ -20,8 +21,8 @@ ANDERSON — gated build loop: plan → grill → plan-review 🛑 → implement
   /anderson:fleet                                      THE OPERATOR: launch card for the cross-repo session monitor
   /anderson:help                                       this card
 
-  models:   planner opus/medium · plan-review opus (a rung above the planner) · implementer
-            sonnet/medium · repair opus/high · diff-review/arbiter opus. No flags, no Fable.
+  models:   planner opus/medium · implementer sonnet/medium · repair opus/high · reviews opus,
+            fable/high where the tier escalates (see tier). No flags.
 
   crew:     bin/crew.py summons lens seats twice. Plan review: SERAPH (security) and NIOBE
             (performance) judge the design, THE ORACLE rules. Diff review: SERAPH, NIOBE and
@@ -37,8 +38,12 @@ ANDERSON — gated build loop: plan → grill → plan-review 🛑 → implement
             flake · replan · needs-human; budget 2 rounds, then it escalates to you.
 
   tier:     trivial|normal|hard|critical, derived from the plan Scorecard, re-tiered on the
-            real diff (escalates only). Drives review effort — plan-review high (xhigh at
-            critical), diff-review/arbiter high (xhigh at hard/critical).
+            real diff (escalates only). Sizes the reviews:
+              trivial   plan-review opus/medium · no crew · no diff review (you read the diff)
+              normal    plan-review opus/high   · diff-review opus/high
+              hard      plan-review opus/high   · diff-review fable/high (auto: panel + fable arbiter)
+              critical  plan-review fable/high  · diff-review fable/high
+            A one-line fix you can already see does not need anderson at all: just ask for it.
             See docs/tiering.md.
 
   slices:   planner sizes the job (~tokens / 250k). 2+ slices → Gate 1 offers a split: slices

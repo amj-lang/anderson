@@ -54,11 +54,11 @@ G = dict(UNI)
 PERSONA = {
     "plan":        ("arch",  "ARCHITECT",    "opus/medium",   "design"),
     "grill":       ("grill", "INTERROGATOR", "you",           "insight"),
-    "plan_review": ("orac",  "ORACLE",       "opus/{pe}",     "insight"),
+    "plan_review": ("orac",  "ORACLE",       "{pe}",          "insight"),
     "implement":   ("neo",   "NEO",          "sonnet/medium", "action"),
     "repair":      ("trin",  "TRINITY",      "opus/high",     "action"),
-    "diff_review": ("smith", "AGENT SMITH",  "opus/{de}",     "adversary"),
-    "done":        ("one",   "THE ONE",      "shipped",       "mentor"),
+    "diff_review": ("smith", "AGENT SMITH",  "{de}",          "adversary"),
+    "done":       ("one",   "THE ONE",      "shipped",       "mentor"),
     "aborted":     ("smith", "AGENT SMITH",  "aborted",       "adversary"),
 }
 PGLYPH_UNI = dict(arch="▲", grill="◇", orac="◎", neo="●", trin="✚", smith="▣", one="★", none="○")
@@ -663,9 +663,11 @@ def enrich(s, now):
 
 
 def review_effort(tier):
-    """Tier -> review effort (docs/tiering.md): plan-review xhigh only at critical, diff-review from hard."""
+    """Tier -> review model/effort (docs/tiering.md): fable/high replaces opus at critical (plan review)
+    and from hard (diff review); trivial reviews the plan at medium and has no diff reviewer."""
     t = (tier or "").lower()
-    return {"pe": "xhigh" if t == "critical" else "high", "de": "xhigh" if t in ("hard", "critical") else "high"}
+    return {"pe": {"trivial": "opus/medium", "critical": "fable/high"}.get(t, "opus/high"),
+            "de": {"trivial": "off", "hard": "fable/high", "critical": "fable/high"}.get(t, "opus/high")}
 
 
 def _short_model(m):
