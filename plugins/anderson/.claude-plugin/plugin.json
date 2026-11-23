@@ -1,6 +1,6 @@
 {
   "name": "anderson",
-  "version": "0.76.0",
+  "version": "0.77.0",
   "description": "Gated maker/checker pipeline: plan (opus/medium) -> grill (you harden it) -> plan-review -> [human] -> implement (sonnet/medium) -> diff-review (read-only) -> [human], then ship (commit + PR). Reviews are tiered off the plan Scorecard: trivial skips the diff review, hard runs it on fable/high, critical runs both reviews on fable/high. Self-contained agents; no external skills required. Big tasks are sized by tokens and built in slices stacked on one branch and one PR, with contracts between slices.",
   "author": {
     "name": "Alexander McLean-Janet"

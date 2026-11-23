@@ -19,7 +19,8 @@ verbatim as the branch name instead of `anderson/<task>`. Refer to the task by i
 below; `<task>` means the key.
 
 MODELS: fixed per tier, no flag. Planner opus/medium, implementer sonnet/medium, test-fixer
-opus/high; the two review seats per REVIEW SEATS. Why: docs/tiering.md.
+opus/high; the two review seats per REVIEW SEATS. Why: docs/tiering.md. Never pass `model`
+on an Agent call: frontmatter decides, and hooks/model_guard.py denies the override.
 
 TIER: difficulty routing, so a one-line fix does not pay for the pipeline a risky change needs.
 Computed at step 3b from the planner's `## 📈 Scorecard` (it does not exist before the
