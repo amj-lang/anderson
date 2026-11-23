@@ -16,6 +16,7 @@
       { "hooks": [ { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/hooks/fleet_event.py" } ] }
     ],
     "PreToolUse": [
+      { "matcher": "Agent|Task", "hooks": [ { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/hooks/model_guard.py" } ] },
       { "hooks": [ { "type": "command", "command": "python3 \"${CLAUDE_PLUGIN_ROOT}\"/hooks/fleet_event.py" } ] }
     ],
     "PostToolUse": [

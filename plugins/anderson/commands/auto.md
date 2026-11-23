@@ -19,7 +19,8 @@ MODELS: fixed per tier, no flag (docs/tiering.md). Planner opus/medium; plan-rev
 (opus/medium at TRIVIAL, fable/high at CRITICAL); implementer sonnet/medium; test-fixer opus/high;
 diff gate: NO DIFF REVIEW at TRIVIAL (CI veto and the frozen test are the gate); AGENT SMITH
 alone at opus/high at NORMAL; from HARD up a 3× opus/high panel plus a fable/high arbiter
-(step 7f/7g).
+(step 7f/7g). Never pass `model` on an Agent call: frontmatter decides (hooks/model_guard.py
+denies the override).
 
 Unlike gated commands, this command NEVER prints a GATE line and NEVER halts for a human — self-sequences all 9 steps in one turn.
 Terminal states: SHIP (stage: done, draft PR) or abort (stage: aborted with structured report).
